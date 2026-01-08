@@ -53,8 +53,17 @@ build:
 	mkdir -p build
 	mkdir -p build/tests
 # Test target
-test: build/tests/test_gemm
+test: build/tests/test_gemm build/tests/test_transpose build/tests/test_contiguous
 	build/tests/test_gemm
+	build/tests/test_transpose
+	build/tests/test_contiguous
+
+build/tests/test_contiguous.o: tests/test_contiguous.c include/cgrad_tensor.h
+	mkdir -p build/tests
+	$(CC) $(CFLAGS) -c tests/test_contiguous.c -o build/tests/test_contiguous.o
+
+build/tests/test_contiguous: build/tests/test_contiguous.o build/cgrad_tensor.o
+	$(CC) $(CFLAGS) build/tests/test_contiguous.o build/cgrad_tensor.o -o build/tests/test_contiguous $(LDFLAGS)
 
 build/tests/test_gemm.o: tests/test_gemm.c include/cgrad_tensor.h
 	mkdir -p build/tests
@@ -62,6 +71,13 @@ build/tests/test_gemm.o: tests/test_gemm.c include/cgrad_tensor.h
 
 build/tests/test_gemm: build/tests/test_gemm.o build/cgrad_tensor.o
 	$(CC) $(CFLAGS) build/tests/test_gemm.o build/cgrad_tensor.o -o build/tests/test_gemm $(LDFLAGS)
+
+build/tests/test_transpose.o: tests/test_transpose.c include/cgrad_tensor.h
+	mkdir -p build/tests
+	$(CC) $(CFLAGS) -c tests/test_transpose.c -o build/tests/test_transpose.o
+
+build/tests/test_transpose: build/tests/test_transpose.o build/cgrad_tensor.o
+	$(CC) $(CFLAGS) build/tests/test_transpose.o build/cgrad_tensor.o -o build/tests/test_transpose $(LDFLAGS)
 
 # Cleanup
 clean: clean_openblas

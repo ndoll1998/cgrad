@@ -35,6 +35,10 @@ int cgrad_tensor_f64_fill_rand(cgrad_tensor_f64* t);
 // Indexing
 size_t cgrad_tensor_flat_index(const uint32_t* indices, const uint32_t* strides, int ndim);
 float* cgrad_tensor_f32_ptr(cgrad_tensor_f32* t, const uint32_t* indices);
+void cgrad_tensor_f32_set(cgrad_tensor_f32* t, const uint32_t* indices, float value);
+
+// Make a contiguous copy of a tensor (arbitrary MAX_TENSOR_DIM)
+int cgrad_tensor_f32_make_contiguous(const cgrad_tensor_f32* src, cgrad_tensor_f32* dst);
 
 // GEMM
 int cgrad_tensor_f32_gemm(
@@ -49,5 +53,8 @@ void cgrad_tensor_f64_free(cgrad_tensor_f64* t);
 
 // Print
 void cgrad_tensor_f32_print(const cgrad_tensor_f32* t);
+
+// Transpose: perm is an array of length MAX_TENSOR_DIM, giving the new order of axes
+void cgrad_tensor_f32_transpose(cgrad_tensor_f32* t, const uint32_t* perm);
 
 #endif // CGRAD_TENSOR_H
