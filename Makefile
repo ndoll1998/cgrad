@@ -13,9 +13,10 @@ OPENBLAS_PREFIX  ?= $(CURDIR)/deps/OpenBLAS
 # Compiler / Project
 # -----------------------------
 CC      := gcc
-CFLAGS  := -I$(OPENBLAS_PREFIX)/include
+CFLAGS  := -I$(OPENBLAS_PREFIX)/include -Iinclude
 LDFLAGS := -L$(OPENBLAS_PREFIX)/lib -lopenblas
-SRC     := src/main.c
+SRC     := src/main.c src/cgrad_tensor.c
+OBJ     := build/main.o build/cgrad_tensor.o
 OUT     := main
 
 # -----------------------------
@@ -34,15 +35,28 @@ install_openblas:
 		make && \
 		make install PREFIX=$(OPENBLAS_PREFIX)
 
-# Compile src/main.c
+# Build object files and link
+build: $(OUT)
+
+build/main.o: src/main.c include/cgrad_tensor.h
+	mkdir -p build
+	$(CC) $(CFLAGS) -c src/main.c -o build/main.o
+
+build/cgrad_tensor.o: src/cgrad_tensor.c include/cgrad_tensor.h
+	mkdir -p build
+	$(CC) $(CFLAGS) -c src/cgrad_tensor.c -o build/cgrad_tensor.o
+
+$(OUT): $(OBJ)
+	$(CC) $(CFLAGS) $(OBJ) -o $(OUT) $(LDFLAGS)
+
 build:
-	@echo "==> Compiling $(SRC)"
-	$(CC) $(CFLAGS) $(SRC) -o $(OUT) $(LDFLAGS)
+	mkdir -p build
 
 # Cleanup
 clean: clean_openblas
 	@echo "==> Cleaning project"
 	@rm -f $(OUT)
+	@rm -rf build
 
 clean_openblas:
 	@rm -rf $(OPENBLAS_TMPDIR)
