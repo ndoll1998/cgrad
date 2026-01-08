@@ -22,7 +22,7 @@ OUT     := main
 # -----------------------------
 # Targets
 # -----------------------------
-.PHONY: install_openblas clean_openblas build clean
+.PHONY: install_openblas clean_openblas build clean test
 
 # Install OpenBLAS
 install_openblas:
@@ -51,6 +51,17 @@ $(OUT): $(OBJ)
 
 build:
 	mkdir -p build
+	mkdir -p build/tests
+# Test target
+test: build/tests/test_gemm
+	build/tests/test_gemm
+
+build/tests/test_gemm.o: tests/test_gemm.c include/cgrad_tensor.h
+	mkdir -p build/tests
+	$(CC) $(CFLAGS) -c tests/test_gemm.c -o build/tests/test_gemm.o
+
+build/tests/test_gemm: build/tests/test_gemm.o build/cgrad_tensor.o
+	$(CC) $(CFLAGS) build/tests/test_gemm.o build/cgrad_tensor.o -o build/tests/test_gemm $(LDFLAGS)
 
 # Cleanup
 clean: clean_openblas
