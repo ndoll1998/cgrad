@@ -15,8 +15,8 @@ OPENBLAS_PREFIX  ?= $(CURDIR)/deps/OpenBLAS
 CC      := gcc
 CFLAGS  := -I$(OPENBLAS_PREFIX)/include -Iinclude
 LDFLAGS := -L$(OPENBLAS_PREFIX)/lib -lopenblas
-SRC     := src/main.c src/cgrad_tensor.c
-OBJ     := build/main.o build/cgrad_tensor.o
+SRC     := src/main.c src/cgrad_tensor.c src/cgrad_layout.c
+OBJ     := build/main.o build/cgrad_tensor.o build/cgrad_layout.o
 OUT     := main
 
 # -----------------------------
@@ -46,6 +46,10 @@ build/cgrad_tensor.o: src/cgrad_tensor.c include/cgrad_tensor.h
 	mkdir -p build
 	$(CC) $(CFLAGS) -c src/cgrad_tensor.c -o build/cgrad_tensor.o
 
+build/cgrad_layout.o: src/cgrad_layout.c include/cgrad_layout.h
+	mkdir -p build
+	$(CC) $(CFLAGS) -c src/cgrad_layout.c -o build/cgrad_layout.o
+
 $(OUT): $(OBJ)
 	$(CC) $(CFLAGS) $(OBJ) -o $(OUT) $(LDFLAGS)
 
@@ -62,29 +66,29 @@ build/tests/test_contiguous.o: tests/test_contiguous.c include/cgrad_tensor.h
 	mkdir -p build/tests
 	$(CC) $(CFLAGS) -c tests/test_contiguous.c -o build/tests/test_contiguous.o
 
-build/tests/test_contiguous: build/tests/test_contiguous.o build/cgrad_tensor.o
-	$(CC) $(CFLAGS) build/tests/test_contiguous.o build/cgrad_tensor.o -o build/tests/test_contiguous $(LDFLAGS)
+build/tests/test_contiguous: build/tests/test_contiguous.o build/cgrad_tensor.o build/cgrad_layout.o
+	$(CC) $(CFLAGS) build/tests/test_contiguous.o build/cgrad_tensor.o build/cgrad_layout.o -o build/tests/test_contiguous $(LDFLAGS)
 
 build/tests/test_gemm.o: tests/test_gemm.c include/cgrad_tensor.h
 	mkdir -p build/tests
 	$(CC) $(CFLAGS) -c tests/test_gemm.c -o build/tests/test_gemm.o
 
-build/tests/test_gemm: build/tests/test_gemm.o build/cgrad_tensor.o
-	$(CC) $(CFLAGS) build/tests/test_gemm.o build/cgrad_tensor.o -o build/tests/test_gemm $(LDFLAGS)
+build/tests/test_gemm: build/tests/test_gemm.o build/cgrad_tensor.o build/cgrad_layout.o
+	$(CC) $(CFLAGS) build/tests/test_gemm.o build/cgrad_tensor.o build/cgrad_layout.o -o build/tests/test_gemm $(LDFLAGS)
 
 build/tests/test_transpose.o: tests/test_transpose.c include/cgrad_tensor.h
 	mkdir -p build/tests
 	$(CC) $(CFLAGS) -c tests/test_transpose.c -o build/tests/test_transpose.o
 
-build/tests/test_transpose: build/tests/test_transpose.o build/cgrad_tensor.o
-	$(CC) $(CFLAGS) build/tests/test_transpose.o build/cgrad_tensor.o -o build/tests/test_transpose $(LDFLAGS)
+build/tests/test_transpose: build/tests/test_transpose.o build/cgrad_tensor.o build/cgrad_layout.o
+	$(CC) $(CFLAGS) build/tests/test_transpose.o build/cgrad_tensor.o build/cgrad_layout.o -o build/tests/test_transpose $(LDFLAGS)
 
 build/tests/bench_contiguous.o: tests/bench_contiguous.c include/cgrad_tensor.h
 	mkdir -p build/tests
 	$(CC) $(CFLAGS) -c tests/bench_contiguous.c -o build/tests/bench_contiguous.o
 
-build/tests/bench_contiguous: build/tests/bench_contiguous.o build/cgrad_tensor.o
-	$(CC) $(CFLAGS) build/tests/bench_contiguous.o build/cgrad_tensor.o -o build/tests/bench_contiguous $(LDFLAGS)
+build/tests/bench_contiguous: build/tests/bench_contiguous.o build/cgrad_tensor.o build/cgrad_layout.o
+	$(CC) $(CFLAGS) build/tests/bench_contiguous.o build/cgrad_tensor.o build/cgrad_layout.o -o build/tests/bench_contiguous $(LDFLAGS)
 
 bench: build/tests/bench_contiguous
 	build/tests/bench_contiguous

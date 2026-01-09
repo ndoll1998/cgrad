@@ -1,22 +1,11 @@
 #include "cgrad_tensor.h"
+#include "cgrad_layout.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
 
-// Layout/tensor initialization
-int cgrad_tensor_layout_init(cgrad_tensor_layout* l, const uint32_t* shape) {
-  uint32_t cur_stride = 1;
-  # pragma unroll
-  for (int i = MAX_TENSOR_DIM - 1; i > -1; i--) {
-      l->strides[i] = cur_stride;
-      l->shape[i] = shape[i];
-      cur_stride *= shape[i];
-  }
-  l->size = cur_stride;
-  return 0;
-}
-
+// Init
 int cgrad_tensor_f32_init(cgrad_tensor_f32* t, const uint32_t* shape) {
   if (!t || !shape) return -1;
   if (cgrad_tensor_layout_init(&t->layout, shape)) return -1;
@@ -48,15 +37,6 @@ int cgrad_tensor_f64_fill_rand(cgrad_tensor_f64* t) {
   return 0;
 }
 
-// Indexing
-size_t cgrad_tensor_flat_index(const uint32_t* indices, const uint32_t* strides) {
-  size_t idx = 0;
-  for (int i = 0; i < MAX_TENSOR_DIM; i++) {
-    idx += indices[i] * strides[i];
-  }
-  return idx;
-}
-
 float* cgrad_tensor_f32_ptr(const cgrad_tensor_f32* t, const uint32_t* indices) {
   size_t idx = cgrad_tensor_flat_index(indices, t->layout.strides);
   return t->data + idx;
@@ -66,16 +46,29 @@ int cgrad_tensor_f32_contiguous(const cgrad_tensor_f32* src, cgrad_tensor_f32* d
   if (!src || !dst) return -1;
   if (cgrad_tensor_f32_init(dst, src->layout.shape)) return -1;
 
+  uint32_t block_size = src->layout.shape[MAX_TENSOR_DIM-1];
+  uint32_t block_ndim = 1;
+
+  while (
+    block_ndim < MAX_TENSOR_DIM
+    && (
+      src->layout.strides[MAX_TENSOR_DIM - block_ndim - 1]
+      == src->layout.shape[MAX_TENSOR_DIM - block_ndim] * src->layout.strides[MAX_TENSOR_DIM - block_ndim]
+    )
+  ) {
+    block_size *= src->layout.shape[MAX_TENSOR_DIM - block_ndim - 1];
+    block_ndim++;
+  }
+
   uint32_t idx[MAX_TENSOR_DIM] = {0};
-  for (size_t offset = 0; offset < dst->layout.size; offset += dst->layout.shape[MAX_TENSOR_DIM-1]) {
+  for (size_t offset = 0; offset < dst->layout.size; offset += block_size) {
     // update indexes for non-contiguous dims
-    #pragma unroll
-    for (uint32_t d = 0; d < MAX_TENSOR_DIM - 1; d++) {
+    for (uint32_t d = 0; d < MAX_TENSOR_DIM - block_ndim; d++) {
       idx[d] = (offset / dst->layout.strides[d]) % dst->layout.shape[d];
     }
     // compute source and destination starting pointers
     cblas_scopy(
-      dst->layout.shape[MAX_TENSOR_DIM-1],
+      block_size,
       cgrad_tensor_f32_ptr(src, idx), src->layout.strides[MAX_TENSOR_DIM-1],
       cgrad_tensor_f32_ptr(dst, idx), 1
     );
@@ -241,16 +234,6 @@ void cgrad_tensor_f32_print(const cgrad_tensor_f32* t) {
   printf("\n");
 }
 
-// Transpose: perm is an array of length MAX_TENSOR_DIM, giving the new order of axes
 void cgrad_tensor_f32_transpose(cgrad_tensor_f32* t, const uint32_t* perm) {
-  uint32_t new_shape[MAX_TENSOR_DIM];
-  uint32_t new_strides[MAX_TENSOR_DIM];
-  for (int i = 0; i < MAX_TENSOR_DIM; i++) {
-    new_shape[i] = t->layout.shape[perm[i]];
-    new_strides[i] = t->layout.strides[perm[i]];
-  }
-  for (int i = 0; i < MAX_TENSOR_DIM; i++) {
-    t->layout.shape[i] = new_shape[i];
-    t->layout.strides[i] = new_strides[i];
-  }
+  cgrad_tensor_layout_transpose(&t->layout, perm);
 }
