@@ -4,7 +4,7 @@
 
 int main() {
   cgrad_tensor t1, t2, out;
-  uint32_t shapeA[] = {1, 1, 2, 3};
+  uint32_t shapeA[] = {1, 2, 2, 3};
   uint32_t shapeB[] = {1, 1, 2, 3};
 
   // initialize tensors (CPU backend)

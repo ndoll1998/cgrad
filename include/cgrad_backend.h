@@ -7,7 +7,7 @@
 // Enum for backend types
 typedef enum {
     CGRAD_BACKEND_F32_CPU = 0,
-    // Add more backends here (e.g., CGRAD_BACKEND_CUDA, CGRAD_BACKEND_METAL, ...)
+    // Add more backends here (e.g., CGRAD_BACKEND_F64_CPU, CGRAD_BACKEND_CUDA, ...)
 } cgrad_backend_type;
 
 struct cgrad_tensor_layout;

@@ -11,34 +11,18 @@ typedef struct cgrad_tensor_f32 {
   float* data;
 } cgrad_tensor_f32;
 
-// Tensor initialization
-int cgrad_tensor_f32_init(cgrad_tensor_f32* t, const uint32_t* shape);
-
-// Fill
-int cgrad_tensor_f32_fill_rand(cgrad_tensor_f32* t);
-
-// Indexing
-float* cgrad_tensor_f32_ptr(const cgrad_tensor_f32* t, const uint32_t* indices);
-void cgrad_tensor_f32_set(cgrad_tensor_f32* t, const uint32_t* indices, float value);
-
-// Make a contiguous copy of a tensor (arbitrary MAX_TENSOR_DIM)
-int cgrad_tensor_f32_contiguous(const cgrad_tensor_f32* src, cgrad_tensor_f32* dst);
-
-// GEMM
-int cgrad_tensor_f32_gemm(
-  cgrad_tensor_f32* a,
-  cgrad_tensor_f32* b,
+int cgrad_tensor_f32_cpu_init(cgrad_tensor_f32* t, const uint32_t* shape);
+int cgrad_tensor_f32_cpu_fill_rand(cgrad_tensor_f32* t);
+float* cgrad_tensor_f32_cpu_ptr(const cgrad_tensor_f32* t, const uint32_t* indices);
+void cgrad_tensor_f32_cpu_set(cgrad_tensor_f32* t, const uint32_t* indices, float value);
+int cgrad_tensor_f32_cpu_contiguous(const cgrad_tensor_f32* src, cgrad_tensor_f32* dst);
+int cgrad_tensor_f32_cpu_gemm(
+  const cgrad_tensor_f32* a,
+  const cgrad_tensor_f32* b,
   cgrad_tensor_f32* c
 );
-
-// Free
-void cgrad_tensor_f32_free(cgrad_tensor_f32* t);
-
-// Print
-void cgrad_tensor_f32_print(const cgrad_tensor_f32* t);
-
-// Transpose: perm is an array of length MAX_TENSOR_DIM, giving the new order of axes
-void cgrad_tensor_f32_transpose(cgrad_tensor_f32* t, const uint32_t* perm);
+void cgrad_tensor_f32_cpu_free(cgrad_tensor_f32* t);
+void cgrad_tensor_f32_cpu_print(const cgrad_tensor_f32* t);
+void cgrad_tensor_f32_cpu_transpose(cgrad_tensor_f32* t, const uint32_t* perm);
 
 #endif // CGRAD_TENSOR_F32_CPU_H
-// Transpose: perm is an array of length MAX_TENSOR_DIM, giving the new order of axes
