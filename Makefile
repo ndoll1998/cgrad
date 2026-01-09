@@ -1,7 +1,12 @@
-# -----------------------------
-# OpenBLAS Dependency
-# -----------------------------
+# =============================
+# cgrad Makefile (Simplified)
+# =============================
+
+# --------- Dependency Versions ---------
 OPENBLAS_VERSION := 0.3.30
+CMOCKA_VERSION   := 2.0.1
+
+# --------- Dependency Paths/URLs ---------
 OPENBLAS_NAME    := OpenBLAS-$(OPENBLAS_VERSION)
 OPENBLAS_URL     := https://github.com/OpenMathLib/OpenBLAS/releases/download/v$(OPENBLAS_VERSION)/$(OPENBLAS_NAME).tar.gz
 OPENBLAS_TARBALL := /tmp/$(OPENBLAS_NAME).tar.gz
@@ -9,44 +14,60 @@ OPENBLAS_TMPDIR  := /tmp/openblas_build
 OPENBLAS_SRCDIR  := $(OPENBLAS_TMPDIR)/$(OPENBLAS_NAME)
 OPENBLAS_PREFIX  ?= $(CURDIR)/deps/OpenBLAS
 
-# -----------------------------
-# CMocka Dependency
-# -----------------------------
-CMOCKA_VERSION := 2.0.1
-CMOCKA_NAME    := cmocka-$(CMOCKA_VERSION)
-CMOCKA_URL     := https://cmocka.org/files/2.0/$(CMOCKA_NAME).tar.xz
-CMOCKA_TARBALL := /tmp/$(CMOCKA_NAME).tar.xz
-CMOCKA_TMPDIR  := /tmp/cmocka_build
-CMOCKA_SRCDIR  := $(CMOCKA_TMPDIR)/$(CMOCKA_NAME)
-CMOCKA_PREFIX  ?= $(CURDIR)/deps/cmocka
+CMOCKA_NAME      := cmocka-$(CMOCKA_VERSION)
+CMOCKA_URL       := https://cmocka.org/files/2.0/$(CMOCKA_NAME).tar.xz
+CMOCKA_TARBALL   := /tmp/$(CMOCKA_NAME).tar.xz
+CMOCKA_TMPDIR    := /tmp/cmocka_build
+CMOCKA_SRCDIR    := $(CMOCKA_TMPDIR)/$(CMOCKA_NAME)
+CMOCKA_PREFIX    ?= $(CURDIR)/deps/cmocka
 
-# -----------------------------
-# Compiler / Project
-# -----------------------------
+# --------- Compiler/Flags ---------
 CC      := gcc
 CFLAGS  := -I$(OPENBLAS_PREFIX)/include -Iinclude
 LDFLAGS := -L$(OPENBLAS_PREFIX)/lib -lopenblas
-SRC     := src/main.c src/cgrad_tensor.c src/cgrad_layout.c src/cgrad_backend.c src/backends/cgrad_tensor_f32_cpu.c
-OBJ     := build/main.o build/cgrad_tensor.o build/cgrad_layout.o build/cgrad_backend.o build/cgrad_tensor_f32_cpu.o
-OUT     := main
 
-# -----------------------------
-# Targets
-# -----------------------------
-.PHONY: install_openblas install_criterion install_cmocka clean_openblas clean_criterion clean_cmocka build clean test
+# --------- Project Structure ---------
+SRC_DIR      := src
+BACKEND_DIR  := $(SRC_DIR)/backends
+INCLUDE_DIR  := include
+OBJ_DIR      := build
+TESTS_DIR    := tests
+TESTS_BACKEND_DIR := $(TESTS_DIR)/backends
+BUILD_TESTS_DIR   := $(OBJ_DIR)/tests
+BUILD_TESTS_BACKEND_DIR := $(BUILD_TESTS_DIR)/backends
 
-# Install OpenBLAS
+SRC_FILES := $(SRC_DIR)/main.c \
+             $(SRC_DIR)/cgrad_tensor.c \
+             $(SRC_DIR)/cgrad_layout.c \
+             $(SRC_DIR)/cgrad_backend.c \
+             $(BACKEND_DIR)/cgrad_tensor_f32_cpu.c
+
+OBJ_FILES := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(filter $(SRC_DIR)/%.c,$(SRC_FILES))) \
+             $(patsubst $(BACKEND_DIR)/%.c,$(OBJ_DIR)/backends/%.o,$(filter $(BACKEND_DIR)/%.c,$(SRC_FILES)))
+
+OUT := main
+
+# --------- Test Files ---------
+TEST_SOURCES := $(wildcard $(TESTS_DIR)/*.c)
+TEST_BACKEND_SOURCES := $(wildcard $(TESTS_BACKEND_DIR)/*.c)
+
+# --------- Phony Targets ---------
+.PHONY: all build test clean install_deps install_openblas install_cmocka clean_openblas clean_cmocka
+
+# --------- Default Target ---------
+all: build
+
+# --------- Dependency Installation ---------
+install_deps: install_openblas install_cmocka
+
 install_openblas:
 	@echo "==> Installing OpenBLAS $(OPENBLAS_VERSION)"
 	@rm -rf $(OPENBLAS_TMPDIR)
 	@mkdir -p $(OPENBLAS_TMPDIR)
 	@curl -L -o $(OPENBLAS_TARBALL) $(OPENBLAS_URL)
 	@tar -xzf $(OPENBLAS_TARBALL) -C $(OPENBLAS_TMPDIR)
-	@cd $(OPENBLAS_SRCDIR) && \
-		make && \
-		make install PREFIX=$(OPENBLAS_PREFIX)
+	@cd $(OPENBLAS_SRCDIR) && make && make install PREFIX=$(OPENBLAS_PREFIX)
 
-# Install CMocka
 install_cmocka:
 	@echo "==> Installing CMocka $(CMOCKA_VERSION) (static library only)"
 	@rm -rf $(CMOCKA_TMPDIR)
@@ -57,123 +78,84 @@ install_cmocka:
 	@cmake --build $(CMOCKA_SRCDIR)/build
 	@cmake --install $(CMOCKA_SRCDIR)/build
 
-# Build object files and link
+# --------- Build Rules ---------
 build: $(OUT)
 
-build/main.o: src/main.c include/cgrad_tensor.h
-	mkdir -p build
-	$(CC) $(CFLAGS) -c src/main.c -o build/main.o
+$(OUT): $(OBJ_FILES)
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
-build/cgrad_tensor.o: src/cgrad_tensor.c include/cgrad_tensor.h
-	mkdir -p build
-	$(CC) $(CFLAGS) -c src/cgrad_tensor.c -o build/cgrad_tensor.o
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+	@mkdir -p $(OBJ_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
 
-build/cgrad_layout.o: src/cgrad_layout.c include/cgrad_layout.h
-	mkdir -p build
-	$(CC) $(CFLAGS) -c src/cgrad_layout.c -o build/cgrad_layout.o
+$(OBJ_DIR)/backends/%.o: $(BACKEND_DIR)/%.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c $< -o $@
 
-build/cgrad_backend.o: src/cgrad_backend.c include/cgrad_backend.h
-	mkdir -p build
-	$(CC) $(CFLAGS) -c src/cgrad_backend.c -o build/cgrad_backend.o
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+	@mkdir -p $(OBJ_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
 
-build/cgrad_tensor_f32_cpu.o: src/backends/cgrad_tensor_f32_cpu.c include/backends/cgrad_tensor_f32_cpu.h
-	mkdir -p build
-	$(CC) $(CFLAGS) -c src/backends/cgrad_tensor_f32_cpu.c -o build/cgrad_tensor_f32_cpu.o
+# --------- Test Rules ---------
+TEST_BINS := \
+	$(BUILD_TESTS_DIR)/test_all \
+	$(BUILD_TESTS_DIR)/test_cgrad_tensor \
+	$(BUILD_TESTS_DIR)/test_cgrad_layout \
+	$(BUILD_TESTS_BACKEND_DIR)/test_cgrad_tensor_f32_cpu
 
-$(OUT): $(OBJ)
-	$(CC) $(CFLAGS) $(OBJ) -o $(OUT) $(LDFLAGS)
+BENCH_BIN := $(BUILD_TESTS_DIR)/bench_contiguous
 
-build:
-	mkdir -p build
-	mkdir -p build/tests
-	mkdir -p build/tests/backends
+test: 
+	@mkdir -p $(BUILD_TESTS_BACKEND_DIR)
+	$(MAKE) build
+	$(MAKE) $(TEST_BINS)
+	@for t in $(TEST_BINS); do echo "Running $$t"; $$t; done
 
-# Test target
-test: build/tests/test_all
-	build/tests/test_all
+bench: build $(BENCH_BIN)
+	@echo "Running benchmark: $(BENCH_BIN)"
+	@$(BENCH_BIN)
 
-build/tests/bench_contiguous.o: tests/bench_contiguous.c include/cgrad_tensor.h
-	mkdir -p build/tests
-	$(CC) $(CFLAGS) -c tests/bench_contiguous.c -o build/tests/bench_contiguous.o
+# Pattern rule for test object files
+$(BUILD_TESTS_DIR)/%.o: $(TESTS_DIR)/%.c
+	@mkdir -p $(BUILD_TESTS_DIR)
+	$(CC) -I$(CMOCKA_PREFIX)/include -I$(OPENBLAS_PREFIX)/include -Iinclude -c $< -o $@
 
-build/tests/bench_contiguous: build/tests/bench_contiguous.o build/cgrad_tensor.o build/cgrad_layout.o build/cgrad_backend.o build/cgrad_tensor_f32_cpu.o
-	$(CC) $(CFLAGS) build/tests/bench_contiguous.o build/cgrad_tensor.o build/cgrad_layout.o build/cgrad_backend.o build/cgrad_tensor_f32_cpu.o -o build/tests/bench_contiguous $(LDFLAGS)
+$(BUILD_TESTS_BACKEND_DIR)/%.o: $(TESTS_BACKEND_DIR)/%.c | $(BUILD_TESTS_BACKEND_DIR)
+	$(CC) -I$(CMOCKA_PREFIX)/include -I$(OPENBLAS_PREFIX)/include -Iinclude -c $< -o $@
 
-# CMocka test for cgrad_tensor_f32_cpu
-build/tests/backends/test_cgrad_tensor_f32_cpu.o: tests/backends/test_cgrad_tensor_f32_cpu.c include/backends/cgrad_tensor_f32_cpu.h
-	mkdir -p build/tests/backends
-	$(CC) -I$(CMOCKA_PREFIX)/include -I$(OPENBLAS_PREFIX)/include -Iinclude -c tests/backends/test_cgrad_tensor_f32_cpu.c -o build/tests/backends/test_cgrad_tensor_f32_cpu.o
+$(BUILD_TESTS_BACKEND_DIR):
+	mkdir -p $(BUILD_TESTS_BACKEND_DIR)
 
-build/tests/backends/test_cgrad_tensor_f32_cpu: build/tests/backends/test_cgrad_tensor_f32_cpu.o build/cgrad_tensor.o build/cgrad_layout.o build/cgrad_backend.o build/cgrad_tensor_f32_cpu.o
-	$(CC) build/tests/backends/test_cgrad_tensor_f32_cpu.o build/cgrad_tensor.o build/cgrad_layout.o build/cgrad_backend.o build/cgrad_tensor_f32_cpu.o $(CMOCKA_PREFIX)/lib/libcmocka.a -o build/tests/backends/test_cgrad_tensor_f32_cpu $(LDFLAGS)
+# Test binaries
+# Helper variable: all object files except main.o
+OBJ_NO_MAIN := $(filter-out $(OBJ_DIR)/main.o,$(OBJ_FILES))
 
-bench: build/tests/bench_contiguous
-	build/tests/bench_contiguous
+$(BUILD_TESTS_DIR)/test_all: $(BUILD_TESTS_DIR)/test_all.o $(OBJ_NO_MAIN)
+	$(CC) $^ $(CMOCKA_PREFIX)/lib/libcmocka.a -o $@ $(LDFLAGS)
 
-# CMocka test for cgrad_layout
-# Standalone test object files (with main)
-build/tests/test_cgrad_layout.o: tests/test_cgrad_layout.c include/cgrad_layout.h
-	mkdir -p build/tests
-	$(CC) -I$(CMOCKA_PREFIX)/include -Iinclude -c tests/test_cgrad_layout.c -o build/tests/test_cgrad_layout.o
+$(BUILD_TESTS_DIR)/test_cgrad_tensor: $(BUILD_TESTS_DIR)/test_cgrad_tensor.o $(OBJ_NO_MAIN)
+	$(CC) $^ $(CMOCKA_PREFIX)/lib/libcmocka.a -o $@ $(LDFLAGS)
 
-build/tests/test_cgrad_layout: build/tests/test_cgrad_layout.o build/cgrad_layout.o
-	$(CC) build/tests/test_cgrad_layout.o build/cgrad_layout.o $(CMOCKA_PREFIX)/lib/libcmocka.a -o build/tests/test_cgrad_layout
+$(BUILD_TESTS_DIR)/test_cgrad_layout: $(BUILD_TESTS_DIR)/test_cgrad_layout.o $(OBJ_DIR)/cgrad_layout.o
+	$(CC) $^ $(CMOCKA_PREFIX)/lib/libcmocka.a -o $@ $(LDFLAGS)
 
-build/tests/test_cgrad_tensor.o: tests/test_cgrad_tensor.c include/cgrad_tensor.h
-	mkdir -p build/tests
-	$(CC) -I$(CMOCKA_PREFIX)/include -I$(OPENBLAS_PREFIX)/include -Iinclude -c tests/test_cgrad_tensor.c -o build/tests/test_cgrad_tensor.o
+$(BUILD_TESTS_DIR)/bench_contiguous: $(BUILD_TESTS_DIR)/bench_contiguous.o $(OBJ_NO_MAIN)
+	$(CC) $^ -o $@ $(LDFLAGS)
 
-build/tests/test_cgrad_tensor: build/tests/test_cgrad_tensor.o build/cgrad_tensor.o build/cgrad_layout.o build/cgrad_backend.o build/cgrad_tensor_f32_cpu.o
-	$(CC) build/tests/test_cgrad_tensor.o build/cgrad_tensor.o build/cgrad_layout.o build/cgrad_backend.o build/cgrad_tensor_f32_cpu.o $(CMOCKA_PREFIX)/lib/libcmocka.a -o build/tests/test_cgrad_tensor $(LDFLAGS)
+$(BUILD_TESTS_BACKEND_DIR)/test_cgrad_tensor_f32_cpu: $(BUILD_TESTS_BACKEND_DIR)/test_cgrad_tensor_f32_cpu.o $(OBJ_NO_MAIN)
+	$(CC) $^ $(CMOCKA_PREFIX)/lib/libcmocka.a -o $@ $(LDFLAGS)
 
-build/tests/backends/test_cgrad_tensor_f32_cpu.o: tests/backends/test_cgrad_tensor_f32_cpu.c include/backends/cgrad_tensor_f32_cpu.h
-	mkdir -p build/tests/backends
-	$(CC) -I$(CMOCKA_PREFIX)/include -I$(OPENBLAS_PREFIX)/include -Iinclude -c tests/backends/test_cgrad_tensor_f32_cpu.c -o build/tests/backends/test_cgrad_tensor_f32_cpu.o
-
-build/tests/backends/test_cgrad_tensor_f32_cpu: build/tests/backends/test_cgrad_tensor_f32_cpu.o build/cgrad_tensor.o build/cgrad_layout.o build/cgrad_backend.o build/cgrad_tensor_f32_cpu.o
-	$(CC) build/tests/backends/test_cgrad_tensor_f32_cpu.o build/cgrad_tensor.o build/cgrad_layout.o build/cgrad_backend.o build/cgrad_tensor_f32_cpu.o $(CMOCKA_PREFIX)/lib/libcmocka.a -o build/tests/backends/test_cgrad_tensor_f32_cpu $(LDFLAGS)
-
-# Unified test binary (include all test sources directly)
-build/tests/test_all.o: tests/test_all.c
-	mkdir -p build/tests
-	$(CC) -I$(CMOCKA_PREFIX)/include -I$(OPENBLAS_PREFIX)/include -Iinclude -c tests/test_all.c -o build/tests/test_all.o
-
-build/tests/test_all: build/tests/test_all.o build/cgrad_tensor.o build/cgrad_layout.o build/cgrad_backend.o build/cgrad_tensor_f32_cpu.o
-	$(CC) build/tests/test_all.o build/cgrad_tensor.o build/cgrad_layout.o build/cgrad_backend.o build/cgrad_tensor_f32_cpu.o $(CMOCKA_PREFIX)/lib/libcmocka.a -o build/tests/test_all $(LDFLAGS)
-
-# CMocka test for cgrad_tensor
-build/tests/test_cgrad_tensor.o: tests/test_cgrad_tensor.c include/cgrad_tensor.h
-	mkdir -p build/tests
-	$(CC) -I$(CMOCKA_PREFIX)/include -I$(OPENBLAS_PREFIX)/include -Iinclude -c tests/test_cgrad_tensor.c -o build/tests/test_cgrad_tensor.o
-
-build/tests/test_cgrad_tensor: build/tests/test_cgrad_tensor.o build/cgrad_tensor.o build/cgrad_layout.o build/cgrad_backend.o build/cgrad_tensor_f32_cpu.o
-	$(CC) build/tests/test_cgrad_tensor.o build/cgrad_tensor.o build/cgrad_layout.o build/cgrad_backend.o build/cgrad_tensor_f32_cpu.o $(CMOCKA_PREFIX)/lib/libcmocka.a -o build/tests/test_cgrad_tensor $(LDFLAGS)
-
-# Unified test binary (optional, for CI)
-build/tests/test_all.o: tests/test_all.c
-	mkdir -p build/tests
-	$(CC) -I$(CMOCKA_PREFIX)/include -I$(OPENBLAS_PREFIX)/include -Iinclude -c tests/test_all.c -o build/tests/test_all.o
-
-build/tests/test_all: build/tests/test_all.o build/cgrad_tensor.o build/cgrad_layout.o build/cgrad_backend.o build/cgrad_tensor_f32_cpu.o
-	$(CC) build/tests/test_all.o build/cgrad_tensor.o build/cgrad_layout.o build/cgrad_backend.o build/cgrad_tensor_f32_cpu.o $(CMOCKA_PREFIX)/lib/libcmocka.a -o build/tests/test_all $(LDFLAGS)
-
-# Cleanup
-clean: clean_openblas clean_criterion clean_cmocka
+# --------- Clean Rules ---------
+clean: clean_openblas clean_cmocka
 	@echo "==> Cleaning project"
 	@rm -f $(OUT)
-	@rm -rf build
+	@rm -rf $(OBJ_DIR)
 
 clean_openblas:
 	@rm -rf $(OPENBLAS_TMPDIR)
 	@rm -f $(OPENBLAS_TARBALL)
 
-clean_criterion:
-	@rm -rf $(CRITERION_TMPDIR)
-	@rm -f $(CRITERION_TARBALL)
-
 clean_cmocka:
 	@rm -rf $(CMOCKA_TMPDIR)
 	@rm -f $(CMOCKA_TARBALL)
-build/tests/backends/test_cgrad_tensor_f32_cpu: build/tests/backends/test_cgrad_tensor_f32_cpu.o build/cgrad_tensor.o build/cgrad_layout.o build/cgrad_backend.o build/cgrad_tensor_f32_cpu.o
-build/tests/backends/test_cgrad_tensor_f32_cpu: build/tests/backends/test_cgrad_tensor_f32_cpu.o build/cgrad_tensor.o build/cgrad_layout.o build/cgrad_backend.o build/cgrad_tensor_f32_cpu.o
-	@rm -rf $(OPENBLAS_TMPDIR)
+	@rm -f $(CMOCKA_TARBALL)
