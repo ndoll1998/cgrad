@@ -1,52 +1,25 @@
-#ifndef CGRAD_TENSOR_H
-#define CGRAD_TENSOR_H
+#ifndef CGRAD_TENSOR_BASE_H
+#define CGRAD_TENSOR_BASE_H
 
-#include "cgrad_layout.h"
+#include "cgrad_backend.h"
 #include <stdint.h>
 #include <stddef.h>
-#include <cblas.h>
 
-typedef struct cgrad_tensor_f32 {
-  cgrad_tensor_layout layout;
-  float* data;
-} cgrad_tensor_f32;
+// High-level tensor object supporting multiple backends
+typedef struct cgrad_tensor {
+    cgrad_backend* backend; // Pointer to backend ops
+    void* handle;           // Backend-specific tensor object (e.g., cgrad_tensor_f32*)
+} cgrad_tensor;
 
-typedef struct cgrad_tensor_f64 {
-  cgrad_tensor_layout layout;
-  double* data;
-} cgrad_tensor_f64;
+// API for high-level tensor
+int cgrad_tensor_init(cgrad_tensor* t, const uint32_t* shape, cgrad_backend_type backend_type);
+void cgrad_tensor_free(cgrad_tensor* t);
+int cgrad_tensor_fill_rand(cgrad_tensor* t);
+int cgrad_tensor_gemm(cgrad_tensor* a, cgrad_tensor* b, cgrad_tensor* c);
+void cgrad_tensor_print(const cgrad_tensor* t);
+void cgrad_tensor_transpose(cgrad_tensor* t, const uint32_t* perm);
 
-// Tensor initialization
-int cgrad_tensor_f32_init(cgrad_tensor_f32* t, const uint32_t* shape);
-int cgrad_tensor_f64_init(cgrad_tensor_f64* t, const uint32_t* shape);
+// Backend registry (for internal use)
+cgrad_backend* cgrad_get_backend(cgrad_backend_type type);
 
-// Fill
-int cgrad_tensor_f32_fill_rand(cgrad_tensor_f32* t);
-int cgrad_tensor_f64_fill_rand(cgrad_tensor_f64* t);
-
-// Indexing
-float* cgrad_tensor_f32_ptr(const cgrad_tensor_f32* t, const uint32_t* indices);
-void cgrad_tensor_f32_set(cgrad_tensor_f32* t, const uint32_t* indices, float value);
-
-// Make a contiguous copy of a tensor (arbitrary MAX_TENSOR_DIM)
-int cgrad_tensor_f32_contiguous(const cgrad_tensor_f32* src, cgrad_tensor_f32* dst);
-
-// GEMM
-int cgrad_tensor_f32_gemm(
-  cgrad_tensor_f32* a,
-  cgrad_tensor_f32* b,
-  cgrad_tensor_f32* c
-);
-
-// Free
-void cgrad_tensor_f32_free(cgrad_tensor_f32* t);
-void cgrad_tensor_f64_free(cgrad_tensor_f64* t);
-
-// Print
-void cgrad_tensor_f32_print(const cgrad_tensor_f32* t);
-
-// Transpose: perm is an array of length MAX_TENSOR_DIM, giving the new order of axes
-void cgrad_tensor_f32_transpose(cgrad_tensor_f32* t, const uint32_t* perm);
-
-#endif // CGRAD_TENSOR_H
-
+#endif // CGRAD_TENSOR_BASE_H
