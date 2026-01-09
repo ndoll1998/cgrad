@@ -4,7 +4,7 @@
 
 int main() {
   cgrad_tensor_f32 t1, t2, out;
-  uint32_t shapeA[] = {1, 1, 2, 3};
+  uint32_t shapeA[] = {1, 2, 2, 3};
   uint32_t shapeB[] = {1, 1, 3, 2};
   // initialize tensors
   cgrad_tensor_f32_init(&t1, shapeA);
@@ -14,7 +14,16 @@ int main() {
   cgrad_tensor_f32_fill_rand(&t2);
   // 
   cgrad_tensor_f32_print(&t1);
-  cgrad_tensor_f32_print(&t2);
+  cgrad_tensor_f32_transpose(&t1, (uint32_t[]){0,2,1,3});
+  cgrad_tensor_f32_print(&t1);
+
+  cgrad_tensor_f32 c;
+  cgrad_tensor_f32_contiguous(&t1, &c);
+  cgrad_tensor_f32_print(&c);
+
+  // cgrad_tensor_f32_print(&t2);
+
+  return 0;
 
   int e = cgrad_tensor_f32_gemm(&t1, &t2, &out);
   printf("%i", e);

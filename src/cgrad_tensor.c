@@ -49,40 +49,44 @@ int cgrad_tensor_f64_fill_rand(cgrad_tensor_f64* t) {
 }
 
 // Indexing
-size_t cgrad_tensor_flat_index(const uint32_t* indices, const uint32_t* strides, int ndim) {
+size_t cgrad_tensor_flat_index(const uint32_t* indices, const uint32_t* strides) {
   size_t idx = 0;
-  for (int i = 0; i < ndim; i++) {
+  for (int i = 0; i < MAX_TENSOR_DIM; i++) {
     idx += indices[i] * strides[i];
   }
   return idx;
 }
 
-float* cgrad_tensor_f32_ptr(cgrad_tensor_f32* t, const uint32_t* indices) {
-  size_t idx = cgrad_tensor_flat_index(indices, t->layout.strides, MAX_TENSOR_DIM);
+float* cgrad_tensor_f32_ptr(const cgrad_tensor_f32* t, const uint32_t* indices) {
+  size_t idx = cgrad_tensor_flat_index(indices, t->layout.strides);
   return t->data + idx;
 }
 
-// Make a contiguous copy of a tensor (arbitrary MAX_TENSOR_DIM)
-int cgrad_tensor_f32_make_contiguous(const cgrad_tensor_f32* src, cgrad_tensor_f32* dst) {
+int cgrad_tensor_f32_contiguous(const cgrad_tensor_f32* src, cgrad_tensor_f32* dst) {
   if (!src || !dst) return -1;
   if (cgrad_tensor_f32_init(dst, src->layout.shape)) return -1;
 
-  // Multi-dimensional index
   uint32_t idx[MAX_TENSOR_DIM] = {0};
-  for (size_t flat = 0; flat < src->layout.size; flat++) {
-    // Compute multi-dimensional index from flat index in row-major order
-    size_t rem = flat;
-    for (int d = MAX_TENSOR_DIM - 1; d >= 0; d--) {
-      idx[d] = rem % src->layout.shape[d];
-      rem /= src->layout.shape[d];
+  for (size_t offset = 0; offset < dst->layout.size; offset += dst->layout.shape[MAX_TENSOR_DIM-1]) {
+    // update indexes for non-contiguous dims
+    #pragma unroll
+    for (uint32_t d = 0; d < MAX_TENSOR_DIM - 1; d++) {
+      idx[d] = (offset / dst->layout.strides[d]) % dst->layout.shape[d];
     }
-    dst->data[flat] = *cgrad_tensor_f32_ptr((cgrad_tensor_f32*)src, idx);
+    // compute source and destination starting pointers
+    cblas_scopy(
+      dst->layout.shape[MAX_TENSOR_DIM-1],
+      cgrad_tensor_f32_ptr(src, idx), src->layout.strides[MAX_TENSOR_DIM-1],
+      cgrad_tensor_f32_ptr(dst, idx), 1
+    );
   }
+
   return 0;
 }
 
+
 void cgrad_tensor_f32_set(cgrad_tensor_f32* t, const uint32_t* indices, float value) {
-  size_t idx = cgrad_tensor_flat_index(indices, t->layout.strides, MAX_TENSOR_DIM);
+  size_t idx = cgrad_tensor_flat_index(indices, t->layout.strides);
   t->data[idx] = value;
 }
 
@@ -150,11 +154,11 @@ int cgrad_tensor_f32_gemm(
   int is_a_contiguous = (a->layout.strides[MAX_TENSOR_DIM-1] == 1);
   int is_b_contiguous = (b->layout.strides[MAX_TENSOR_DIM-1] == 1);
   if (!is_a_contiguous) {
-    cgrad_tensor_f32_make_contiguous(a, &a_contig);
+    cgrad_tensor_f32_contiguous(a, &a_contig);
     a = &a_contig;
   }
   if (!is_b_contiguous) {
-    cgrad_tensor_f32_make_contiguous(b, &b_contig);
+    cgrad_tensor_f32_contiguous(b, &b_contig);
     b = &b_contig;
   }
 
@@ -221,11 +225,18 @@ void cgrad_tensor_f32_print(const cgrad_tensor_f32* t) {
   for (int i = 0; i < MAX_TENSOR_DIM; i++) printf(" %i ", t->layout.shape[i]);
   printf(")\n");
 
-  for (int i = 0; i < t->layout.strides[0]; i++) {
+  cgrad_tensor_layout l;
+  cgrad_tensor_layout_init(&l, t->layout.shape);
+  uint32_t idx[MAX_TENSOR_DIM] = {0};
+
+  for (int i = 0; i < l.size; i++) {
+    #pragma unroll
     for (int j = 0; j < MAX_TENSOR_DIM-1; j++) {
-      if ((i % t->layout.strides[j]) == 0) printf("\n");
+      idx[j] = (i / l.strides[j]) % l.shape[j];
+      if ((i > 0) && ((i % l.strides[j]) == 0)) printf("\n");
     }
-    printf("%f ", t->data[i]);
+    idx[MAX_TENSOR_DIM-1] = (i / l.strides[MAX_TENSOR_DIM-1]) % l.shape[MAX_TENSOR_DIM-1];
+    printf("%f ", *cgrad_tensor_f32_ptr(t, idx));
   }
   printf("\n");
 }

@@ -79,6 +79,16 @@ build/tests/test_transpose.o: tests/test_transpose.c include/cgrad_tensor.h
 build/tests/test_transpose: build/tests/test_transpose.o build/cgrad_tensor.o
 	$(CC) $(CFLAGS) build/tests/test_transpose.o build/cgrad_tensor.o -o build/tests/test_transpose $(LDFLAGS)
 
+build/tests/bench_contiguous.o: tests/bench_contiguous.c include/cgrad_tensor.h
+	mkdir -p build/tests
+	$(CC) $(CFLAGS) -c tests/bench_contiguous.c -o build/tests/bench_contiguous.o
+
+build/tests/bench_contiguous: build/tests/bench_contiguous.o build/cgrad_tensor.o
+	$(CC) $(CFLAGS) build/tests/bench_contiguous.o build/cgrad_tensor.o -o build/tests/bench_contiguous $(LDFLAGS)
+
+bench: build/tests/bench_contiguous
+	build/tests/bench_contiguous
+
 # Cleanup
 clean: clean_openblas
 	@echo "==> Cleaning project"

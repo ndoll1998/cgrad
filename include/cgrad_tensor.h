@@ -33,12 +33,12 @@ int cgrad_tensor_f32_fill_rand(cgrad_tensor_f32* t);
 int cgrad_tensor_f64_fill_rand(cgrad_tensor_f64* t);
 
 // Indexing
-size_t cgrad_tensor_flat_index(const uint32_t* indices, const uint32_t* strides, int ndim);
-float* cgrad_tensor_f32_ptr(cgrad_tensor_f32* t, const uint32_t* indices);
+size_t cgrad_tensor_flat_index(const uint32_t* indices, const uint32_t* strides);
+float* cgrad_tensor_f32_ptr(const cgrad_tensor_f32* t, const uint32_t* indices);
 void cgrad_tensor_f32_set(cgrad_tensor_f32* t, const uint32_t* indices, float value);
 
 // Make a contiguous copy of a tensor (arbitrary MAX_TENSOR_DIM)
-int cgrad_tensor_f32_make_contiguous(const cgrad_tensor_f32* src, cgrad_tensor_f32* dst);
+int cgrad_tensor_f32_contiguous(const cgrad_tensor_f32* src, cgrad_tensor_f32* dst);
 
 // GEMM
 int cgrad_tensor_f32_gemm(
