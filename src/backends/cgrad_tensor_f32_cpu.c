@@ -31,17 +31,17 @@ int cgrad_tensor_f32_cpu_init(cgrad_tensor_f32_cpu* t, const uint32_t* shape, in
 int cgrad_tensor_f32_cpu_build_batch_array(cgrad_tensor_f32_cpu* t, float*** array) {
   int batch_size = 1;
   # pragma unroll
-  for (int i = 0; i < MAX_TENSOR_DIM - 2; i++) {
+  for (int i = 0; i < TENSOR_DIM - 2; i++) {
     batch_size *= t->layout.shape[i];
   }
   *array = (float**)malloc(batch_size * sizeof(float*));
   if (!(*array)) return CGRAD_TENSOR_F32_CPU_ERR_BATCH_ALLOC_FAILED;
-  uint32_t indices[MAX_TENSOR_DIM] = {0};
+  uint32_t indices[TENSOR_DIM] = {0};
   #pragma omp parallel for
   for (int i = 0; i < batch_size; i++) {
     size_t rem = i;
     # pragma unroll
-    for (int d = MAX_TENSOR_DIM - 3; d >= 0; d--) {
+    for (int d = TENSOR_DIM - 3; d >= 0; d--) {
       indices[d] = rem % t->layout.shape[d];
       rem /= t->layout.shape[d];
     }
@@ -58,7 +58,7 @@ int cgrad_tensor_f32_cpu_build_batch_array(cgrad_tensor_f32_cpu* t, float*** arr
  */
 float* cgrad_tensor_f32_cpu_ptr(const cgrad_tensor_f32_cpu* t, const uint32_t* indices) {
   size_t idx = 0;
-  int err = cgrad_tensor_layout_flat_index(&t->layout, indices, MAX_TENSOR_DIM, &idx);
+  int err = cgrad_tensor_layout_flat_index(&t->layout, indices, TENSOR_DIM, &idx);
   if (err != CGRAD_SUCCESS) return NULL;
   return t->data + idx;
 }
@@ -71,7 +71,7 @@ float* cgrad_tensor_f32_cpu_ptr(const cgrad_tensor_f32_cpu* t, const uint32_t* i
  */
 void cgrad_tensor_f32_cpu_set(cgrad_tensor_f32_cpu* t, const uint32_t* indices, float value) {
   size_t idx = 0;
-  int err = cgrad_tensor_layout_flat_index(&t->layout, indices, MAX_TENSOR_DIM, &idx);
+  int err = cgrad_tensor_layout_flat_index(&t->layout, indices, TENSOR_DIM, &idx);
   if (err != CGRAD_SUCCESS) return;
   t->data[idx] = value;
 }
@@ -87,7 +87,7 @@ int cgrad_tensor_f32_cpu_fill(cgrad_tensor_f32_cpu* t, float value) {
 
   // Find the minimum nonzero stride in the tensor layout
   int min_stride = 0;
-  for (int i = 0; i < MAX_TENSOR_DIM; i++) {
+  for (int i = 0; i < TENSOR_DIM; i++) {
     int stride = t->layout.strides[i];
     if (stride > 0 && (min_stride == 0 || stride < min_stride)) {
       min_stride = stride;
@@ -125,31 +125,31 @@ int cgrad_tensor_f32_cpu_fill_rand(cgrad_tensor_f32_cpu* t) {
  */
 int cgrad_tensor_f32_cpu_contiguous(const cgrad_tensor_f32_cpu* src, cgrad_tensor_f32_cpu* dst) {
   if (!src || !dst) return CGRAD_TENSOR_ERR_NULL_POINTER;
-  int init_err = cgrad_tensor_f32_cpu_init(dst, src->layout.shape, MAX_TENSOR_DIM);
+  int init_err = cgrad_tensor_f32_cpu_init(dst, src->layout.shape, TENSOR_DIM);
   if (init_err != CGRAD_SUCCESS) return init_err;
 
-  uint32_t block_size = src->layout.shape[MAX_TENSOR_DIM-1];
+  uint32_t block_size = src->layout.shape[TENSOR_DIM-1];
   uint32_t block_ndim = 1;
 
   while (
-    block_ndim < MAX_TENSOR_DIM
+    block_ndim < TENSOR_DIM
     && (
-      src->layout.strides[MAX_TENSOR_DIM - block_ndim - 1]
-      == src->layout.shape[MAX_TENSOR_DIM - block_ndim] * src->layout.strides[MAX_TENSOR_DIM - block_ndim]
+      src->layout.strides[TENSOR_DIM - block_ndim - 1]
+      == src->layout.shape[TENSOR_DIM - block_ndim] * src->layout.strides[TENSOR_DIM - block_ndim]
     )
   ) {
-    block_size *= src->layout.shape[MAX_TENSOR_DIM - block_ndim - 1];
+    block_size *= src->layout.shape[TENSOR_DIM - block_ndim - 1];
     block_ndim++;
   }
 
-  uint32_t idx[MAX_TENSOR_DIM] = {0};
+  uint32_t idx[TENSOR_DIM] = {0};
   for (size_t offset = 0; offset < dst->layout.size; offset += block_size) {
-    for (uint32_t d = 0; d < MAX_TENSOR_DIM - block_ndim; d++) {
+    for (uint32_t d = 0; d < TENSOR_DIM - block_ndim; d++) {
       idx[d] = (offset / dst->layout.strides[d]) % dst->layout.shape[d];
     }
     cblas_scopy(
       block_size,
-      cgrad_tensor_f32_cpu_ptr(src, idx), src->layout.strides[MAX_TENSOR_DIM-1],
+      cgrad_tensor_f32_cpu_ptr(src, idx), src->layout.strides[TENSOR_DIM-1],
       cgrad_tensor_f32_cpu_ptr(dst, idx), 1
     );
   }
@@ -194,7 +194,7 @@ int cgrad_tensor_f32_cpu_add(
 ) {
   if (!a || !b || !c) return CGRAD_TENSOR_ERR_NULL_POINTER;
   
-  for (int d = 0; d < MAX_TENSOR_DIM; d++) {
+  for (int d = 0; d < TENSOR_DIM; d++) {
     if (a->layout.shape[d] != b->layout.shape[d]) {
       return CGRAD_TENSOR_F32_CPU_ERR_SHAPE_MISMATCH;
     }
@@ -215,7 +215,7 @@ int cgrad_tensor_f32_cpu_add(
   cblas_saxpy(
     c->layout.size,
     1.0f,
-    a_used->data, a_used->layout.strides[MAX_TENSOR_DIM-1],
+    a_used->data, a_used->layout.strides[TENSOR_DIM-1],
     c->data, 1
   );
   
@@ -237,29 +237,29 @@ int cgrad_tensor_f32_cpu_gemm(
 ) {
   if (!a || !b || !c) return CGRAD_TENSOR_ERR_NULL_POINTER;
   
-  for (int d = 0; d < MAX_TENSOR_DIM - 2; d++) {
+  for (int d = 0; d < TENSOR_DIM - 2; d++) {
     if (a->layout.shape[d] != b->layout.shape[d]) {
       return CGRAD_TENSOR_F32_CPU_ERR_SHAPE_MISMATCH;
     }
   }
   
-  int a_m = a->layout.shape[MAX_TENSOR_DIM-2];
-  int a_k = a->layout.shape[MAX_TENSOR_DIM-1];
-  int b_k = b->layout.shape[MAX_TENSOR_DIM-2];
-  int b_n = b->layout.shape[MAX_TENSOR_DIM-1];
+  int a_m = a->layout.shape[TENSOR_DIM-2];
+  int a_k = a->layout.shape[TENSOR_DIM-1];
+  int b_k = b->layout.shape[TENSOR_DIM-2];
+  int b_n = b->layout.shape[TENSOR_DIM-1];
   if (a_k != b_k) {
     return CGRAD_TENSOR_F32_CPU_ERR_SHAPE_MISMATCH;
   }
   
-  int m = a->layout.shape[MAX_TENSOR_DIM-2];
-  int n = b->layout.shape[MAX_TENSOR_DIM-1];
-  int k = b->layout.shape[MAX_TENSOR_DIM-2];
+  int m = a->layout.shape[TENSOR_DIM-2];
+  int n = b->layout.shape[TENSOR_DIM-1];
+  int k = b->layout.shape[TENSOR_DIM-2];
   int bs = a->layout.size / (m * k);
   
   cgrad_tensor_f32_cpu a_contig;
   cgrad_tensor_f32_cpu b_contig;
-  int is_a_contiguous = (a->layout.strides[MAX_TENSOR_DIM-1] == 1);
-  int is_b_contiguous = (b->layout.strides[MAX_TENSOR_DIM-1] == 1);
+  int is_a_contiguous = (a->layout.strides[TENSOR_DIM-1] == 1);
+  int is_b_contiguous = (b->layout.strides[TENSOR_DIM-1] == 1);
   if (!is_a_contiguous) {
     int contig_err = cgrad_tensor_f32_cpu_contiguous(a, &a_contig);
     if (contig_err != CGRAD_SUCCESS) return contig_err;
@@ -284,9 +284,9 @@ int cgrad_tensor_f32_cpu_gemm(
   float alpha = 1.0f;
   float beta = 0.0f;
   
-  int lda = a->layout.strides[MAX_TENSOR_DIM-2];
-  int ldb = b->layout.strides[MAX_TENSOR_DIM-2];
-  int ldc = c->layout.strides[MAX_TENSOR_DIM-2];
+  int lda = a->layout.strides[TENSOR_DIM-2];
+  int ldb = b->layout.strides[TENSOR_DIM-2];
+  int ldc = c->layout.strides[TENSOR_DIM-2];
   
   cblas_sgemm_batch(
     CblasRowMajor,
@@ -328,18 +328,18 @@ cgrad_tensor_layout* cgrad_tensor_f32_cpu_get_layout(cgrad_tensor_f32_cpu* t) {
  */
 void cgrad_tensor_f32_cpu_print(const cgrad_tensor_f32_cpu* t) {
   printf("Shape: (");
-  for (int i = 0; i < MAX_TENSOR_DIM; i++) printf(" %i ", t->layout.shape[i]);
+  for (int i = 0; i < TENSOR_DIM; i++) printf(" %i ", t->layout.shape[i]);
   printf(")\n");
   cgrad_tensor_layout l;
-  cgrad_tensor_layout_init(&l, t->layout.shape, MAX_TENSOR_DIM);
-  uint32_t idx[MAX_TENSOR_DIM] = {0};
+  cgrad_tensor_layout_init(&l, t->layout.shape, TENSOR_DIM);
+  uint32_t idx[TENSOR_DIM] = {0};
   for (int i = 0; i < l.size; i++) {
     #pragma unroll
-    for (int j = 0; j < MAX_TENSOR_DIM-1; j++) {
+    for (int j = 0; j < TENSOR_DIM-1; j++) {
       idx[j] = (i / l.strides[j]) % l.shape[j];
       if ((i > 0) && ((i % l.strides[j]) == 0)) printf("\n");
     }
-    idx[MAX_TENSOR_DIM-1] = (i / l.strides[MAX_TENSOR_DIM-1]) % l.shape[MAX_TENSOR_DIM-1];
+    idx[TENSOR_DIM-1] = (i / l.strides[TENSOR_DIM-1]) % l.shape[TENSOR_DIM-1];
     printf("%f ", *cgrad_tensor_f32_cpu_ptr(t, idx));
   }
   printf("\n");
@@ -349,7 +349,7 @@ void cgrad_tensor_f32_cpu_print(const cgrad_tensor_f32_cpu* t) {
  * @brief Transpose the tensor according to the given permutation, applied to the last ndim dims.
  * @param t Pointer to tensor.
  * @param perm Permutation array (length ndim).
- * @param ndim Number of trailing dimensions to permute (≤ MAX_TENSOR_DIM).
+ * @param ndim Number of trailing dimensions to permute (≤ TENSOR_DIM).
  * @return CGRAD_SUCCESS on success, CGRAD_LAYOUT_ERR_DUPLICATE_DIM if a dimension is repeated.
  */
 int cgrad_tensor_f32_cpu_transpose(cgrad_tensor_f32_cpu* t, const uint32_t* perm, int ndim) {

@@ -162,7 +162,7 @@ static void test_gemm_with_transpose(void **state) {
         b.data[i] = dataB[i];
     }
 
-    uint32_t perm[MAX_TENSOR_DIM] = {0, 1, 3, 2};
+    uint32_t perm[TENSOR_DIM] = {0, 1, 3, 2};
     assert_int_equal(cgrad_tensor_f32_cpu_transpose(&a, perm, 4), CGRAD_SUCCESS);
     assert_int_equal(cgrad_tensor_f32_cpu_transpose(&b, perm, 4), CGRAD_SUCCESS);
 
@@ -261,7 +261,7 @@ static void test_gemm_with_transposed_inputs(void **state) {
     }
 
     // Transpose a and b: swap last two axes
-    uint32_t perm[MAX_TENSOR_DIM] = {0, 1, 3, 2};
+    uint32_t perm[TENSOR_DIM] = {0, 1, 3, 2};
     assert_int_equal(cgrad_tensor_f32_cpu_transpose(&a, perm, 4), CGRAD_SUCCESS);
     assert_int_equal(cgrad_tensor_f32_cpu_transpose(&b, perm, 4), CGRAD_SUCCESS);
 
@@ -289,16 +289,16 @@ static void test_transpose(void **state) {
     uint32_t shape[] = {1, 2, 3, 4};
     cgrad_tensor_f32_cpu_init(&t, shape, 4);
 
-    uint32_t orig_shape[MAX_TENSOR_DIM], orig_strides[MAX_TENSOR_DIM];
-    for (int i = 0; i < MAX_TENSOR_DIM; i++) {
+    uint32_t orig_shape[TENSOR_DIM], orig_strides[TENSOR_DIM];
+    for (int i = 0; i < TENSOR_DIM; i++) {
         orig_shape[i] = t.layout.shape[i];
         orig_strides[i] = t.layout.strides[i];
     }
 
-    uint32_t perm[MAX_TENSOR_DIM] = {0, 1, 3, 2};
+    uint32_t perm[TENSOR_DIM] = {0, 1, 3, 2};
     assert_int_equal(cgrad_tensor_f32_cpu_transpose(&t, perm, 4), CGRAD_SUCCESS);
 
-    for (int i = 0; i < MAX_TENSOR_DIM; i++) {
+    for (int i = 0; i < TENSOR_DIM; i++) {
         assert_int_equal(t.layout.shape[i], orig_shape[perm[i]]);
         assert_int_equal(t.layout.strides[i], orig_strides[perm[i]]);
     }

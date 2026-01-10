@@ -9,7 +9,7 @@
 static void test_cgrad_tensor_init_and_free(void **state) {
     (void)state;
     cgrad_tensor t;
-    uint32_t shape[MAX_TENSOR_DIM] = {2, 3, 4, 5};
+    uint32_t shape[TENSOR_DIM] = {2, 3, 4, 5};
     assert_int_equal(cgrad_tensor_init(&t, shape, 4, CGRAD_BACKEND_F32_CPU), 0);
     assert_non_null(t.handle);
     cgrad_tensor_free(&t);
@@ -18,7 +18,7 @@ static void test_cgrad_tensor_init_and_free(void **state) {
 
 static void test_cgrad_tensor_init_errors(void **state) {
     (void)state;
-    uint32_t shape[MAX_TENSOR_DIM] = {2, 3, 4, 5};
+    uint32_t shape[TENSOR_DIM] = {2, 3, 4, 5};
     // Null tensor pointer
     assert_int_equal(cgrad_tensor_init(NULL, shape, 4, CGRAD_BACKEND_F32_CPU), CGRAD_TENSOR_ERR_NULL_POINTER);
     // Null shape pointer
@@ -29,7 +29,7 @@ static void test_cgrad_tensor_init_errors(void **state) {
 static void test_cgrad_tensor_fill(void **state) {
     (void)state;
     cgrad_tensor t;
-    uint32_t shape[MAX_TENSOR_DIM] = {2, 3, 4, 5};
+    uint32_t shape[TENSOR_DIM] = {2, 3, 4, 5};
     float fill_value = 7.5f;
     assert_int_equal(cgrad_tensor_init(&t, shape, 4, CGRAD_BACKEND_F32_CPU), 0);
     assert_int_equal(cgrad_tensor_fill(&t, fill_value), 0);

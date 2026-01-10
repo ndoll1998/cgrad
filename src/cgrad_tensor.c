@@ -88,19 +88,19 @@ int cgrad_tensor_gemm(
         a_bcast.backend->tensor_get_layout(a_bcast.handle),
         b_bcast.backend->tensor_get_layout(b_bcast.handle),
         0,
-        MAX_TENSOR_DIM - 2
+        TENSOR_DIM - 2
     );
     if (bcast_err != CGRAD_SUCCESS) return bcast_err;
 
     // build output shape
-    uint32_t r_shape[MAX_TENSOR_DIM];
-    memcpy(r_shape, a_bcast.backend->tensor_get_layout(a_bcast.handle)->shape, sizeof(uint32_t) * (MAX_TENSOR_DIM - 2));
-    r_shape[MAX_TENSOR_DIM - 2] = a_bcast.backend->tensor_get_layout(a_bcast.handle)->shape[MAX_TENSOR_DIM - 2]; // m
-    r_shape[MAX_TENSOR_DIM - 1] = b_bcast.backend->tensor_get_layout(b_bcast.handle)->shape[MAX_TENSOR_DIM - 1]; // n
+    uint32_t r_shape[TENSOR_DIM];
+    memcpy(r_shape, a_bcast.backend->tensor_get_layout(a_bcast.handle)->shape, sizeof(uint32_t) * (TENSOR_DIM - 2));
+    r_shape[TENSOR_DIM - 2] = a_bcast.backend->tensor_get_layout(a_bcast.handle)->shape[TENSOR_DIM - 2]; // m
+    r_shape[TENSOR_DIM - 1] = b_bcast.backend->tensor_get_layout(b_bcast.handle)->shape[TENSOR_DIM - 1]; // n
 
     // check if r is initialized, if not initialize it
     if (!r->handle) {
-        cgrad_tensor_init(r, r_shape, MAX_TENSOR_DIM, a->backend->type);
+        cgrad_tensor_init(r, r_shape, TENSOR_DIM, a->backend->type);
     } else {
         // TODO: support writing to existing tensor with matching shape
         return CGRAD_TENSOR_ERR_NOT_IMPLEMENTED;
@@ -137,14 +137,14 @@ int cgrad_tensor_add(
         a_bcast.backend->tensor_get_layout(a_bcast.handle),
         b_bcast.backend->tensor_get_layout(b_bcast.handle),
         0,
-        MAX_TENSOR_DIM
+        TENSOR_DIM
     );
     if (bcast_err != CGRAD_SUCCESS) return bcast_err;
 
     // check if r is initialized, if not initialize it
     if (!r->handle) {
         const uint32_t* shape = a_bcast.backend->tensor_get_layout(a_bcast.handle)->shape;
-        cgrad_tensor_init(r, shape, MAX_TENSOR_DIM, a->backend->type);
+        cgrad_tensor_init(r, shape, TENSOR_DIM, a->backend->type);
     } else {
         // TODO: support writing to existing tensor with matching shape
         return CGRAD_TENSOR_ERR_NOT_IMPLEMENTED;
@@ -166,7 +166,7 @@ void cgrad_tensor_print(const cgrad_tensor* t) {
  * @brief Transpose the tensor according to the given permutation, applied to the last ndim dims.
  * @param t Pointer to tensor.
  * @param perm Permutation array (length ndim).
- * @param ndim Number of trailing dimensions to permute (≤ MAX_TENSOR_DIM).
+ * @param ndim Number of trailing dimensions to permute (≤ TENSOR_DIM).
  */
 void cgrad_tensor_transpose(cgrad_tensor* t, const uint32_t* perm, int ndim) {
     if (!t || !t->backend || !t->handle) return;

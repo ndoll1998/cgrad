@@ -56,19 +56,19 @@ int cgrad_tensor_fill_rand(cgrad_tensor* t);
  * @brief Perform batched matrix multiplication (GEMM) on two tensors.
  * @param a First input tensor.
  * @param b Second input tensor.
- * @param c Output tensor.
+ * @param r Output tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_gemm(const cgrad_tensor* a, const cgrad_tensor* b, cgrad_tensor* c);
+int cgrad_tensor_gemm(const cgrad_tensor* a, const cgrad_tensor* b, cgrad_tensor* r);
 
 /**
  * @brief Add two tensors elementwise and store the result in a third tensor.
  * @param a First input tensor.
  * @param b Second input tensor.
- * @param c Output tensor.
+ * @param r Output tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_add(cgrad_tensor* a, cgrad_tensor* b, cgrad_tensor* c);
+int cgrad_tensor_add(cgrad_tensor* a, cgrad_tensor* b, cgrad_tensor* r);
 
 // --- Data Access/Info ---
 

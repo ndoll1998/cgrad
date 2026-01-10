@@ -10,7 +10,7 @@ static inline double elapsed_sec(struct timespec start,
 }
 
 int main() {
-    uint32_t shape[MAX_TENSOR_DIM] = {512, 128, 64, 32};
+    uint32_t shape[TENSOR_DIM] = {512, 128, 64, 32};
     cgrad_tensor_f32_cpu t, t_trans, t_contig;
     int ret = 0;
 
@@ -30,7 +30,7 @@ int main() {
     printf("rand fill: %.9f seconds\n", elapsed_sec(start, end));
 
     // Make tensor non-contiguous by transposing axes 0 and 1
-    uint32_t perm[MAX_TENSOR_DIM] = {2, 1, 3, 1};
+    uint32_t perm[TENSOR_DIM] = {2, 1, 3, 1};
     t_trans = t;
     cgrad_tensor_f32_cpu_transpose(&t_trans, perm);
 
