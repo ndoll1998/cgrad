@@ -26,6 +26,7 @@ typedef struct cgrad_backend {
     void (*tensor_free)(void* t);
     void (*tensor_print)(const void* t);
     void (*tensor_transpose)(void* t, const uint32_t* perm);
+    int  (*tensor_add)(void* a, void* b, void* c);
     // Add more ops as needed
 } cgrad_backend;
 

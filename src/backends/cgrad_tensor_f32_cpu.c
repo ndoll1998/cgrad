@@ -83,6 +83,7 @@ int cgrad_tensor_f32_cpu_build_batch_array(cgrad_tensor_f32_cpu* t, float*** arr
 
   // fill array
   uint32_t indices[MAX_TENSOR_DIM] = {0};
+  #pragma omp parallel for
   for (int i = 0; i < batch_size; i++) {
     size_t rem = i;
     # pragma unroll
@@ -92,6 +93,49 @@ int cgrad_tensor_f32_cpu_build_batch_array(cgrad_tensor_f32_cpu* t, float*** arr
     }
     (*array)[i] = cgrad_tensor_f32_cpu_ptr(t, indices);
   }
+
+  return 0;
+}
+
+int cgrad_tensor_f32_cpu_add(
+  const cgrad_tensor_f32_cpu* a,
+  const cgrad_tensor_f32_cpu* b,
+  cgrad_tensor_f32_cpu* c
+) {
+  if (!a || !b || !c) return -1;
+
+  // Make shallow copies and broadcast layouts
+  cgrad_tensor_f32_cpu a_bcast = *a;
+  cgrad_tensor_f32_cpu b_bcast = *b;
+  cgrad_tensor_layout_copy(&a_bcast.layout, &a->layout);
+  cgrad_tensor_layout_copy(&b_bcast.layout, &b->layout);
+
+  if (cgrad_tensor_layout_broadcast(&a_bcast.layout, &b_bcast.layout, 0, MAX_TENSOR_DIM - 1) != 0) {
+    return -1;
+  }
+
+  // Make a contiguous if needed
+  cgrad_tensor_f32_cpu a_contig;
+  int is_a_contiguous = cgrad_tensor_layout_is_contiguous(&a_bcast.layout);
+  const cgrad_tensor_f32_cpu* a_used = &a_bcast;
+  if (!is_a_contiguous) {
+    cgrad_tensor_f32_cpu_contiguous(&a_bcast, &a_contig);
+    a_used = &a_contig;
+  }
+
+  // Allocate c with broadcasted shape and write b into c
+  if (cgrad_tensor_f32_cpu_init(c, a_bcast.layout.shape)) return -1;
+  if (cgrad_tensor_f32_cpu_contiguous(&b_bcast, c)) return -1;
+
+  // c = a + c (elementwise addition)
+  cblas_saxpy(
+    c->layout.size,
+    1.0f,
+    a_used->data, 1,
+    c->data, 1
+  );
+
+  if (!is_a_contiguous) cgrad_tensor_f32_cpu_free(&a_contig);
 
   return 0;
 }

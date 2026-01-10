@@ -74,7 +74,6 @@ size_t cgrad_tensor_flat_index(const uint32_t* indices, const uint32_t* strides)
   return idx;
 }
 
-// Transpose: perm is an array of length MAX_TENSOR_DIM, giving the new order of axes
 void cgrad_tensor_layout_transpose(cgrad_tensor_layout* layout, const uint32_t* perm) {
   uint32_t new_shape[MAX_TENSOR_DIM];
   uint32_t new_strides[MAX_TENSOR_DIM];
@@ -86,4 +85,15 @@ void cgrad_tensor_layout_transpose(cgrad_tensor_layout* layout, const uint32_t* 
     layout->shape[i] = new_shape[i];
     layout->strides[i] = new_strides[i];
   }
+}
+
+// Returns 1 if the layout is contiguous, 0 otherwise
+int cgrad_tensor_layout_is_contiguous(const cgrad_tensor_layout* l) {
+  if (!l) return 0;
+  uint32_t expected_stride = 1;
+  for (int i = MAX_TENSOR_DIM - 1; i >= 0; i--) {
+    if (l->strides[i] != expected_stride) return 0;
+    expected_stride *= l->shape[i];
+  }
+  return 1;
 }

@@ -21,6 +21,12 @@ int cgrad_tensor_f32_cpu_gemm(
   const cgrad_tensor_f32_cpu* b,
   cgrad_tensor_f32_cpu* c
 );
+
+int cgrad_tensor_f32_cpu_add(
+  const cgrad_tensor_f32_cpu* a,
+  const cgrad_tensor_f32_cpu* b,
+  cgrad_tensor_f32_cpu* c
+);
 void cgrad_tensor_f32_cpu_free(cgrad_tensor_f32_cpu* t);
 void cgrad_tensor_f32_cpu_print(const cgrad_tensor_f32_cpu* t);
 void cgrad_tensor_f32_cpu_transpose(cgrad_tensor_f32_cpu* t, const uint32_t* perm);

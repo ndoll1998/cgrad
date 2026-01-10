@@ -30,7 +30,7 @@ int main() {
     printf("rand fill: %.9f seconds\n", elapsed_sec(start, end));
 
     // Make tensor non-contiguous by transposing axes 0 and 1
-    uint32_t perm[MAX_TENSOR_DIM] = {1, 2, 0, 3};
+    uint32_t perm[MAX_TENSOR_DIM] = {2, 1, 3, 1};
     t_trans = t;
     cgrad_tensor_f32_cpu_transpose(&t_trans, perm);
 

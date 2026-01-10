@@ -16,6 +16,7 @@ int cgrad_tensor_init(cgrad_tensor* t, const uint32_t* shape, cgrad_backend_type
 void cgrad_tensor_free(cgrad_tensor* t);
 int cgrad_tensor_fill_rand(cgrad_tensor* t);
 int cgrad_tensor_gemm(cgrad_tensor* a, cgrad_tensor* b, cgrad_tensor* c);
+int cgrad_tensor_add(cgrad_tensor* a, cgrad_tensor* b, cgrad_tensor* c);
 void cgrad_tensor_print(const cgrad_tensor* t);
 void cgrad_tensor_transpose(cgrad_tensor* t, const uint32_t* perm);
 

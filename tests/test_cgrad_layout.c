@@ -37,11 +37,32 @@ static void test_cgrad_tensor_layout_transpose(void **state) {
     }
 }
 
+static void test_cgrad_tensor_layout_is_contiguous(void **state) {
+    (void)state;
+    cgrad_tensor_layout l;
+    uint32_t shape[MAX_TENSOR_DIM] = {2, 3, 4, 5};
+    cgrad_tensor_layout_init(&l, shape);
+    assert_int_equal(cgrad_tensor_layout_is_contiguous(&l), 1);
+
+    // Make non-contiguous by modifying strides
+    l.strides[2] = 100;
+    assert_int_equal(cgrad_tensor_layout_is_contiguous(&l), 0);
+
+    // Edge case: shape with 1 in some dims
+    uint32_t shape2[MAX_TENSOR_DIM] = {1, 1, 4, 5};
+    cgrad_tensor_layout_init(&l, shape2);
+    assert_int_equal(cgrad_tensor_layout_is_contiguous(&l), 1);
+
+    // Edge case: NULL pointer
+    assert_int_equal(cgrad_tensor_layout_is_contiguous(NULL), 0);
+}
+
 int run_cgrad_layout_tests(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_cgrad_tensor_layout_init_and_copy),
         cmocka_unit_test(test_cgrad_tensor_flat_index),
         cmocka_unit_test(test_cgrad_tensor_layout_transpose),
+        cmocka_unit_test(test_cgrad_tensor_layout_is_contiguous),
     };
     return _cmocka_run_group_tests("cgrad_layout", tests, sizeof(tests)/sizeof(tests[0]), NULL, NULL);
 }

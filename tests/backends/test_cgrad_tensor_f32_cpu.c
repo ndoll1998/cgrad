@@ -222,6 +222,72 @@ static void test_gemm_broadcasting(void **state) {
     cgrad_tensor_f32_cpu_free(&c);
 }
 
+static void test_tensor_add_broadcast(void **state) {
+    (void)state;
+    // a: [2, 3, 4, 1], b: [1, 3, 4, 1] -> c: [2, 3, 4, 1]
+    uint32_t shape_a[] = {2, 3, 4, 1};
+    uint32_t shape_b[] = {1, 3, 4, 1};
+    cgrad_tensor_f32_cpu a, b, c;
+    cgrad_tensor_f32_cpu_init(&a, shape_a);
+    cgrad_tensor_f32_cpu_init(&b, shape_b);
+
+    // Fill a and b with known values
+    for (int i = 0; i < a.layout.size; i++) {
+        a.data[i] = (float)(i + 1);
+    }
+    for (int i = 0; i < b.layout.size; i++) {
+        b.data[i] = (float)(1000 + i);
+    }
+
+    int err = cgrad_tensor_f32_cpu_add(&a, &b, &c);
+    assert_int_equal(err, 0);
+
+    // Check c = a + b (with broadcasting)
+    for (int i0 = 0; i0 < 2; i0++) {
+        for (int i1 = 0; i1 < 3; i1++) {
+            for (int i2 = 0; i2 < 4; i2++) {
+                for (int i3 = 0; i3 < 1; i3++) {
+                    int idx_a = ((i0 * 3 + i1) * 4 + i2) * 1 + i3;
+                    int idx_b = ((0 * 3 + i1) * 4 + i2) * 1 + i3;
+                    int idx_c = idx_a;
+                    float expected = a.data[idx_a] + b.data[idx_b];
+                    assert_true(fabsf(c.data[idx_c] - expected) < 1e-5);
+                }
+            }
+        }
+    }
+
+    cgrad_tensor_f32_cpu_free(&a);
+    cgrad_tensor_f32_cpu_free(&b);
+    cgrad_tensor_f32_cpu_free(&c);
+}
+
+static void test_tensor_add(void **state) {
+    (void)state;
+    cgrad_tensor_f32_cpu a, b, c;
+    uint32_t shape[] = {2, 3, 4, 1};
+    cgrad_tensor_f32_cpu_init(&a, shape);
+    cgrad_tensor_f32_cpu_init(&b, shape);
+
+    // Fill a and b with known values
+    for (int i = 0; i < a.layout.size; i++) {
+        a.data[i] = (float)i;
+        b.data[i] = (float)(1000 + i);
+    }
+
+    int err = cgrad_tensor_f32_cpu_add(&a, &b, &c);
+    assert_int_equal(err, 0);
+
+    // Check c = a + b
+    for (int i = 0; i < c.layout.size; i++) {
+        assert_true(fabsf(c.data[i] - (a.data[i] + b.data[i])) < 1e-5);
+    }
+
+    cgrad_tensor_f32_cpu_free(&a);
+    cgrad_tensor_f32_cpu_free(&b);
+    cgrad_tensor_f32_cpu_free(&c);
+}
+
 static void test_transpose(void **state) {
     (void)state;
     cgrad_tensor_f32_cpu t;
@@ -254,6 +320,8 @@ int run_cgrad_tensor_f32_cpu_tests(void) {
         cmocka_unit_test(test_gemm_batched),
         cmocka_unit_test(test_gemm_with_transpose),
         cmocka_unit_test(test_gemm_broadcasting),
+        cmocka_unit_test(test_tensor_add),
+        cmocka_unit_test(test_tensor_add_broadcast),
         cmocka_unit_test(test_transpose),
     };
     return _cmocka_run_group_tests("cgrad_tensor_f32_cpu", tests, sizeof(tests)/sizeof(tests[0]), NULL, NULL);

@@ -46,4 +46,7 @@ int cgrad_tensor_layout_broadcast(
 // Transpose: perm is an array of length MAX_TENSOR_DIM, giving the new order of axes
 void cgrad_tensor_layout_transpose(cgrad_tensor_layout* layout, const uint32_t* perm);
 
+// Returns 1 if the layout is contiguous, 0 otherwise
+int cgrad_tensor_layout_is_contiguous(const cgrad_tensor_layout* l);
+
 #endif // CGRAD_LAYOUT_H

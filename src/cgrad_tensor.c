@@ -33,9 +33,17 @@ int cgrad_tensor_fill_rand(cgrad_tensor* t) {
 
 int cgrad_tensor_gemm(cgrad_tensor* a, cgrad_tensor* b, cgrad_tensor* c) {
     if (!a || !b || !c) return -1;
-    if (!a->backend || !b->backend || !c->backend) return -1;
+    if (!a->backend || !b->backend) return -1;
     if (a->backend != b->backend || a->backend != c->backend) return -1;
     return a->backend->tensor_gemm(a->handle, b->handle, c->handle);
+}
+
+int cgrad_tensor_add(cgrad_tensor* a, cgrad_tensor* b, cgrad_tensor* c) {
+    if (!a || !b || !c) return -1;
+    if (!a->backend || !b->backend || !c->backend) return -1;
+    if (a->backend != b->backend || a->backend != c->backend) return -1;
+    if (!a->backend->tensor_add) return -1;
+    return a->backend->tensor_add(a->handle, b->handle, c->handle);
 }
 
 void cgrad_tensor_print(const cgrad_tensor* t) {

@@ -21,6 +21,14 @@ static void cgrad_tensor_f32_cpu_backend_tensor_transpose(void* t, const uint32_
     cgrad_tensor_f32_cpu_transpose((cgrad_tensor_f32_cpu*)t, perm);
 }
 
+static int cgrad_tensor_f32_cpu_backend_tensor_add(void* a, void* b, void* c) {
+    return cgrad_tensor_f32_cpu_add(
+        (const cgrad_tensor_f32_cpu*)a,
+        (const cgrad_tensor_f32_cpu*)b,
+        (cgrad_tensor_f32_cpu*)c
+    );
+}
+
 // Allocator for cgrad_tensor_f32_cpu handle
 static void* alloc_tensor_f32_cpu_handle(void) {
     return malloc(sizeof(struct cgrad_tensor_f32_cpu));
@@ -35,6 +43,7 @@ static cgrad_backend cgrad_backend_cpu = {
     .tensor_free      = cgrad_tensor_f32_cpu_backend_tensor_free,
     .tensor_print     = cgrad_tensor_f32_cpu_backend_tensor_print,
     .tensor_transpose = cgrad_tensor_f32_cpu_backend_tensor_transpose,
+    .tensor_add      = cgrad_tensor_f32_cpu_backend_tensor_add,
 };
 
 // Backend registry
