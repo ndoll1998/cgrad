@@ -72,10 +72,12 @@ int cgrad_tensor_layout_broadcast(
 
 /**
  * @brief Transpose the layout according to the given permutation.
+ *        Returns an error if any dimension is repeated in perm.
  * @param layout Pointer to layout.
  * @param perm Permutation array.
+ * @return 0 on success, CGRAD_LAYOUT_ERR_DUPLICATE_DIM if a dimension is repeated.
  */
-void cgrad_tensor_layout_transpose(cgrad_tensor_layout* layout, const uint32_t* perm);
+int cgrad_tensor_layout_transpose(cgrad_tensor_layout* layout, const uint32_t* perm);
 
 // --- Info ---
 

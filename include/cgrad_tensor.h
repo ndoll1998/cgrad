@@ -32,7 +32,13 @@ int cgrad_tensor_init(cgrad_tensor* t, const uint32_t* shape, cgrad_backend_type
  */
 void cgrad_tensor_free(cgrad_tensor* t);
 
-// --- Randomization ---
+/**
+ * @brief Fill the tensor with a constant value.
+ * @param t Pointer to tensor.
+ * @param value The value to fill the tensor with.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_tensor_fill(cgrad_tensor* t, float value);
 
 /**
  * @brief Fill the tensor with random values.

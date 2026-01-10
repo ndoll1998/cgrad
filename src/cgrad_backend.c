@@ -8,6 +8,9 @@ static void* _alloc_tensor_f32_cpu_handle(void) {
 static int _cgrad_tensor_f32_cpu_backend_tensor_init(void* t, const uint32_t* shape) {
     return cgrad_tensor_f32_cpu_init((cgrad_tensor_f32_cpu*)t, shape);
 }
+static int _cgrad_tensor_f32_cpu_backend_tensor_fill(void* t, float value) {
+    return cgrad_tensor_f32_cpu_fill((cgrad_tensor_f32_cpu*)t, value);
+}
 static int _cgrad_tensor_f32_cpu_backend_tensor_fill_rand(void* t) {
     return cgrad_tensor_f32_cpu_fill_rand((cgrad_tensor_f32_cpu*)t);
 }
@@ -44,6 +47,7 @@ static cgrad_backend cgrad_backend_cpu = {
     .type = CGRAD_BACKEND_F32_CPU,
     .alloc_tensor_handle = _alloc_tensor_f32_cpu_handle,
     .tensor_init      = _cgrad_tensor_f32_cpu_backend_tensor_init,
+    .tensor_fill      = _cgrad_tensor_f32_cpu_backend_tensor_fill,
     .tensor_fill_rand = _cgrad_tensor_f32_cpu_backend_tensor_fill_rand,
     .tensor_shallow_copy = _cgrad_tensor_f32_cpu_backend_tensor_shallow_copy,
     .tensor_free      = _cgrad_tensor_f32_cpu_backend_tensor_free,

@@ -47,6 +47,14 @@ float* cgrad_tensor_f32_cpu_ptr(const cgrad_tensor_f32_cpu* t, const uint32_t* i
 void cgrad_tensor_f32_cpu_set(cgrad_tensor_f32_cpu* t, const uint32_t* indices, float value);
 
 /**
+ * @brief Fill the tensor with a constant value.
+ * @param t Pointer to tensor.
+ * @param value The value to fill the tensor with.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_tensor_f32_cpu_fill(cgrad_tensor_f32_cpu* t, float value);
+
+/**
  * @brief Fill the tensor with random values.
  * @param t Pointer to tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.

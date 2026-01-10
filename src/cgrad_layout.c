@@ -94,10 +94,19 @@ int cgrad_tensor_layout_broadcast(
 
 /**
  * @brief Transpose the layout according to the given permutation.
+ *        Returns an error if any dimension is repeated in perm.
  * @param layout Pointer to layout.
  * @param perm Permutation array.
+ * @return 0 on success, CGRAD_LAYOUT_ERR_DUPLICATE_DIM if a dimension is repeated.
  */
-void cgrad_tensor_layout_transpose(cgrad_tensor_layout* layout, const uint32_t* perm) {
+int cgrad_tensor_layout_transpose(cgrad_tensor_layout* layout, const uint32_t* perm) {
+  // Check for duplicate dimensions in perm
+  int seen[MAX_TENSOR_DIM] = {0};
+  for (int i = 0; i < MAX_TENSOR_DIM; i++) {
+    if (perm[i] >= MAX_TENSOR_DIM) return CGRAD_LAYOUT_ERR_SHAPE_MISMATCH;
+    if (seen[perm[i]]) return CGRAD_LAYOUT_ERR_DUPLICATE_DIM;
+    seen[perm[i]] = 1;
+  }
   uint32_t new_shape[MAX_TENSOR_DIM];
   uint32_t new_strides[MAX_TENSOR_DIM];
   for (int i = 0; i < MAX_TENSOR_DIM; i++) {
@@ -108,6 +117,7 @@ void cgrad_tensor_layout_transpose(cgrad_tensor_layout* layout, const uint32_t* 
     layout->shape[i] = new_shape[i];
     layout->strides[i] = new_strides[i];
   }
+  return CGRAD_SUCCESS;
 }
 
 /**

@@ -39,6 +39,18 @@ void cgrad_tensor_free(cgrad_tensor* t) {
 }
 
 /**
+ * @brief Fill the tensor with a constant value.
+ * @param t Pointer to tensor.
+ * @param value The value to fill the tensor with.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_tensor_fill(cgrad_tensor* t, float value) {
+    if (!t || !t->backend || !t->handle) return CGRAD_TENSOR_ERR_NULL_POINTER;
+    if (!t->backend->tensor_fill) return CGRAD_TENSOR_ERR_NOT_IMPLEMENTED;
+    return t->backend->tensor_fill(t->handle, value);
+}
+
+/**
  * @brief Fill the tensor with random values.
  * @param t Pointer to tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.

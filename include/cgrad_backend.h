@@ -32,7 +32,13 @@ typedef struct cgrad_backend {
      */
     int  (*tensor_init)(void* t, const uint32_t* shape);
 
-    // --- Randomization ---
+    /**
+     * @brief Fill the tensor with a constant value.
+     * @param t Pointer to tensor.
+     * @param value The value to fill the tensor with.
+     */
+    int  (*tensor_fill)(void* t, float value);
+
     /**
      * @brief Fill the tensor with random values.
      */

@@ -73,6 +73,35 @@ void cgrad_tensor_f32_cpu_set(cgrad_tensor_f32_cpu* t, const uint32_t* indices, 
 }
 
 /**
+ * @brief Fill the tensor with a constant value.
+ * @param t Pointer to tensor.
+ * @param value The value to fill the tensor with.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_tensor_f32_cpu_fill(cgrad_tensor_f32_cpu* t, float value) {
+  if (!t || !t->data) return CGRAD_TENSOR_ERR_NULL_POINTER;
+
+  // Find the minimum nonzero stride in the tensor layout
+  int min_stride = 0;
+  for (int i = 0; i < MAX_TENSOR_DIM; i++) {
+    int stride = t->layout.strides[i];
+    if (stride > 0 && (min_stride == 0 || stride < min_stride)) {
+      min_stride = stride;
+    }
+  }
+  if (min_stride == 0) min_stride = 1; // fallback for degenerate case
+
+  // fill the tensor
+  cblas_scopy(
+    t->layout.size,
+    &value, 0,
+    t->data, min_stride
+  );
+
+  return CGRAD_SUCCESS;
+}
+
+/**
  * @brief Fill the tensor with random values.
  * @param t Pointer to tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
@@ -160,11 +189,13 @@ int cgrad_tensor_f32_cpu_add(
   cgrad_tensor_f32_cpu* c
 ) {
   if (!a || !b || !c) return CGRAD_TENSOR_ERR_NULL_POINTER;
+  
   for (int d = 0; d < MAX_TENSOR_DIM; d++) {
     if (a->layout.shape[d] != b->layout.shape[d]) {
       return CGRAD_TENSOR_F32_CPU_ERR_SHAPE_MISMATCH;
     }
   }
+  
   cgrad_tensor_f32_cpu a_contig;
   int is_a_contiguous = cgrad_tensor_layout_is_contiguous(&a->layout);
   const cgrad_tensor_f32_cpu* a_used = a;
@@ -173,14 +204,17 @@ int cgrad_tensor_f32_cpu_add(
     if (contig_err != CGRAD_SUCCESS) return contig_err;
     a_used = &a_contig;
   }
+  
   int contig_err = cgrad_tensor_f32_cpu_contiguous(b, c);
   if (contig_err != CGRAD_SUCCESS) return contig_err;
+  
   cblas_saxpy(
     c->layout.size,
     1.0f,
     a_used->data, 1,
     c->data, 1
   );
+  
   if (!is_a_contiguous) cgrad_tensor_f32_cpu_free(&a_contig);
   return CGRAD_SUCCESS;
 }
@@ -198,11 +232,13 @@ int cgrad_tensor_f32_cpu_gemm(
   cgrad_tensor_f32_cpu* c
 ) {
   if (!a || !b || !c) return CGRAD_TENSOR_ERR_NULL_POINTER;
+  
   for (int d = 0; d < MAX_TENSOR_DIM - 2; d++) {
     if (a->layout.shape[d] != b->layout.shape[d]) {
       return CGRAD_TENSOR_F32_CPU_ERR_SHAPE_MISMATCH;
     }
   }
+  
   int a_m = a->layout.shape[MAX_TENSOR_DIM-2];
   int a_k = a->layout.shape[MAX_TENSOR_DIM-1];
   int b_k = b->layout.shape[MAX_TENSOR_DIM-2];
@@ -210,10 +246,12 @@ int cgrad_tensor_f32_cpu_gemm(
   if (a_k != b_k) {
     return CGRAD_TENSOR_F32_CPU_ERR_SHAPE_MISMATCH;
   }
+  
   int m = a->layout.shape[MAX_TENSOR_DIM-2];
   int n = b->layout.shape[MAX_TENSOR_DIM-1];
   int k = b->layout.shape[MAX_TENSOR_DIM-2];
   int bs = a->layout.size / (m * k);
+  
   cgrad_tensor_f32_cpu a_contig;
   cgrad_tensor_f32_cpu b_contig;
   int is_a_contiguous = (a->layout.strides[MAX_TENSOR_DIM-1] == 1);
@@ -228,6 +266,7 @@ int cgrad_tensor_f32_cpu_gemm(
     if (contig_err != CGRAD_SUCCESS) return contig_err;
     b = &b_contig;
   }
+  
   float **A_array, **B_array, **C_array;
   int batch_err = cgrad_tensor_f32_cpu_build_batch_array((cgrad_tensor_f32_cpu*)a, &A_array);
   if (batch_err != CGRAD_SUCCESS) return batch_err;
@@ -235,13 +274,16 @@ int cgrad_tensor_f32_cpu_gemm(
   if (batch_err != CGRAD_SUCCESS) { free(A_array); return batch_err; }
   batch_err = cgrad_tensor_f32_cpu_build_batch_array(c, &C_array);
   if (batch_err != CGRAD_SUCCESS) { free(A_array); free(B_array); return batch_err; }
+  
   CBLAS_TRANSPOSE transA = CblasNoTrans;
   CBLAS_TRANSPOSE transB = CblasNoTrans;
   float alpha = 1.0f;
   float beta = 0.0f;
+  
   int lda = a->layout.strides[MAX_TENSOR_DIM-2];
   int ldb = b->layout.strides[MAX_TENSOR_DIM-2];
   int ldc = c->layout.strides[MAX_TENSOR_DIM-2];
+  
   cblas_sgemm_batch(
     CblasRowMajor,
     &transA,
@@ -255,11 +297,14 @@ int cgrad_tensor_f32_cpu_gemm(
     1,
     &bs
   );
+  
   free(A_array);
   free(B_array);
   free(C_array);
+  
   if (!is_a_contiguous) cgrad_tensor_f32_cpu_free(&a_contig);
   if (!is_b_contiguous) cgrad_tensor_f32_cpu_free(&b_contig);
+  
   return CGRAD_SUCCESS;
 }
 

@@ -28,10 +28,25 @@ static void test_cgrad_tensor_init_errors(void **state) {
     assert_int_equal(cgrad_tensor_init(&t, NULL, CGRAD_BACKEND_F32_CPU), CGRAD_TENSOR_ERR_NULL_POINTER);
 }
 
+static void test_cgrad_tensor_fill(void **state) {
+    (void)state;
+    cgrad_tensor t;
+    uint32_t shape[MAX_TENSOR_DIM] = {2, 3, 4, 5};
+    float fill_value = 7.5f;
+    assert_int_equal(cgrad_tensor_init(&t, shape, CGRAD_BACKEND_F32_CPU), 0);
+    assert_int_equal(cgrad_tensor_fill(&t, fill_value), 0);
+    cgrad_tensor_f32_cpu* handle = (cgrad_tensor_f32_cpu*)t.handle;
+    for (int i = 0; i < handle->layout.size; i++) {
+        assert_float_equal(handle->data[i], fill_value, 1e-6);
+    }
+    cgrad_tensor_free(&t);
+}
+
 int run_cgrad_tensor_tests(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_cgrad_tensor_init_and_free),
         cmocka_unit_test(test_cgrad_tensor_init_errors),
+        cmocka_unit_test(test_cgrad_tensor_fill),
     };
     return _cmocka_run_group_tests("cgrad_tensor", tests, sizeof(tests)/sizeof(tests[0]), NULL, NULL);
 }
