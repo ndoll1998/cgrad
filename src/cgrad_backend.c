@@ -40,9 +40,6 @@ static cgrad_tensor_layout* _cgrad_tensor_f32_cpu_backend_tensor_get_layout(void
 static void _cgrad_tensor_f32_cpu_backend_tensor_print(const void* t) {
     cgrad_tensor_f32_cpu_print((const cgrad_tensor_f32_cpu*)t);
 }
-static void _cgrad_tensor_f32_cpu_backend_tensor_transpose(void* t, const uint32_t* perm, int ndim) {
-    cgrad_tensor_f32_cpu_transpose((cgrad_tensor_f32_cpu*)t, perm, ndim);
-}
 
 static cgrad_backend cgrad_backend_cpu = {
     .type = CGRAD_BACKEND_F32_CPU,
@@ -56,7 +53,6 @@ static cgrad_backend cgrad_backend_cpu = {
     .tensor_gemm      = _cgrad_tensor_f32_cpu_backend_tensor_gemm,
     .tensor_get_layout   = _cgrad_tensor_f32_cpu_backend_tensor_get_layout,
     .tensor_print     = _cgrad_tensor_f32_cpu_backend_tensor_print,
-    .tensor_transpose = _cgrad_tensor_f32_cpu_backend_tensor_transpose,
 };
 
 cgrad_backend* cgrad_get_backend(cgrad_backend_type type) {

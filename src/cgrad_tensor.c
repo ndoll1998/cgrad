@@ -216,5 +216,5 @@ void cgrad_tensor_print(const cgrad_tensor* t) {
  */
 void cgrad_tensor_transpose(cgrad_tensor* t, const uint32_t* perm, int ndim) {
     if (!t || !t->backend || !t->handle) return;
-    t->backend->tensor_transpose(t->handle, perm, ndim);
+    cgrad_tensor_layout_transpose(t->backend->tensor_get_layout(t->handle), perm, ndim);
 }

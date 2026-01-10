@@ -345,14 +345,3 @@ void cgrad_tensor_f32_cpu_print(const cgrad_tensor_f32_cpu* t) {
   }
   printf("\n");
 }
-
-/**
- * @brief Transpose the tensor according to the given permutation, applied to the last ndim dims.
- * @param t Pointer to tensor.
- * @param perm Permutation array (length ndim).
- * @param ndim Number of trailing dimensions to permute (≤ TENSOR_DIM).
- * @return CGRAD_SUCCESS on success, CGRAD_LAYOUT_ERR_DUPLICATE_DIM if a dimension is repeated.
- */
-int cgrad_tensor_f32_cpu_transpose(cgrad_tensor_f32_cpu* t, const uint32_t* perm, int ndim) {
-  return cgrad_tensor_layout_transpose(&t->layout, perm, ndim);
-}

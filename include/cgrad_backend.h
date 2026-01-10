@@ -84,15 +84,6 @@ typedef struct cgrad_backend {
      */
     void (*tensor_print)(const void* t);
 
-    // --- Transform ---
-    /**
-     * @brief Transpose the tensor according to the given permutation, applied to the last ndim dims.
-     * @param t Pointer to tensor.
-     * @param perm Permutation array (length ndim).
-     * @param ndim Number of trailing dimensions to permute (≤ MAX_TENSOR_DIM).
-     */
-    void (*tensor_transpose)(void* t, const uint32_t* perm, int ndim);
-
     // Add more ops as needed (e.g., build_batch_array, ptr, set, contiguous, etc.)
 } cgrad_backend;
 
