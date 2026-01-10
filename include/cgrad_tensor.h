@@ -68,7 +68,18 @@ int cgrad_tensor_gemm(const cgrad_tensor* a, const cgrad_tensor* b, cgrad_tensor
  * @param r Output tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
+
 int cgrad_tensor_add(cgrad_tensor* a, cgrad_tensor* b, cgrad_tensor* r);
+
+/**
+ * @brief Subtract two tensors elementwise and store the result in a third tensor.
+ *        Computes r = a - b.
+ * @param a First input tensor.
+ * @param b Second input tensor.
+ * @param r Output tensor.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_tensor_sub(cgrad_tensor* a, cgrad_tensor* b, cgrad_tensor* r);
 
 // --- Data Access/Info ---
 

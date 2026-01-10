@@ -188,6 +188,7 @@ void cgrad_tensor_f32_cpu_free(cgrad_tensor_f32_cpu* t) {
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
 int cgrad_tensor_f32_cpu_add(
+  float alpha,
   const cgrad_tensor_f32_cpu* a,
   const cgrad_tensor_f32_cpu* b,
   cgrad_tensor_f32_cpu* c
@@ -214,7 +215,7 @@ int cgrad_tensor_f32_cpu_add(
   
   cblas_saxpy(
     c->layout.size,
-    1.0f,
+    alpha,
     a_used->data, a_used->layout.strides[TENSOR_DIM-1],
     c->data, 1
   );

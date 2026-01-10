@@ -61,8 +61,12 @@ typedef struct cgrad_backend {
     // --- Math Ops ---
     /**
      * @brief Add two tensors elementwise and store the result in a third tensor.
+     * @param alpha Scaling factor for a (c = alpha * a + b).
+     * @param a First input tensor.
+     * @param b Second input tensor.
+     * @param c Output tensor.
      */
-    int  (*tensor_add)(void* a, void* b, void* c);
+    int  (*tensor_add)(float alpha, void* a, void* b, void* c);
 
     /**
      * @brief Perform batched matrix multiplication (GEMM) on two tensors.

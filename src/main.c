@@ -31,7 +31,7 @@ int main() {
   cgrad_tensor_print(&out);
 
   // Add output to itself
-  e = cgrad_tensor_add(&out, &out, &r);
+  e = cgrad_tensor_sub(&out, &out, &r);
   printf("Add error code: %d\n", e);
   cgrad_tensor_print(&r);
 

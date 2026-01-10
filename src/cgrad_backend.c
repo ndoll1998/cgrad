@@ -23,8 +23,9 @@ static int _cgrad_tensor_f32_cpu_backend_tensor_shallow_copy(const void* src, vo
 static void _cgrad_tensor_f32_cpu_backend_tensor_free(void* t) {
     cgrad_tensor_f32_cpu_free((cgrad_tensor_f32_cpu*)t);
 }
-static int _cgrad_tensor_f32_cpu_backend_tensor_add(void* a, void* b, void* c) {
+static int _cgrad_tensor_f32_cpu_backend_tensor_add(float alpha, void* a, void* b, void* c) {
     return cgrad_tensor_f32_cpu_add(
+        alpha,
         (const cgrad_tensor_f32_cpu*)a,
         (const cgrad_tensor_f32_cpu*)b,
         (cgrad_tensor_f32_cpu*)c

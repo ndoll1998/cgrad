@@ -194,7 +194,7 @@ static void test_tensor_add(void **state) {
         b.data[i] = (float)(1000 + i);
     }
 
-    int err = cgrad_tensor_f32_cpu_add(&a, &b, &c);
+    int err = cgrad_tensor_f32_cpu_add(1.0f, &a, &b, &c);
     assert_int_equal(err, 0);
 
     // Check c = a + b
@@ -224,7 +224,7 @@ static void test_add_with_transposed_inputs(void **state) {
     assert_int_equal(cgrad_tensor_f32_cpu_transpose(&b, (uint32_t[]){1, 0, 2, 3}, 4), CGRAD_SUCCESS);
 
     // c = a_t + b
-    int err = cgrad_tensor_f32_cpu_add(&a, &b, &c);
+    int err = cgrad_tensor_f32_cpu_add(1.0f, &a, &b, &c);
     assert_int_equal(err, 0);
 
     // Check c = a.t + b.t

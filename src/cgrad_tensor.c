@@ -150,7 +150,53 @@ int cgrad_tensor_add(
         return CGRAD_TENSOR_ERR_NOT_IMPLEMENTED;
     }
 
-    return a->backend->tensor_add(a->handle, b->handle, r->handle);
+    return a->backend->tensor_add(1.0f, a->handle, b->handle, r->handle);
+}
+
+/**
+ * @brief Subtract two tensors elementwise and store the result in a third tensor.
+ *        Computes r = a - b.
+ * @param a First input tensor.
+ * @param b Second input tensor.
+ * @param r Output tensor.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_tensor_sub(
+    cgrad_tensor* a,
+    cgrad_tensor* b,
+    cgrad_tensor* r
+) {
+    // validate tensors
+    if (!a || !b || !r) return CGRAD_TENSOR_ERR_NULL_POINTER;
+    if (!a->backend || !b->backend) return CGRAD_TENSOR_ERR_NULL_POINTER;
+    if (a->backend != b->backend) return CGRAD_TENSOR_ERR_BACKEND_MISMATCH;
+
+    // create shallow copies of a and b
+    cgrad_tensor a_bcast = *a;
+    cgrad_tensor b_bcast = *b;
+    a->backend->tensor_shallow_copy(a->handle, a_bcast.handle);
+    b->backend->tensor_shallow_copy(b->handle, b_bcast.handle);
+
+    // broadcast layouts
+    int bcast_err = cgrad_tensor_layout_broadcast(
+        a_bcast.backend->tensor_get_layout(a_bcast.handle),
+        b_bcast.backend->tensor_get_layout(b_bcast.handle),
+        0,
+        TENSOR_DIM
+    );
+    if (bcast_err != CGRAD_SUCCESS) return bcast_err;
+
+    // check if r is initialized, if not initialize it
+    if (!r->handle) {
+        const uint32_t* shape = a_bcast.backend->tensor_get_layout(a_bcast.handle)->shape;
+        cgrad_tensor_init(r, shape, TENSOR_DIM, a->backend->type);
+    } else {
+        // TODO: support writing to existing tensor with matching shape
+        return CGRAD_TENSOR_ERR_NOT_IMPLEMENTED;
+    }
+
+    // r = a - b = a + (-1.0) * b
+    return a->backend->tensor_add(-1.0f, b->handle, a->handle, r->handle);
 }
 
 /**

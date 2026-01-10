@@ -88,12 +88,15 @@ void cgrad_tensor_f32_cpu_free(cgrad_tensor_f32_cpu* t);
 
 /**
  * @brief Add two tensors elementwise and store the result in a third tensor.
+ *        Computes c = alpha * a + b.
  * @param a First input tensor.
  * @param b Second input tensor.
  * @param c Output tensor.
+ * @param alpha Scaling factor for a.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
 int cgrad_tensor_f32_cpu_add(
+  float alpha,
   const cgrad_tensor_f32_cpu* a,
   const cgrad_tensor_f32_cpu* b,
   cgrad_tensor_f32_cpu* c
