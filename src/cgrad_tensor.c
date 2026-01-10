@@ -11,7 +11,7 @@
  * @param backend_type Backend type to use.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_init(cgrad_tensor* t, const uint32_t* shape, cgrad_backend_type backend_type) {
+int cgrad_tensor_init(cgrad_tensor* t, const uint32_t* shape, int ndim, cgrad_backend_type backend_type) {
     if (!t || !shape) return CGRAD_TENSOR_ERR_NULL_POINTER;
     t->backend = cgrad_get_backend(backend_type);
     if (!t->backend) return CGRAD_TENSOR_ERR_BACKEND_MISMATCH;
@@ -19,7 +19,7 @@ int cgrad_tensor_init(cgrad_tensor* t, const uint32_t* shape, cgrad_backend_type
     // Use backend's tensor handle allocator
     void* handle = t->backend->alloc_tensor_handle();
     if (!handle) return CGRAD_TENSOR_ERR_HANDLE_UNINITIALIZED;
-    if (t->backend->tensor_init(handle, shape)) {
+    if (t->backend->tensor_init(handle, shape, ndim)) {
         free(handle);
         return CGRAD_TENSOR_ERR_NOT_IMPLEMENTED;
     }
@@ -100,7 +100,7 @@ int cgrad_tensor_gemm(
 
     // check if r is initialized, if not initialize it
     if (!r->handle) {
-        cgrad_tensor_init(r, r_shape, a->backend->type);
+        cgrad_tensor_init(r, r_shape, MAX_TENSOR_DIM, a->backend->type);
     } else {
         // TODO: support writing to existing tensor with matching shape
         return CGRAD_TENSOR_ERR_NOT_IMPLEMENTED;
@@ -144,7 +144,7 @@ int cgrad_tensor_add(
     // check if r is initialized, if not initialize it
     if (!r->handle) {
         const uint32_t* shape = a_bcast.backend->tensor_get_layout(a_bcast.handle)->shape;
-        cgrad_tensor_init(r, shape, a->backend->type);
+        cgrad_tensor_init(r, shape, MAX_TENSOR_DIM, a->backend->type);
     } else {
         // TODO: support writing to existing tensor with matching shape
         return CGRAD_TENSOR_ERR_NOT_IMPLEMENTED;
@@ -163,11 +163,12 @@ void cgrad_tensor_print(const cgrad_tensor* t) {
 }
 
 /**
- * @brief Transpose the tensor according to the given permutation.
+ * @brief Transpose the tensor according to the given permutation, applied to the last ndim dims.
  * @param t Pointer to tensor.
- * @param perm Permutation array.
+ * @param perm Permutation array (length ndim).
+ * @param ndim Number of trailing dimensions to permute (≤ MAX_TENSOR_DIM).
  */
-void cgrad_tensor_transpose(cgrad_tensor* t, const uint32_t* perm) {
+void cgrad_tensor_transpose(cgrad_tensor* t, const uint32_t* perm, int ndim) {
     if (!t || !t->backend || !t->handle) return;
-    t->backend->tensor_transpose(t->handle, perm);
+    t->backend->tensor_transpose(t->handle, perm, ndim);
 }

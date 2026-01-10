@@ -11,7 +11,7 @@ static void test_cgrad_tensor_f32_contiguous_swap23(void **state) {
     (void)state;
     cgrad_tensor_f32_cpu t, t_contig;
     uint32_t shape[] = {2, 3, 4, 5};
-    cgrad_tensor_f32_cpu_init(&t, shape);
+    cgrad_tensor_f32_cpu_init(&t, shape, 4);
 
     for (int i = 0; i < 2; i++)
       for (int j = 0; j < 3; j++)
@@ -23,7 +23,7 @@ static void test_cgrad_tensor_f32_contiguous_swap23(void **state) {
           }
 
     uint32_t perm[4] = {0, 2, 1, 3};
-    assert_int_equal(cgrad_tensor_f32_cpu_transpose(&t, perm), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_tensor_f32_cpu_transpose(&t, perm, 4), CGRAD_SUCCESS);
 
     int err = cgrad_tensor_f32_cpu_contiguous(&t, &t_contig);
     assert_int_equal(err, 0);
@@ -47,7 +47,7 @@ static void test_cgrad_tensor_f32_contiguous_swap01(void **state) {
     (void)state;
     cgrad_tensor_f32_cpu t, t_contig;
     uint32_t shape[] = {2, 3, 4, 5};
-    cgrad_tensor_f32_cpu_init(&t, shape);
+    cgrad_tensor_f32_cpu_init(&t, shape, 4);
 
     for (int i = 0; i < 2; i++)
       for (int j = 0; j < 3; j++)
@@ -59,7 +59,7 @@ static void test_cgrad_tensor_f32_contiguous_swap01(void **state) {
           }
 
     uint32_t perm[4] = {1, 0, 2, 3};
-    assert_int_equal(cgrad_tensor_f32_cpu_transpose(&t, perm), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_tensor_f32_cpu_transpose(&t, perm, 4), CGRAD_SUCCESS);
 
     int err = cgrad_tensor_f32_cpu_contiguous(&t, &t_contig);
     assert_int_equal(err, 0);
@@ -88,8 +88,8 @@ static void test_gemm_simple(void **state) {
     float dataB[6] = {7, 8, 9, 10, 11, 12};
     float expected[4] = {58, 64, 139, 154};
 
-    cgrad_tensor_f32_cpu_init(&a, shapeA);
-    cgrad_tensor_f32_cpu_init(&b, shapeB);
+    cgrad_tensor_f32_cpu_init(&a, shapeA, 4);
+    cgrad_tensor_f32_cpu_init(&b, shapeB, 4);
 
     for (int i = 0; i < 6; i++) {
         a.data[i] = dataA[i];
@@ -98,7 +98,7 @@ static void test_gemm_simple(void **state) {
 
     // Output shape: {1, 1, 2, 2}
     uint32_t shapeC[] = {1, 1, 2, 2};
-    cgrad_tensor_f32_cpu_init(&c, shapeC);
+    cgrad_tensor_f32_cpu_init(&c, shapeC, 4);
 
     int err = cgrad_tensor_f32_cpu_gemm(&a, &b, &c);
     assert_int_equal(err, 0);
@@ -121,8 +121,8 @@ static void test_gemm_batched(void **state) {
     float dataB[8] = {5,6,7,8,13,14,15,16};
     float expected[8] = {19, 22, 43, 50, 267, 286, 323, 346};
 
-    cgrad_tensor_f32_cpu_init(&a, shape);
-    cgrad_tensor_f32_cpu_init(&b, shape);
+    cgrad_tensor_f32_cpu_init(&a, shape, 4);
+    cgrad_tensor_f32_cpu_init(&b, shape, 4);
 
     for (int i = 0; i < 8; i++) {
         a.data[i] = dataA[i];
@@ -131,7 +131,7 @@ static void test_gemm_batched(void **state) {
 
     // Output shape: {2, 1, 2, 2}
     uint32_t shapeC[] = {2, 1, 2, 2};
-    cgrad_tensor_f32_cpu_init(&c, shapeC);
+    cgrad_tensor_f32_cpu_init(&c, shapeC, 4);
 
     int err = cgrad_tensor_f32_cpu_gemm(&a, &b, &c);
     assert_int_equal(err, 0);
@@ -154,8 +154,8 @@ static void test_gemm_with_transpose(void **state) {
     float dataB[6] = {7, 8, 9, 10, 11, 12};
     float expected[9] = {39, 49, 59, 54, 68, 82, 69, 87, 105};
 
-    cgrad_tensor_f32_cpu_init(&a, shapeA);
-    cgrad_tensor_f32_cpu_init(&b, shapeB);
+    cgrad_tensor_f32_cpu_init(&a, shapeA, 4);
+    cgrad_tensor_f32_cpu_init(&b, shapeB, 4);
 
     for (int i = 0; i < 6; i++) {
         a.data[i] = dataA[i];
@@ -163,12 +163,12 @@ static void test_gemm_with_transpose(void **state) {
     }
 
     uint32_t perm[MAX_TENSOR_DIM] = {0, 1, 3, 2};
-    assert_int_equal(cgrad_tensor_f32_cpu_transpose(&a, perm), CGRAD_SUCCESS);
-    assert_int_equal(cgrad_tensor_f32_cpu_transpose(&b, perm), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_tensor_f32_cpu_transpose(&a, perm, 4), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_tensor_f32_cpu_transpose(&b, perm, 4), CGRAD_SUCCESS);
 
     // Output shape: {1, 1, 3, 3}
     uint32_t shapeC[] = {1, 1, 3, 3};
-    cgrad_tensor_f32_cpu_init(&c, shapeC);
+    cgrad_tensor_f32_cpu_init(&c, shapeC, 4);
 
     cgrad_tensor_f32_cpu_gemm(&a, &b, &c);
 
@@ -185,8 +185,8 @@ static void test_tensor_add(void **state) {
     (void)state;
     cgrad_tensor_f32_cpu a, b, c;
     uint32_t shape[] = {2, 3, 4, 1};
-    cgrad_tensor_f32_cpu_init(&a, shape);
-    cgrad_tensor_f32_cpu_init(&b, shape);
+    cgrad_tensor_f32_cpu_init(&a, shape, 4);
+    cgrad_tensor_f32_cpu_init(&b, shape, 4);
 
     // Fill a and b with known values
     for (int i = 0; i < a.layout.size; i++) {
@@ -210,8 +210,8 @@ static void test_tensor_add(void **state) {
 static void test_add_with_transposed_inputs(void **state) {
     (void)state;
     cgrad_tensor_f32_cpu a, b, c;
-    cgrad_tensor_f32_cpu_init(&a, (uint32_t[]){2,3,4,1});
-    cgrad_tensor_f32_cpu_init(&b, (uint32_t[]){2,3,4,1});
+    cgrad_tensor_f32_cpu_init(&a, (uint32_t[]){2,3,4,1}, 4);
+    cgrad_tensor_f32_cpu_init(&b, (uint32_t[]){2,3,4,1}, 4);
 
     // Fill a and b with known values
     for (int i = 0; i < a.layout.size; i++) {
@@ -220,8 +220,8 @@ static void test_add_with_transposed_inputs(void **state) {
     }
 
     // Make a non-contiguous by transposing memory layout but keep shape the same
-    assert_int_equal(cgrad_tensor_f32_cpu_transpose(&a, (uint32_t[]){1, 0, 2, 3}), CGRAD_SUCCESS);
-    assert_int_equal(cgrad_tensor_f32_cpu_transpose(&b, (uint32_t[]){1, 0, 2, 3}), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_tensor_f32_cpu_transpose(&a, (uint32_t[]){1, 0, 2, 3}, 4), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_tensor_f32_cpu_transpose(&b, (uint32_t[]){1, 0, 2, 3}, 4), CGRAD_SUCCESS);
 
     // c = a_t + b
     int err = cgrad_tensor_f32_cpu_add(&a, &b, &c);
@@ -252,8 +252,8 @@ static void test_gemm_with_transposed_inputs(void **state) {
     float expected[9] = {39, 49, 59, 54, 68, 82, 69, 87, 105};
 
     cgrad_tensor_f32_cpu a, b, c;
-    cgrad_tensor_f32_cpu_init(&a, shapeA);
-    cgrad_tensor_f32_cpu_init(&b, shapeB);
+    cgrad_tensor_f32_cpu_init(&a, shapeA, 4);
+    cgrad_tensor_f32_cpu_init(&b, shapeB, 4);
 
     for (int i = 0; i < 6; i++) {
         a.data[i] = dataA[i];
@@ -262,12 +262,12 @@ static void test_gemm_with_transposed_inputs(void **state) {
 
     // Transpose a and b: swap last two axes
     uint32_t perm[MAX_TENSOR_DIM] = {0, 1, 3, 2};
-    assert_int_equal(cgrad_tensor_f32_cpu_transpose(&a, perm), CGRAD_SUCCESS);
-    assert_int_equal(cgrad_tensor_f32_cpu_transpose(&b, perm), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_tensor_f32_cpu_transpose(&a, perm, 4), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_tensor_f32_cpu_transpose(&b, perm, 4), CGRAD_SUCCESS);
 
     // Output shape: {1, 1, 3, 3}
     uint32_t shapeC[] = {1, 1, 3, 3};
-    cgrad_tensor_f32_cpu_init(&c, shapeC);
+    cgrad_tensor_f32_cpu_init(&c, shapeC, 4);
 
     int err = cgrad_tensor_f32_cpu_gemm(&a, &b, &c);
     assert_int_equal(err, 0);
@@ -287,7 +287,7 @@ static void test_transpose(void **state) {
     (void)state;
     cgrad_tensor_f32_cpu t;
     uint32_t shape[] = {1, 2, 3, 4};
-    cgrad_tensor_f32_cpu_init(&t, shape);
+    cgrad_tensor_f32_cpu_init(&t, shape, 4);
 
     uint32_t orig_shape[MAX_TENSOR_DIM], orig_strides[MAX_TENSOR_DIM];
     for (int i = 0; i < MAX_TENSOR_DIM; i++) {
@@ -296,7 +296,7 @@ static void test_transpose(void **state) {
     }
 
     uint32_t perm[MAX_TENSOR_DIM] = {0, 1, 3, 2};
-    assert_int_equal(cgrad_tensor_f32_cpu_transpose(&t, perm), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_tensor_f32_cpu_transpose(&t, perm, 4), CGRAD_SUCCESS);
 
     for (int i = 0; i < MAX_TENSOR_DIM; i++) {
         assert_int_equal(t.layout.shape[i], orig_shape[perm[i]]);

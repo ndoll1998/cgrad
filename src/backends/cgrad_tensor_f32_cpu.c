@@ -13,9 +13,9 @@
  * @param shape Array of dimensions.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_f32_cpu_init(cgrad_tensor_f32_cpu* t, const uint32_t* shape) {
+int cgrad_tensor_f32_cpu_init(cgrad_tensor_f32_cpu* t, const uint32_t* shape, int ndim) {
   if (!t || !shape) return CGRAD_TENSOR_ERR_NULL_POINTER;
-  int layout_err = cgrad_tensor_layout_init(&t->layout, shape);
+  int layout_err = cgrad_tensor_layout_init(&t->layout, shape, ndim);
   if (layout_err != CGRAD_SUCCESS) return layout_err;
   t->data = (float*)calloc(t->layout.size, sizeof(float));
   if (!t->data) return CGRAD_TENSOR_F32_CPU_ERR_ALLOC_FAILED;
@@ -58,7 +58,7 @@ int cgrad_tensor_f32_cpu_build_batch_array(cgrad_tensor_f32_cpu* t, float*** arr
  */
 float* cgrad_tensor_f32_cpu_ptr(const cgrad_tensor_f32_cpu* t, const uint32_t* indices) {
   size_t idx = 0;
-  int err = cgrad_tensor_layout_flat_index(&t->layout, indices, &idx);
+  int err = cgrad_tensor_layout_flat_index(&t->layout, indices, MAX_TENSOR_DIM, &idx);
   if (err != CGRAD_SUCCESS) return NULL;
   return t->data + idx;
 }
@@ -71,7 +71,7 @@ float* cgrad_tensor_f32_cpu_ptr(const cgrad_tensor_f32_cpu* t, const uint32_t* i
  */
 void cgrad_tensor_f32_cpu_set(cgrad_tensor_f32_cpu* t, const uint32_t* indices, float value) {
   size_t idx = 0;
-  int err = cgrad_tensor_layout_flat_index(&t->layout, indices, &idx);
+  int err = cgrad_tensor_layout_flat_index(&t->layout, indices, MAX_TENSOR_DIM, &idx);
   if (err != CGRAD_SUCCESS) return;
   t->data[idx] = value;
 }
@@ -125,7 +125,7 @@ int cgrad_tensor_f32_cpu_fill_rand(cgrad_tensor_f32_cpu* t) {
  */
 int cgrad_tensor_f32_cpu_contiguous(const cgrad_tensor_f32_cpu* src, cgrad_tensor_f32_cpu* dst) {
   if (!src || !dst) return CGRAD_TENSOR_ERR_NULL_POINTER;
-  int init_err = cgrad_tensor_f32_cpu_init(dst, src->layout.shape);
+  int init_err = cgrad_tensor_f32_cpu_init(dst, src->layout.shape, MAX_TENSOR_DIM);
   if (init_err != CGRAD_SUCCESS) return init_err;
 
   uint32_t block_size = src->layout.shape[MAX_TENSOR_DIM-1];
@@ -331,7 +331,7 @@ void cgrad_tensor_f32_cpu_print(const cgrad_tensor_f32_cpu* t) {
   for (int i = 0; i < MAX_TENSOR_DIM; i++) printf(" %i ", t->layout.shape[i]);
   printf(")\n");
   cgrad_tensor_layout l;
-  cgrad_tensor_layout_init(&l, t->layout.shape);
+  cgrad_tensor_layout_init(&l, t->layout.shape, MAX_TENSOR_DIM);
   uint32_t idx[MAX_TENSOR_DIM] = {0};
   for (int i = 0; i < l.size; i++) {
     #pragma unroll
@@ -346,11 +346,12 @@ void cgrad_tensor_f32_cpu_print(const cgrad_tensor_f32_cpu* t) {
 }
 
 /**
- * @brief Transpose the tensor according to the given permutation.
+ * @brief Transpose the tensor according to the given permutation, applied to the last ndim dims.
  * @param t Pointer to tensor.
- * @param perm Permutation array.
+ * @param perm Permutation array (length ndim).
+ * @param ndim Number of trailing dimensions to permute (≤ MAX_TENSOR_DIM).
  * @return CGRAD_SUCCESS on success, CGRAD_LAYOUT_ERR_DUPLICATE_DIM if a dimension is repeated.
  */
-int cgrad_tensor_f32_cpu_transpose(cgrad_tensor_f32_cpu* t, const uint32_t* perm) {
-  return cgrad_tensor_layout_transpose(&t->layout, perm);
+int cgrad_tensor_f32_cpu_transpose(cgrad_tensor_f32_cpu* t, const uint32_t* perm, int ndim) {
+  return cgrad_tensor_layout_transpose(&t->layout, perm, ndim);
 }

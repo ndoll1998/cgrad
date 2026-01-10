@@ -5,8 +5,8 @@
 static void* _alloc_tensor_f32_cpu_handle(void) {
     return malloc(sizeof(struct cgrad_tensor_f32_cpu));
 }
-static int _cgrad_tensor_f32_cpu_backend_tensor_init(void* t, const uint32_t* shape) {
-    return cgrad_tensor_f32_cpu_init((cgrad_tensor_f32_cpu*)t, shape);
+static int _cgrad_tensor_f32_cpu_backend_tensor_init(void* t, const uint32_t* shape, int ndim) {
+    return cgrad_tensor_f32_cpu_init((cgrad_tensor_f32_cpu*)t, shape, ndim);
 }
 static int _cgrad_tensor_f32_cpu_backend_tensor_fill(void* t, float value) {
     return cgrad_tensor_f32_cpu_fill((cgrad_tensor_f32_cpu*)t, value);
@@ -39,8 +39,8 @@ static cgrad_tensor_layout* _cgrad_tensor_f32_cpu_backend_tensor_get_layout(void
 static void _cgrad_tensor_f32_cpu_backend_tensor_print(const void* t) {
     cgrad_tensor_f32_cpu_print((const cgrad_tensor_f32_cpu*)t);
 }
-static void _cgrad_tensor_f32_cpu_backend_tensor_transpose(void* t, const uint32_t* perm) {
-    cgrad_tensor_f32_cpu_transpose((cgrad_tensor_f32_cpu*)t, perm);
+static void _cgrad_tensor_f32_cpu_backend_tensor_transpose(void* t, const uint32_t* perm, int ndim) {
+    cgrad_tensor_f32_cpu_transpose((cgrad_tensor_f32_cpu*)t, perm, ndim);
 }
 
 static cgrad_backend cgrad_backend_cpu = {

@@ -11,12 +11,10 @@ int main() {
   cgrad_tensor t2 = {0};
   cgrad_tensor out = {0};
   cgrad_tensor r = {0};
-  uint32_t shapeA[] = {1, 2, 2, 3};
-  uint32_t shapeB[] = {1, 1, 2, 3};
-
+  
   // initialize tensors (CPU backend)
-  cgrad_tensor_init(&t1, shapeA, CGRAD_BACKEND_F32_CPU);
-  cgrad_tensor_init(&t2, shapeB, CGRAD_BACKEND_F32_CPU);
+  cgrad_tensor_init(&t1, (uint32_t[]){1, 2, 2, 3}, 4, CGRAD_BACKEND_F32_CPU);
+  cgrad_tensor_init(&t2, (uint32_t[]){1, 1, 2, 3}, 4, CGRAD_BACKEND_F32_CPU);
 
   // fill with random numbers
   cgrad_tensor_fill_rand(&t1);
@@ -24,7 +22,7 @@ int main() {
 
   // print, transpose, print
   cgrad_tensor_print(&t1);
-  cgrad_tensor_transpose(&t1, (uint32_t[]){0,1,3,2});
+  cgrad_tensor_transpose(&t1, (uint32_t[]){0,1,3,2}, 4);
   cgrad_tensor_print(&t1);
 
   // GEMM

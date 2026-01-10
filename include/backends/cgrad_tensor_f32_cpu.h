@@ -15,12 +15,15 @@ typedef struct cgrad_tensor_f32_cpu {
 } cgrad_tensor_f32_cpu;
 
 /**
- * @brief Initialize a float32 CPU tensor with the given shape.
+ * @brief Initialize a float32 CPU tensor with the given shape and ndim.
+ *        The user-specified shape (length ndim) is placed at the end; leading unspecified dims are set to 1.
+ *        For example, shape={3,4}, ndim=2, MAX_TENSOR_DIM=4 => layout.shape={1,1,3,4}
  * @param t Pointer to tensor to initialize.
- * @param shape Array of dimensions.
+ * @param shape Array of dimensions (length ndim).
+ * @param ndim Number of dimensions in shape (≤ MAX_TENSOR_DIM).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_f32_cpu_init(cgrad_tensor_f32_cpu* t, const uint32_t* shape);
+int cgrad_tensor_f32_cpu_init(cgrad_tensor_f32_cpu* t, const uint32_t* shape, int ndim);
 
 /**
  * @brief Build a batch array of pointers for batched operations.
@@ -123,12 +126,13 @@ cgrad_tensor_layout* cgrad_tensor_f32_cpu_get_layout(cgrad_tensor_f32_cpu* t);
 void cgrad_tensor_f32_cpu_print(const cgrad_tensor_f32_cpu* t);
 
 /**
- * @brief Transpose the tensor according to the given permutation.
+ * @brief Transpose the tensor according to the given permutation, applied to the last ndim dims.
  *        Returns the error code from cgrad_tensor_layout_transpose.
  * @param t Pointer to tensor.
- * @param perm Permutation array.
+ * @param perm Permutation array (length ndim).
+ * @param ndim Number of trailing dimensions to permute (≤ MAX_TENSOR_DIM).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_f32_cpu_transpose(cgrad_tensor_f32_cpu* t, const uint32_t* perm);
+int cgrad_tensor_f32_cpu_transpose(cgrad_tensor_f32_cpu* t, const uint32_t* perm, int ndim);
 
 #endif // CGRAD_TENSOR_F32_CPU_H

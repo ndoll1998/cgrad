@@ -16,13 +16,16 @@ typedef struct cgrad_tensor {
 // --- Initialization/Allocation ---
 
 /**
- * @brief Initialize a high-level tensor with the given shape and backend type.
+ * @brief Initialize a high-level tensor with the given shape, ndim, and backend type.
+ *        The user-specified shape (length ndim) is placed at the end; leading unspecified dims are set to 1.
+ *        For example, shape={3,4}, ndim=2, MAX_TENSOR_DIM=4 => layout.shape={1,1,3,4}
  * @param t Pointer to tensor to initialize.
- * @param shape Array of dimensions.
+ * @param shape Array of dimensions (length ndim).
+ * @param ndim Number of dimensions in shape (≤ MAX_TENSOR_DIM).
  * @param backend_type Backend type to use.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_init(cgrad_tensor* t, const uint32_t* shape, cgrad_backend_type backend_type);
+int cgrad_tensor_init(cgrad_tensor* t, const uint32_t* shape, int ndim, cgrad_backend_type backend_type);
 
 // --- Memory Management ---
 
@@ -78,11 +81,12 @@ void cgrad_tensor_print(const cgrad_tensor* t);
 // --- Transform ---
 
 /**
- * @brief Transpose the tensor according to the given permutation.
+ * @brief Transpose the tensor according to the given permutation, applied to the last ndim dims.
  * @param t Pointer to tensor.
- * @param perm Permutation array.
+ * @param perm Permutation array (length ndim).
+ * @param ndim Number of trailing dimensions to permute (≤ MAX_TENSOR_DIM).
  */
-void cgrad_tensor_transpose(cgrad_tensor* t, const uint32_t* perm);
+void cgrad_tensor_transpose(cgrad_tensor* t, const uint32_t* perm, int ndim);
 
 // --- Backend Registry (for internal use) ---
 

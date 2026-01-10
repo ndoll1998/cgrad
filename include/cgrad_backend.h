@@ -28,9 +28,12 @@ typedef struct cgrad_backend {
 
     // --- Initialization/Allocation ---
     /**
-     * @brief Initialize a tensor with the given shape.
+     * @brief Initialize a tensor with the given shape and ndim.
+     * @param t Pointer to tensor.
+     * @param shape Array of dimensions (length ndim).
+     * @param ndim Number of dimensions in shape (≤ MAX_TENSOR_DIM).
      */
-    int  (*tensor_init)(void* t, const uint32_t* shape);
+    int  (*tensor_init)(void* t, const uint32_t* shape, int ndim);
 
     /**
      * @brief Fill the tensor with a constant value.
@@ -79,9 +82,12 @@ typedef struct cgrad_backend {
 
     // --- Transform ---
     /**
-     * @brief Transpose the tensor according to the given permutation.
+     * @brief Transpose the tensor according to the given permutation, applied to the last ndim dims.
+     * @param t Pointer to tensor.
+     * @param perm Permutation array (length ndim).
+     * @param ndim Number of trailing dimensions to permute (≤ MAX_TENSOR_DIM).
      */
-    void (*tensor_transpose)(void* t, const uint32_t* perm);
+    void (*tensor_transpose)(void* t, const uint32_t* perm, int ndim);
 
     // Add more ops as needed (e.g., build_batch_array, ptr, set, contiguous, etc.)
 } cgrad_backend;

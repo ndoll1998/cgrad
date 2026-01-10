@@ -17,19 +17,24 @@ void cgrad_tensor_layout_copy(cgrad_tensor_layout* dst, const cgrad_tensor_layou
 }
 
 /**
- * @brief Initialize a tensor layout with the given shape.
- * @param l Pointer to layout to initialize.
- * @param shape Array of dimensions.
- * @return 0 on success, error code otherwise.
+ * @brief Initialize a tensor layout with the given shape and ndim.
+ *        The user-specified shape (length ndim) is placed at the end; leading unspecified dims are set to 1.
+ *        For example, shape={3,4}, ndim=2, MAX_TENSOR_DIM=4 => layout.shape={1,1,3,4}
  */
-int cgrad_tensor_layout_init(cgrad_tensor_layout* l, const uint32_t* shape) {
+int cgrad_tensor_layout_init(cgrad_tensor_layout* l, const uint32_t* shape, int ndim) {
   if (!l || !shape) return CGRAD_LAYOUT_ERR_NULL_POINTER;
+  if (ndim < 0 || ndim > MAX_TENSOR_DIM) return CGRAD_LAYOUT_ERR_SHAPE_MISMATCH;
   uint32_t cur_stride = 1;
-  # pragma unroll
-  for (int i = MAX_TENSOR_DIM - 1; i > -1; i--) {
-      l->strides[i] = cur_stride;
-      l->shape[i] = shape[i];
-      cur_stride *= shape[i];
+  // Fill from the end: user shape at the end, leading dims = 1
+  for (int i = MAX_TENSOR_DIM - 1; i >= 0; i--) {
+    int shape_idx = i - (MAX_TENSOR_DIM - ndim);
+    uint32_t dim = (shape_idx >= 0) ? shape[shape_idx] : 1;
+    l->shape[i] = dim;
+  }
+  // Compute strides and size
+  for (int i = MAX_TENSOR_DIM - 1; i >= 0; i--) {
+    l->strides[i] = cur_stride;
+    cur_stride *= l->shape[i];
   }
   l->size = cur_stride;
   return CGRAD_SUCCESS;
@@ -37,21 +42,19 @@ int cgrad_tensor_layout_init(cgrad_tensor_layout* l, const uint32_t* shape) {
 
 /**
  * @brief Compute the flat index in the data array for the given indices and layout.
- *        Checks that all indices are within bounds (0 <= idx < shape[i]).
- *        If any index is out of bounds, returns CGRAD_LAYOUT_ERR_INDEX_OUT_OF_BOUNDS.
- * @param layout Pointer to tensor layout (provides shape and strides).
- * @param indices Array of indices (length MAX_TENSOR_DIM).
- * @param out_flat_index Pointer to size_t where the computed flat index will be stored.
- * @return CGRAD_SUCCESS on success, CGRAD_LAYOUT_ERR_INDEX_OUT_OF_BOUNDS if any index is out of bounds.
+ *        Indices of length ndim are mapped to the last ndim dims; leading indices behave as 0.
  */
-int cgrad_tensor_layout_flat_index(const cgrad_tensor_layout* layout, const uint32_t* indices, size_t* out_flat_index) {
+int cgrad_tensor_layout_flat_index(const cgrad_tensor_layout* layout, const uint32_t* indices, int ndim, size_t* out_flat_index) {
   if (!layout || !indices || !out_flat_index) return CGRAD_LAYOUT_ERR_NULL_POINTER;
+  if (ndim < 0 || ndim > MAX_TENSOR_DIM) return CGRAD_LAYOUT_ERR_SHAPE_MISMATCH;
   size_t idx = 0;
   for (int i = 0; i < MAX_TENSOR_DIM; i++) {
-    if (indices[i] >= layout->shape[i]) {
+    int indices_idx = i - (MAX_TENSOR_DIM - ndim);
+    uint32_t ind = (indices_idx >= 0) ? indices[indices_idx] : 0;
+    if (ind >= layout->shape[i]) {
       return CGRAD_LAYOUT_ERR_INDEX_OUT_OF_BOUNDS;
     }
-    idx += indices[i] * layout->strides[i];
+    idx += ind * layout->strides[i];
   }
   *out_flat_index = idx;
   return CGRAD_SUCCESS;
@@ -101,25 +104,29 @@ int cgrad_tensor_layout_broadcast(
 }
 
 /**
- * @brief Transpose the layout according to the given permutation.
- *        Returns an error if any dimension is repeated in perm.
- * @param layout Pointer to layout.
- * @param perm Permutation array.
- * @return CGRAD_SUCCESS on success, CGRAD_LAYOUT_ERR_DUPLICATE_DIM if a dimension is repeated.
+ * @brief Transpose the layout according to the given permutation, applied to the last ndim dims.
  */
-int cgrad_tensor_layout_transpose(cgrad_tensor_layout* layout, const uint32_t* perm) {
+int cgrad_tensor_layout_transpose(cgrad_tensor_layout* layout, const uint32_t* perm, int ndim) {
+  if (!layout || !perm) return CGRAD_LAYOUT_ERR_NULL_POINTER;
+  if (ndim < 0 || ndim > MAX_TENSOR_DIM) return CGRAD_LAYOUT_ERR_SHAPE_MISMATCH;
   // Check for duplicate dimensions in perm
   int seen[MAX_TENSOR_DIM] = {0};
-  for (int i = 0; i < MAX_TENSOR_DIM; i++) {
-    if (perm[i] >= MAX_TENSOR_DIM) return CGRAD_LAYOUT_ERR_SHAPE_MISMATCH;
+  for (int i = 0; i < ndim; i++) {
+    if (perm[i] >= ndim) return CGRAD_LAYOUT_ERR_SHAPE_MISMATCH;
     if (seen[perm[i]]) return CGRAD_LAYOUT_ERR_DUPLICATE_DIM;
     seen[perm[i]] = 1;
   }
+  // Copy leading dims unchanged, permute last ndim dims
   uint32_t new_shape[MAX_TENSOR_DIM];
   uint32_t new_strides[MAX_TENSOR_DIM];
-  for (int i = 0; i < MAX_TENSOR_DIM; i++) {
-    new_shape[i] = layout->shape[perm[i]];
-    new_strides[i] = layout->strides[perm[i]];
+  int offset = MAX_TENSOR_DIM - ndim;
+  for (int i = 0; i < offset; i++) {
+    new_shape[i] = layout->shape[i];
+    new_strides[i] = layout->strides[i];
+  }
+  for (int i = 0; i < ndim; i++) {
+    new_shape[offset + i] = layout->shape[offset + perm[i]];
+    new_strides[offset + i] = layout->strides[offset + perm[i]];
   }
   for (int i = 0; i < MAX_TENSOR_DIM; i++) {
     layout->shape[i] = new_shape[i];
