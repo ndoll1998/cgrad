@@ -1,7 +1,27 @@
 #include "cgrad_layout.h"
 #include "cgrad_errors.h"
 
-// Layout/tensor initialization
+/**
+ * @brief Deep copy a tensor layout from src to dst.
+ * Copies size, shape, and strides.
+ * @param dst Destination layout.
+ * @param src Source layout.
+ */
+void cgrad_tensor_layout_copy(cgrad_tensor_layout* dst, const cgrad_tensor_layout* src) {
+    if (!dst || !src) return;
+    dst->size = src->size;
+    for (int i = 0; i < MAX_TENSOR_DIM; ++i) {
+        dst->shape[i] = src->shape[i];
+        dst->strides[i] = src->strides[i];
+    }
+}
+
+/**
+ * @brief Initialize a tensor layout with the given shape.
+ * @param l Pointer to layout to initialize.
+ * @param shape Array of dimensions.
+ * @return 0 on success, error code otherwise.
+ */
 int cgrad_tensor_layout_init(cgrad_tensor_layout* l, const uint32_t* shape) {
   if (!l || !shape) return CGRAD_LAYOUT_ERR_NULL_POINTER;
   uint32_t cur_stride = 1;
@@ -16,20 +36,21 @@ int cgrad_tensor_layout_init(cgrad_tensor_layout* l, const uint32_t* shape) {
 }
 
 /**
- * Deep copy a tensor layout from src to dst.
- * Copies size, shape, and strides.
+ * @brief Compute the flat index in the data array for the given indices and strides.
+ * @param indices Array of indices.
+ * @param strides Array of strides.
+ * @return Flat index.
  */
-void cgrad_tensor_layout_copy(cgrad_tensor_layout* dst, const cgrad_tensor_layout* src) {
-    if (!dst || !src) return;
-    dst->size = src->size;
-    for (int i = 0; i < MAX_TENSOR_DIM; ++i) {
-        dst->shape[i] = src->shape[i];
-        dst->strides[i] = src->strides[i];
-    }
+size_t cgrad_tensor_flat_index(const uint32_t* indices, const uint32_t* strides) {
+  size_t idx = 0;
+  for (int i = 0; i < MAX_TENSOR_DIM; i++) {
+    idx += indices[i] * strides[i];
+  }
+  return idx;
 }
 
 /**
- * Broadcast two layouts between start_dim (inclusive) and end_dim (exclusive).
+ * @brief Broadcast two layouts between start_dim (inclusive) and end_dim (exclusive).
  * Modifies the layouts in-place to broadcast their shapes and strides.
  * 
  * Broadcasting rules:
@@ -38,7 +59,11 @@ void cgrad_tensor_layout_copy(cgrad_tensor_layout* dst, const cgrad_tensor_layou
  * - If they differ and neither is 1, return err (cannot broadcast).
  * 
  * After broadcasting, the shapes between the specified dimensions will be the same.
- * Returns 0 on success, -1 on failure.
+ * @param l1 First layout.
+ * @param l2 Second layout.
+ * @param start_dim Start dimension (inclusive).
+ * @param end_dim End dimension (exclusive).
+ * @return 0 on success, -1 on failure.
  */
 int cgrad_tensor_layout_broadcast(
     cgrad_tensor_layout* l1,
@@ -67,15 +92,11 @@ int cgrad_tensor_layout_broadcast(
     return CGRAD_SUCCESS;
 }
 
-// Indexing
-size_t cgrad_tensor_flat_index(const uint32_t* indices, const uint32_t* strides) {
-  size_t idx = 0;
-  for (int i = 0; i < MAX_TENSOR_DIM; i++) {
-    idx += indices[i] * strides[i];
-  }
-  return idx;
-}
-
+/**
+ * @brief Transpose the layout according to the given permutation.
+ * @param layout Pointer to layout.
+ * @param perm Permutation array.
+ */
 void cgrad_tensor_layout_transpose(cgrad_tensor_layout* layout, const uint32_t* perm) {
   uint32_t new_shape[MAX_TENSOR_DIM];
   uint32_t new_strides[MAX_TENSOR_DIM];
@@ -89,7 +110,11 @@ void cgrad_tensor_layout_transpose(cgrad_tensor_layout* layout, const uint32_t* 
   }
 }
 
-// Returns 1 if the layout is contiguous, 0 otherwise
+/**
+ * @brief Returns 1 if the layout is contiguous, 0 otherwise.
+ * @param l Pointer to layout.
+ * @return 1 if contiguous, 0 otherwise.
+ */
 int cgrad_tensor_layout_is_contiguous(const cgrad_tensor_layout* l) {
   if (!l) return 0;
   uint32_t expected_stride = 1;

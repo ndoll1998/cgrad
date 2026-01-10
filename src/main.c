@@ -2,6 +2,10 @@
 #include <stdio.h>
 #include <stdint.h>
 
+/**
+ * @brief Example program demonstrating tensor initialization, randomization, printing,
+ *        transposition, GEMM, addition, and memory management using the cgrad library.
+ */
 int main() {
   cgrad_tensor t1 = {0};
   cgrad_tensor t2 = {0};

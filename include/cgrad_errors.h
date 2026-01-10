@@ -1,6 +1,18 @@
 #ifndef CGRAD_ERRORS_H
 #define CGRAD_ERRORS_H
 
+/**
+ * @file cgrad_errors.h
+ * @brief Error code definitions for the cgrad tensor library.
+ *
+ * Error codes are grouped by subsystem:
+ * - General tensor errors: -1000s
+ * - Layout/broadcasting errors: -1500s
+ * - Backend-specific errors: -2000s and above
+ * 
+ * All error codes are negative; CGRAD_SUCCESS is 0.
+ */
+
 // Success
 #define CGRAD_SUCCESS 0
 

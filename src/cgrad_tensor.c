@@ -4,6 +4,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+/**
+ * @brief Initialize a high-level tensor with the given shape and backend type.
+ * @param t Pointer to tensor to initialize.
+ * @param shape Array of dimensions.
+ * @param backend_type Backend type to use.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
 int cgrad_tensor_init(cgrad_tensor* t, const uint32_t* shape, cgrad_backend_type backend_type) {
     if (!t || !shape) return CGRAD_TENSOR_ERR_NULL_POINTER;
     t->backend = cgrad_get_backend(backend_type);
@@ -20,6 +27,10 @@ int cgrad_tensor_init(cgrad_tensor* t, const uint32_t* shape, cgrad_backend_type
     return CGRAD_SUCCESS;
 }
 
+/**
+ * @brief Free the memory associated with a high-level tensor.
+ * @param t Pointer to tensor.
+ */
 void cgrad_tensor_free(cgrad_tensor* t) {
     if (!t || !t->backend || !t->handle) return;
     t->backend->tensor_free(t->handle);
@@ -27,11 +38,23 @@ void cgrad_tensor_free(cgrad_tensor* t) {
     t->handle = NULL;
 }
 
+/**
+ * @brief Fill the tensor with random values.
+ * @param t Pointer to tensor.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
 int cgrad_tensor_fill_rand(cgrad_tensor* t) {
     if (!t || !t->backend || !t->handle) return CGRAD_TENSOR_ERR_NULL_POINTER;
     return t->backend->tensor_fill_rand(t->handle);
 }
 
+/**
+ * @brief Perform batched matrix multiplication (GEMM) on two tensors.
+ * @param a First input tensor.
+ * @param b Second input tensor.
+ * @param r Output tensor.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
 int cgrad_tensor_gemm(
     const cgrad_tensor* a,
     const cgrad_tensor* b,
@@ -74,6 +97,13 @@ int cgrad_tensor_gemm(
     return a->backend->tensor_gemm(a->handle, b->handle, r->handle);
 }
 
+/**
+ * @brief Add two tensors elementwise and store the result in a third tensor.
+ * @param a First input tensor.
+ * @param b Second input tensor.
+ * @param r Output tensor.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
 int cgrad_tensor_add(
     cgrad_tensor* a,
     cgrad_tensor* b,
@@ -111,11 +141,20 @@ int cgrad_tensor_add(
     return a->backend->tensor_add(a->handle, b->handle, r->handle);
 }
 
+/**
+ * @brief Print the tensor's shape and contents.
+ * @param t Pointer to tensor.
+ */
 void cgrad_tensor_print(const cgrad_tensor* t) {
     if (!t || !t->backend || !t->handle) return;
     t->backend->tensor_print(t->handle);
 }
 
+/**
+ * @brief Transpose the tensor according to the given permutation.
+ * @param t Pointer to tensor.
+ * @param perm Permutation array.
+ */
 void cgrad_tensor_transpose(cgrad_tensor* t, const uint32_t* perm) {
     if (!t || !t->backend || !t->handle) return;
     t->backend->tensor_transpose(t->handle, perm);

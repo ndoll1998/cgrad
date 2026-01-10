@@ -5,22 +5,86 @@
 #include <stdint.h>
 #include <stddef.h>
 
-// High-level tensor object supporting multiple backends
+/**
+ * @brief High-level tensor object supporting multiple backends.
+ */
 typedef struct cgrad_tensor {
-    cgrad_backend* backend; // Pointer to backend ops
-    void* handle;           // Backend-specific tensor object (e.g., cgrad_tensor_f32*)
+    cgrad_backend* backend; /**< Pointer to backend ops */
+    void* handle;           /**< Backend-specific tensor object (e.g., cgrad_tensor_f32*) */
 } cgrad_tensor;
 
-// API for high-level tensor
+// --- Initialization/Allocation ---
+
+/**
+ * @brief Initialize a high-level tensor with the given shape and backend type.
+ * @param t Pointer to tensor to initialize.
+ * @param shape Array of dimensions.
+ * @param backend_type Backend type to use.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
 int cgrad_tensor_init(cgrad_tensor* t, const uint32_t* shape, cgrad_backend_type backend_type);
+
+// --- Memory Management ---
+
+/**
+ * @brief Free the memory associated with a high-level tensor.
+ * @param t Pointer to tensor.
+ */
 void cgrad_tensor_free(cgrad_tensor* t);
+
+// --- Randomization ---
+
+/**
+ * @brief Fill the tensor with random values.
+ * @param t Pointer to tensor.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
 int cgrad_tensor_fill_rand(cgrad_tensor* t);
+
+// --- Math Ops ---
+
+/**
+ * @brief Perform batched matrix multiplication (GEMM) on two tensors.
+ * @param a First input tensor.
+ * @param b Second input tensor.
+ * @param c Output tensor.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
 int cgrad_tensor_gemm(const cgrad_tensor* a, const cgrad_tensor* b, cgrad_tensor* c);
+
+/**
+ * @brief Add two tensors elementwise and store the result in a third tensor.
+ * @param a First input tensor.
+ * @param b Second input tensor.
+ * @param c Output tensor.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
 int cgrad_tensor_add(cgrad_tensor* a, cgrad_tensor* b, cgrad_tensor* c);
+
+// --- Data Access/Info ---
+
+/**
+ * @brief Print the tensor's shape and contents.
+ * @param t Pointer to tensor.
+ */
 void cgrad_tensor_print(const cgrad_tensor* t);
+
+// --- Transform ---
+
+/**
+ * @brief Transpose the tensor according to the given permutation.
+ * @param t Pointer to tensor.
+ * @param perm Permutation array.
+ */
 void cgrad_tensor_transpose(cgrad_tensor* t, const uint32_t* perm);
 
-// Backend registry (for internal use)
+// --- Backend Registry (for internal use) ---
+
+/**
+ * @brief Get the backend for a given backend type.
+ * @param type Backend type.
+ * @return Pointer to the backend.
+ */
 cgrad_backend* cgrad_get_backend(cgrad_backend_type type);
 
 #endif // CGRAD_TENSOR_BASE_H

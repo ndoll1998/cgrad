@@ -7,7 +7,12 @@
 #include <math.h>
 #include <time.h>
 
-// Init
+/**
+ * @brief Initialize a float32 CPU tensor with the given shape.
+ * @param t Pointer to tensor to initialize.
+ * @param shape Array of dimensions.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
 int cgrad_tensor_f32_cpu_init(cgrad_tensor_f32_cpu* t, const uint32_t* shape) {
   if (!t || !shape) return CGRAD_TENSOR_ERR_NULL_POINTER;
   int layout_err = cgrad_tensor_layout_init(&t->layout, shape);
@@ -17,6 +22,61 @@ int cgrad_tensor_f32_cpu_init(cgrad_tensor_f32_cpu* t, const uint32_t* shape) {
   return CGRAD_SUCCESS;
 }
 
+/**
+ * @brief Build a batch array of pointers for batched operations.
+ * @param t Pointer to tensor.
+ * @param array Output: pointer to array of float pointers.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_tensor_f32_cpu_build_batch_array(cgrad_tensor_f32_cpu* t, float*** array) {
+  int batch_size = 1;
+  # pragma unroll
+  for (int i = 0; i < MAX_TENSOR_DIM - 2; i++) {
+    batch_size *= t->layout.shape[i];
+  }
+  *array = (float**)malloc(batch_size * sizeof(float*));
+  if (!(*array)) return CGRAD_TENSOR_F32_CPU_ERR_BATCH_ALLOC_FAILED;
+  uint32_t indices[MAX_TENSOR_DIM] = {0};
+  #pragma omp parallel for
+  for (int i = 0; i < batch_size; i++) {
+    size_t rem = i;
+    # pragma unroll
+    for (int d = MAX_TENSOR_DIM - 3; d >= 0; d--) {
+      indices[d] = rem % t->layout.shape[d];
+      rem /= t->layout.shape[d];
+    }
+    (*array)[i] = cgrad_tensor_f32_cpu_ptr(t, indices);
+  }
+  return CGRAD_SUCCESS;
+}
+
+/**
+ * @brief Get a pointer to the element at the given indices.
+ * @param t Pointer to tensor.
+ * @param indices Array of indices.
+ * @return Pointer to the element.
+ */
+float* cgrad_tensor_f32_cpu_ptr(const cgrad_tensor_f32_cpu* t, const uint32_t* indices) {
+  size_t idx = cgrad_tensor_flat_index(indices, t->layout.strides);
+  return t->data + idx;
+}
+
+/**
+ * @brief Set the value at the given indices.
+ * @param t Pointer to tensor.
+ * @param indices Array of indices.
+ * @param value Value to set.
+ */
+void cgrad_tensor_f32_cpu_set(cgrad_tensor_f32_cpu* t, const uint32_t* indices, float value) {
+  size_t idx = cgrad_tensor_flat_index(indices, t->layout.strides);
+  t->data[idx] = value;
+}
+
+/**
+ * @brief Fill the tensor with random values.
+ * @param t Pointer to tensor.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
 int cgrad_tensor_f32_cpu_fill_rand(cgrad_tensor_f32_cpu* t) {
   if (!t || !t->data) return CGRAD_TENSOR_ERR_NULL_POINTER;
   for (int i = 0; i < t->layout.size; i++)
@@ -24,11 +84,12 @@ int cgrad_tensor_f32_cpu_fill_rand(cgrad_tensor_f32_cpu* t) {
   return CGRAD_SUCCESS;
 }
 
-float* cgrad_tensor_f32_cpu_ptr(const cgrad_tensor_f32_cpu* t, const uint32_t* indices) {
-  size_t idx = cgrad_tensor_flat_index(indices, t->layout.strides);
-  return t->data + idx;
-}
-
+/**
+ * @brief Make a contiguous copy of a tensor.
+ * @param src Source tensor.
+ * @param dst Destination tensor.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
 int cgrad_tensor_f32_cpu_contiguous(const cgrad_tensor_f32_cpu* src, cgrad_tensor_f32_cpu* dst) {
   if (!src || !dst) return CGRAD_TENSOR_ERR_NULL_POINTER;
   int init_err = cgrad_tensor_f32_cpu_init(dst, src->layout.shape);
@@ -50,71 +111,60 @@ int cgrad_tensor_f32_cpu_contiguous(const cgrad_tensor_f32_cpu* src, cgrad_tenso
 
   uint32_t idx[MAX_TENSOR_DIM] = {0};
   for (size_t offset = 0; offset < dst->layout.size; offset += block_size) {
-    // update indexes for non-contiguous dims
     for (uint32_t d = 0; d < MAX_TENSOR_DIM - block_ndim; d++) {
       idx[d] = (offset / dst->layout.strides[d]) % dst->layout.shape[d];
     }
-    // compute source and destination starting pointers
     cblas_scopy(
       block_size,
       cgrad_tensor_f32_cpu_ptr(src, idx), src->layout.strides[MAX_TENSOR_DIM-1],
       cgrad_tensor_f32_cpu_ptr(dst, idx), 1
     );
   }
-
   return CGRAD_SUCCESS;
 }
 
-
-void cgrad_tensor_f32_cpu_set(cgrad_tensor_f32_cpu* t, const uint32_t* indices, float value) {
-  size_t idx = cgrad_tensor_flat_index(indices, t->layout.strides);
-  t->data[idx] = value;
+/**
+ * @brief Create a shallow copy of a tensor handle (deep copy layout, shallow copy data).
+ * @param src Source tensor.
+ * @param dst Destination tensor.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_tensor_f32_cpu_shallow_copy(const cgrad_tensor_f32_cpu* src, cgrad_tensor_f32_cpu* dst) {
+  if (!src || !dst) return CGRAD_TENSOR_ERR_NULL_POINTER;
+  cgrad_tensor_layout_copy(&dst->layout, &src->layout);
+  dst->data = src->data;
+  return CGRAD_SUCCESS;
 }
 
-int cgrad_tensor_f32_cpu_build_batch_array(cgrad_tensor_f32_cpu* t, float*** array) {
-
-  // compute batch size
-  int batch_size = 1;
-  # pragma unroll
-  for (int i = 0; i < MAX_TENSOR_DIM - 2; i++) {
-    batch_size *= t->layout.shape[i];
-  }
-  
-  // allocate memory
-  *array = (float**)malloc(batch_size * sizeof(float*));
-  if (!(*array)) return CGRAD_TENSOR_F32_CPU_ERR_BATCH_ALLOC_FAILED;
-
-  // fill array
-  uint32_t indices[MAX_TENSOR_DIM] = {0};
-  #pragma omp parallel for
-  for (int i = 0; i < batch_size; i++) {
-    size_t rem = i;
-    # pragma unroll
-    for (int d = MAX_TENSOR_DIM - 3; d >= 0; d--) {
-      indices[d] = rem % t->layout.shape[d];
-      rem /= t->layout.shape[d];
+/**
+ * @brief Free the memory associated with a tensor.
+ * @param t Pointer to tensor.
+ */
+void cgrad_tensor_f32_cpu_free(cgrad_tensor_f32_cpu* t) {
+    if (t && t->data) {
+        free(t->data);
+        t->data = NULL;
     }
-    (*array)[i] = cgrad_tensor_f32_cpu_ptr(t, indices);
-  }
-
-  return CGRAD_SUCCESS;
 }
 
+/**
+ * @brief Add two tensors elementwise and store the result in a third tensor.
+ * @param a First input tensor.
+ * @param b Second input tensor.
+ * @param c Output tensor.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
 int cgrad_tensor_f32_cpu_add(
   const cgrad_tensor_f32_cpu* a,
   const cgrad_tensor_f32_cpu* b,
   cgrad_tensor_f32_cpu* c
 ) {
   if (!a || !b || !c) return CGRAD_TENSOR_ERR_NULL_POINTER;
-
-  // check shapes match
   for (int d = 0; d < MAX_TENSOR_DIM; d++) {
     if (a->layout.shape[d] != b->layout.shape[d]) {
       return CGRAD_TENSOR_F32_CPU_ERR_SHAPE_MISMATCH;
     }
   }
-
-  // Make a contiguous if needed
   cgrad_tensor_f32_cpu a_contig;
   int is_a_contiguous = cgrad_tensor_layout_is_contiguous(&a->layout);
   const cgrad_tensor_f32_cpu* a_used = a;
@@ -123,39 +173,36 @@ int cgrad_tensor_f32_cpu_add(
     if (contig_err != CGRAD_SUCCESS) return contig_err;
     a_used = &a_contig;
   }
-
-  // Allocate c with broadcasted shape and write b into c
   int contig_err = cgrad_tensor_f32_cpu_contiguous(b, c);
   if (contig_err != CGRAD_SUCCESS) return contig_err;
-
-  // c = a + c (elementwise addition)
   cblas_saxpy(
     c->layout.size,
     1.0f,
     a_used->data, 1,
     c->data, 1
   );
-
   if (!is_a_contiguous) cgrad_tensor_f32_cpu_free(&a_contig);
-
   return CGRAD_SUCCESS;
 }
 
-// GEMM
+/**
+ * @brief Perform batched matrix multiplication (GEMM) on two tensors.
+ * @param a First input tensor.
+ * @param b Second input tensor.
+ * @param c Output tensor.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
 int cgrad_tensor_f32_cpu_gemm(
   const cgrad_tensor_f32_cpu* a,
   const cgrad_tensor_f32_cpu* b,
   cgrad_tensor_f32_cpu* c
 ) {
   if (!a || !b || !c) return CGRAD_TENSOR_ERR_NULL_POINTER;
-
-  // Check for compatible batch and matrix dimensions (no broadcasting)
   for (int d = 0; d < MAX_TENSOR_DIM - 2; d++) {
     if (a->layout.shape[d] != b->layout.shape[d]) {
       return CGRAD_TENSOR_F32_CPU_ERR_SHAPE_MISMATCH;
     }
   }
-  // Check matrix multiplication inner dimensions
   int a_m = a->layout.shape[MAX_TENSOR_DIM-2];
   int a_k = a->layout.shape[MAX_TENSOR_DIM-1];
   int b_k = b->layout.shape[MAX_TENSOR_DIM-2];
@@ -163,16 +210,10 @@ int cgrad_tensor_f32_cpu_gemm(
   if (a_k != b_k) {
     return CGRAD_TENSOR_F32_CPU_ERR_SHAPE_MISMATCH;
   }
-
-  // get dimensions
   int m = a->layout.shape[MAX_TENSOR_DIM-2];
   int n = b->layout.shape[MAX_TENSOR_DIM-1];
   int k = b->layout.shape[MAX_TENSOR_DIM-2];
-
-  // compute batch size
   int bs = a->layout.size / (m * k);
-
-  // Only require last stride == 1 for row-major matrix
   cgrad_tensor_f32_cpu a_contig;
   cgrad_tensor_f32_cpu b_contig;
   int is_a_contiguous = (a->layout.strides[MAX_TENSOR_DIM-1] == 1);
@@ -187,8 +228,6 @@ int cgrad_tensor_f32_cpu_gemm(
     if (contig_err != CGRAD_SUCCESS) return contig_err;
     b = &b_contig;
   }
-
-  // build batch arrays
   float **A_array, **B_array, **C_array;
   int batch_err = cgrad_tensor_f32_cpu_build_batch_array((cgrad_tensor_f32_cpu*)a, &A_array);
   if (batch_err != CGRAD_SUCCESS) return batch_err;
@@ -196,17 +235,13 @@ int cgrad_tensor_f32_cpu_gemm(
   if (batch_err != CGRAD_SUCCESS) { free(A_array); return batch_err; }
   batch_err = cgrad_tensor_f32_cpu_build_batch_array(c, &C_array);
   if (batch_err != CGRAD_SUCCESS) { free(A_array); free(B_array); return batch_err; }
-
   CBLAS_TRANSPOSE transA = CblasNoTrans;
   CBLAS_TRANSPOSE transB = CblasNoTrans;
-
   float alpha = 1.0f;
   float beta = 0.0f;
-
   int lda = a->layout.strides[MAX_TENSOR_DIM-2];
   int ldb = b->layout.strides[MAX_TENSOR_DIM-2];
   int ldc = c->layout.strides[MAX_TENSOR_DIM-2];
-
   cblas_sgemm_batch(
     CblasRowMajor,
     &transA,
@@ -220,34 +255,35 @@ int cgrad_tensor_f32_cpu_gemm(
     1,
     &bs
   );
-
   free(A_array);
   free(B_array);
   free(C_array);
-  
   if (!is_a_contiguous) cgrad_tensor_f32_cpu_free(&a_contig);
   if (!is_b_contiguous) cgrad_tensor_f32_cpu_free(&b_contig);
-
   return CGRAD_SUCCESS;
 }
 
-// Free
-void cgrad_tensor_f32_cpu_free(cgrad_tensor_f32_cpu* t) {
-    if (t && t->data) {
-        free(t->data);
-        t->data = NULL;
-    }
+/**
+ * @brief Get the layout of a tensor handle.
+ * @param t Pointer to tensor.
+ * @return Pointer to the tensor layout.
+ */
+cgrad_tensor_layout* cgrad_tensor_f32_cpu_get_layout(cgrad_tensor_f32_cpu* t) {
+  if (!t) return NULL;
+  return &t->layout;
 }
 
+/**
+ * @brief Print the tensor's shape and contents.
+ * @param t Pointer to tensor.
+ */
 void cgrad_tensor_f32_cpu_print(const cgrad_tensor_f32_cpu* t) {
   printf("Shape: (");
   for (int i = 0; i < MAX_TENSOR_DIM; i++) printf(" %i ", t->layout.shape[i]);
   printf(")\n");
-
   cgrad_tensor_layout l;
   cgrad_tensor_layout_init(&l, t->layout.shape);
   uint32_t idx[MAX_TENSOR_DIM] = {0};
-
   for (int i = 0; i < l.size; i++) {
     #pragma unroll
     for (int j = 0; j < MAX_TENSOR_DIM-1; j++) {
@@ -260,20 +296,11 @@ void cgrad_tensor_f32_cpu_print(const cgrad_tensor_f32_cpu* t) {
   printf("\n");
 }
 
+/**
+ * @brief Transpose the tensor according to the given permutation.
+ * @param t Pointer to tensor.
+ * @param perm Permutation array.
+ */
 void cgrad_tensor_f32_cpu_transpose(cgrad_tensor_f32_cpu* t, const uint32_t* perm) {
   cgrad_tensor_layout_transpose(&t->layout, perm);
-}
-
-// Create a shallow copy of a tensor handle (deep copy layout, shallow copy data)
-int cgrad_tensor_f32_cpu_shallow_copy(const cgrad_tensor_f32_cpu* src, cgrad_tensor_f32_cpu* dst) {
-  if (!src || !dst) return CGRAD_TENSOR_ERR_NULL_POINTER;
-  cgrad_tensor_layout_copy(&dst->layout, &src->layout);
-  dst->data = src->data;
-  return CGRAD_SUCCESS;
-}
-
-// Get the layout of a tensor handle
-cgrad_tensor_layout* cgrad_tensor_f32_cpu_get_layout(cgrad_tensor_f32_cpu* t) {
-  if (!t) return NULL;
-  return &t->layout;
 }
