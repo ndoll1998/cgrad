@@ -121,16 +121,25 @@ int cgrad_tensor_layout_transpose(cgrad_tensor_layout* layout, const uint32_t* p
 }
 
 /**
- * @brief Returns 1 if the layout is contiguous, 0 otherwise.
+ * @brief Returns 1 if the layout is regular (can be traversed with a fixed stride >= 1), 0 otherwise.
  * @param l Pointer to layout.
- * @return 1 if contiguous, 0 otherwise.
+ * @return 1 if regular, 0 otherwise.
  */
-int cgrad_tensor_layout_is_contiguous(const cgrad_tensor_layout* l) {
+int cgrad_tensor_layout_is_regular(const cgrad_tensor_layout* l) {
   if (!l) return 0;
-  uint32_t expected_stride = 1;
+  uint32_t expected_stride = l->strides[MAX_TENSOR_DIM - 1];
   for (int i = MAX_TENSOR_DIM - 1; i >= 0; i--) {
     if (l->strides[i] != expected_stride) return 0;
     expected_stride *= l->shape[i];
   }
   return 1;
+}
+
+/**
+ * @brief Returns 1 if the layout is contiguous, 0 otherwise.
+ * @param l Pointer to layout.
+ * @return 1 if contiguous, 0 otherwise.
+ */
+int cgrad_tensor_layout_is_contiguous(const cgrad_tensor_layout* l) {
+  return cgrad_tensor_layout_is_regular(l) && (l->strides[MAX_TENSOR_DIM - 1] == 1);
 }

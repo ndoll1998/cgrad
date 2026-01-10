@@ -197,9 +197,9 @@ int cgrad_tensor_f32_cpu_add(
   }
   
   cgrad_tensor_f32_cpu a_contig;
-  int is_a_contiguous = cgrad_tensor_layout_is_contiguous(&a->layout);
+  int is_a_regular = cgrad_tensor_layout_is_regular(&a->layout);
   const cgrad_tensor_f32_cpu* a_used = a;
-  if (!is_a_contiguous) {
+  if (!is_a_regular) {
     int contig_err = cgrad_tensor_f32_cpu_contiguous(a, &a_contig);
     if (contig_err != CGRAD_SUCCESS) return contig_err;
     a_used = &a_contig;
@@ -211,11 +211,11 @@ int cgrad_tensor_f32_cpu_add(
   cblas_saxpy(
     c->layout.size,
     1.0f,
-    a_used->data, 1,
+    a_used->data, a_used->layout.strides[MAX_TENSOR_DIM-1],
     c->data, 1
   );
   
-  if (!is_a_contiguous) cgrad_tensor_f32_cpu_free(&a_contig);
+  if (!is_a_regular) cgrad_tensor_f32_cpu_free(&a_contig);
   return CGRAD_SUCCESS;
 }
 

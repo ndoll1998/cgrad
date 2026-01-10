@@ -82,6 +82,13 @@ int cgrad_tensor_layout_transpose(cgrad_tensor_layout* layout, const uint32_t* p
 // --- Info ---
 
 /**
+ * @brief Returns 1 if the layout is regular (can be traversed with a fixed stride >= 1), 0 otherwise.
+ * @param l Pointer to layout.
+ * @return 1 if regular, 0 otherwise.
+ */
+int cgrad_tensor_layout_is_regular(const cgrad_tensor_layout* l);
+
+/**
  * @brief Returns 1 if the layout is contiguous, 0 otherwise.
  * @param l Pointer to layout.
  * @return 1 if contiguous, 0 otherwise.

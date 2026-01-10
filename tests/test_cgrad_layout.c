@@ -69,6 +69,31 @@ static void test_cgrad_tensor_layout_transpose_duplicate_dim(void **state) {
     assert_int_equal(err, CGRAD_LAYOUT_ERR_DUPLICATE_DIM);
 }
 
+static void test_cgrad_tensor_layout_is_regular(void **state) {
+    (void)state;
+    cgrad_tensor_layout l;
+    uint32_t shape[MAX_TENSOR_DIM] = {2, 3, 4, 5};
+    cgrad_tensor_layout_init(&l, shape);
+    // Contiguous is regular
+    assert_int_equal(cgrad_tensor_layout_is_regular(&l), 1);
+
+    // Make strides a constant multiple of contiguous (e.g., *2)
+    for (int i = 0; i < MAX_TENSOR_DIM; i++) l.strides[i] *= 2;
+    assert_int_equal(cgrad_tensor_layout_is_regular(&l), 1);
+
+    // Make strides irregular
+    l.strides[2] = 7;
+    assert_int_equal(cgrad_tensor_layout_is_regular(&l), 0);
+
+    // Degenerate: shape with 1s
+    uint32_t shape2[MAX_TENSOR_DIM] = {1, 1, 4, 5};
+    cgrad_tensor_layout_init(&l, shape2);
+    assert_int_equal(cgrad_tensor_layout_is_regular(&l), 1);
+
+    // NULL pointer
+    assert_int_equal(cgrad_tensor_layout_is_regular(NULL), 0);
+}
+
 int run_cgrad_layout_tests(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_cgrad_tensor_layout_init_and_copy),
@@ -76,6 +101,7 @@ int run_cgrad_layout_tests(void) {
         cmocka_unit_test(test_cgrad_tensor_layout_transpose),
         cmocka_unit_test(test_cgrad_tensor_layout_is_contiguous),
         cmocka_unit_test(test_cgrad_tensor_layout_transpose_duplicate_dim),
+        cmocka_unit_test(test_cgrad_tensor_layout_is_regular),
     };
     return _cmocka_run_group_tests("cgrad_layout", tests, sizeof(tests)/sizeof(tests[0]), NULL, NULL);
 }
