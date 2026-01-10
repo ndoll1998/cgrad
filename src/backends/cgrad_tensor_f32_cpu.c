@@ -7,7 +7,7 @@
 #include <time.h>
 
 // Init
-int cgrad_tensor_f32_cpu_init(cgrad_tensor_f32* t, const uint32_t* shape) {
+int cgrad_tensor_f32_cpu_init(cgrad_tensor_f32_cpu* t, const uint32_t* shape) {
   if (!t || !shape) return -1;
   if (cgrad_tensor_layout_init(&t->layout, shape)) return -1;
   t->data = (float*)calloc(t->layout.size, sizeof(float));
@@ -15,19 +15,19 @@ int cgrad_tensor_f32_cpu_init(cgrad_tensor_f32* t, const uint32_t* shape) {
   return 0;
 }
 
-int cgrad_tensor_f32_cpu_fill_rand(cgrad_tensor_f32* t) {
+int cgrad_tensor_f32_cpu_fill_rand(cgrad_tensor_f32_cpu* t) {
   if (!t || !t->data) return -1;
   for (int i = 0; i < t->layout.size; i++)
     t->data[i] = (float)rand()/(float)(RAND_MAX);
   return 0;
 }
 
-float* cgrad_tensor_f32_cpu_ptr(const cgrad_tensor_f32* t, const uint32_t* indices) {
+float* cgrad_tensor_f32_cpu_ptr(const cgrad_tensor_f32_cpu* t, const uint32_t* indices) {
   size_t idx = cgrad_tensor_flat_index(indices, t->layout.strides);
   return t->data + idx;
 }
 
-int cgrad_tensor_f32_cpu_contiguous(const cgrad_tensor_f32* src, cgrad_tensor_f32* dst) {
+int cgrad_tensor_f32_cpu_contiguous(const cgrad_tensor_f32_cpu* src, cgrad_tensor_f32_cpu* dst) {
   if (!src || !dst) return -1;
   if (cgrad_tensor_f32_cpu_init(dst, src->layout.shape)) return -1;
 
@@ -63,12 +63,12 @@ int cgrad_tensor_f32_cpu_contiguous(const cgrad_tensor_f32* src, cgrad_tensor_f3
 }
 
 
-void cgrad_tensor_f32_cpu_set(cgrad_tensor_f32* t, const uint32_t* indices, float value) {
+void cgrad_tensor_f32_cpu_set(cgrad_tensor_f32_cpu* t, const uint32_t* indices, float value) {
   size_t idx = cgrad_tensor_flat_index(indices, t->layout.strides);
   t->data[idx] = value;
 }
 
-int cgrad_tensor_f32_cpu_build_batch_array(cgrad_tensor_f32* t, float*** array) {
+int cgrad_tensor_f32_cpu_build_batch_array(cgrad_tensor_f32_cpu* t, float*** array) {
 
   // compute batch size
   int batch_size = 1;
@@ -98,9 +98,9 @@ int cgrad_tensor_f32_cpu_build_batch_array(cgrad_tensor_f32* t, float*** array) 
 
 // GEMM
 int cgrad_tensor_f32_cpu_gemm(
-  const cgrad_tensor_f32* a,
-  const cgrad_tensor_f32* b,
-  cgrad_tensor_f32* c
+  const cgrad_tensor_f32_cpu* a,
+  const cgrad_tensor_f32_cpu* b,
+  cgrad_tensor_f32_cpu* c
 ) {
   if (!a || !b || !c) return -1;
   # pragma unroll
@@ -109,8 +109,8 @@ int cgrad_tensor_f32_cpu_gemm(
   }
 
   // Make shallow copies of a and b, and broadcast their layouts
-  cgrad_tensor_f32 a_bcast = *a;
-  cgrad_tensor_f32 b_bcast = *b;
+  cgrad_tensor_f32_cpu a_bcast = *a;
+  cgrad_tensor_f32_cpu b_bcast = *b;
   cgrad_tensor_layout_copy(&a_bcast.layout, &a->layout);
   cgrad_tensor_layout_copy(&b_bcast.layout, &b->layout);
 
@@ -136,12 +136,12 @@ int cgrad_tensor_f32_cpu_gemm(
   // TODO: make sure C has the expected shape
   
   // Only require last stride == 1 for row-major matrix
-  cgrad_tensor_f32 a_contig;
-  cgrad_tensor_f32 b_contig;
+  cgrad_tensor_f32_cpu a_contig;
+  cgrad_tensor_f32_cpu b_contig;
   int is_a_contiguous = (a_bcast.layout.strides[MAX_TENSOR_DIM-1] == 1);
   int is_b_contiguous = (b_bcast.layout.strides[MAX_TENSOR_DIM-1] == 1);
-  const cgrad_tensor_f32* a_used = &a_bcast;
-  const cgrad_tensor_f32* b_used = &b_bcast;
+  const cgrad_tensor_f32_cpu* a_used = &a_bcast;
+  const cgrad_tensor_f32_cpu* b_used = &b_bcast;
   if (!is_a_contiguous) {
     cgrad_tensor_f32_cpu_contiguous(&a_bcast, &a_contig);
     a_used = &a_contig;
@@ -154,8 +154,8 @@ int cgrad_tensor_f32_cpu_gemm(
   // build batch arrays
   float **A_array, **B_array, **C_array;
   if (
-    cgrad_tensor_f32_cpu_build_batch_array((cgrad_tensor_f32*)a_used, &A_array)
-    || cgrad_tensor_f32_cpu_build_batch_array((cgrad_tensor_f32*)b_used, &B_array)
+    cgrad_tensor_f32_cpu_build_batch_array((cgrad_tensor_f32_cpu*)a_used, &A_array)
+    || cgrad_tensor_f32_cpu_build_batch_array((cgrad_tensor_f32_cpu*)b_used, &B_array)
     || cgrad_tensor_f32_cpu_build_batch_array(c, &C_array)
   ) return -1;
 
@@ -194,14 +194,14 @@ int cgrad_tensor_f32_cpu_gemm(
 }
 
 // Free
-void cgrad_tensor_f32_cpu_free(cgrad_tensor_f32* t) {
+void cgrad_tensor_f32_cpu_free(cgrad_tensor_f32_cpu* t) {
     if (t && t->data) {
         free(t->data);
         t->data = NULL;
     }
 }
 
-void cgrad_tensor_f32_cpu_print(const cgrad_tensor_f32* t) {
+void cgrad_tensor_f32_cpu_print(const cgrad_tensor_f32_cpu* t) {
   printf("Shape: (");
   for (int i = 0; i < MAX_TENSOR_DIM; i++) printf(" %i ", t->layout.shape[i]);
   printf(")\n");
@@ -222,6 +222,6 @@ void cgrad_tensor_f32_cpu_print(const cgrad_tensor_f32* t) {
   printf("\n");
 }
 
-void cgrad_tensor_f32_cpu_transpose(cgrad_tensor_f32* t, const uint32_t* perm) {
+void cgrad_tensor_f32_cpu_transpose(cgrad_tensor_f32_cpu* t, const uint32_t* perm) {
   cgrad_tensor_layout_transpose(&t->layout, perm);
 }

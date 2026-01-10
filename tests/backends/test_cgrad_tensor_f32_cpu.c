@@ -9,7 +9,7 @@
 
 static void test_cgrad_tensor_f32_contiguous_swap23(void **state) {
     (void)state;
-    cgrad_tensor_f32 t, t_contig;
+    cgrad_tensor_f32_cpu t, t_contig;
     uint32_t shape[] = {2, 3, 4, 5};
     cgrad_tensor_f32_cpu_init(&t, shape);
 
@@ -45,7 +45,7 @@ static void test_cgrad_tensor_f32_contiguous_swap23(void **state) {
 
 static void test_cgrad_tensor_f32_contiguous_swap01(void **state) {
     (void)state;
-    cgrad_tensor_f32 t, t_contig;
+    cgrad_tensor_f32_cpu t, t_contig;
     uint32_t shape[] = {2, 3, 4, 5};
     cgrad_tensor_f32_cpu_init(&t, shape);
 
@@ -81,7 +81,7 @@ static void test_cgrad_tensor_f32_contiguous_swap01(void **state) {
 
 static void test_gemm_simple(void **state) {
     (void)state;
-    cgrad_tensor_f32 a, b, c;
+    cgrad_tensor_f32_cpu a, b, c;
     uint32_t shapeA[] = {1, 1, 2, 3};
     uint32_t shapeB[] = {1, 1, 3, 2};
     float dataA[6] = {1, 2, 3, 4, 5, 6};
@@ -110,7 +110,7 @@ static void test_gemm_simple(void **state) {
 
 static void test_gemm_batched(void **state) {
     (void)state;
-    cgrad_tensor_f32 a, b, c;
+    cgrad_tensor_f32_cpu a, b, c;
     uint32_t shape[] = {2, 1, 2, 2};
 
     float dataA[8] = {1,2,3,4,9,10,11,12};
@@ -139,7 +139,7 @@ static void test_gemm_batched(void **state) {
 
 static void test_gemm_with_transpose(void **state) {
     (void)state;
-    cgrad_tensor_f32 a, b, c;
+    cgrad_tensor_f32_cpu a, b, c;
     uint32_t shapeA[] = {1, 1, 2, 3};
     uint32_t shapeB[] = {1, 1, 3, 2};
     float dataA[6] = {1, 2, 3, 4, 5, 6};
@@ -171,7 +171,7 @@ static void test_gemm_with_transpose(void **state) {
 
 static void test_gemm_broadcasting(void **state) {
     (void)state;
-    cgrad_tensor_f32 a, b, c;
+    cgrad_tensor_f32_cpu a, b, c;
     uint32_t shapeA[] = {2, 1, 2, 2};
     uint32_t shapeB[] = {1, 3, 2, 2};
     cgrad_tensor_f32_cpu_init(&a, shapeA);
@@ -224,7 +224,7 @@ static void test_gemm_broadcasting(void **state) {
 
 static void test_transpose(void **state) {
     (void)state;
-    cgrad_tensor_f32 t;
+    cgrad_tensor_f32_cpu t;
     uint32_t shape[] = {1, 2, 3, 4};
     cgrad_tensor_f32_cpu_init(&t, shape);
 

@@ -16,13 +16,16 @@ struct cgrad_tensor_f32;
 typedef struct cgrad_backend {
     cgrad_backend_type type;
 
+    // Pointer to function that allocates a backend-specific tensor handle
+    void* (*alloc_tensor_handle)(void);
+
     // Function pointers for tensor operations (for a specific data type)
-    int  (*init)(void* t, const uint32_t* shape);
-    int  (*fill_rand)(void* t);
-    int  (*gemm)(void* a, void* b, void* c);
-    void (*free)(void* t);
-    void (*print)(const void* t);
-    void (*transpose)(void* t, const uint32_t* perm);
+    int  (*tensor_init)(void* t, const uint32_t* shape);
+    int  (*tensor_fill_rand)(void* t);
+    int  (*tensor_gemm)(void* a, void* b, void* c);
+    void (*tensor_free)(void* t);
+    void (*tensor_print)(const void* t);
+    void (*tensor_transpose)(void* t, const uint32_t* perm);
     // Add more ops as needed
 } cgrad_backend;
 

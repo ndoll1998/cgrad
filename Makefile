@@ -23,7 +23,7 @@ CMOCKA_PREFIX    ?= $(CURDIR)/deps/cmocka
 
 # --------- Compiler/Flags ---------
 CC      := gcc
-CFLAGS  := -I$(OPENBLAS_PREFIX)/include -Iinclude
+CFLAGS  := -I$(OPENBLAS_PREFIX)/include -Iinclude -O3
 LDFLAGS := -L$(OPENBLAS_PREFIX)/lib -lopenblas
 
 # --------- Project Structure ---------
