@@ -1,22 +1,23 @@
 #include "cgrad_tensor.h"
-#include "backends/cgrad_tensor_f32_cpu.h"
+#include "cgrad_errors.h"
+#include "cgrad_layout.h"
 #include <stdlib.h>
 #include <string.h>
 
 int cgrad_tensor_init(cgrad_tensor* t, const uint32_t* shape, cgrad_backend_type backend_type) {
-    if (!t || !shape) return -1;
+    if (!t || !shape) return CGRAD_TENSOR_ERR_NULL_POINTER;
     t->backend = cgrad_get_backend(backend_type);
-    if (!t->backend) return -1;
+    if (!t->backend) return CGRAD_TENSOR_ERR_BACKEND_MISMATCH;
 
     // Use backend's tensor handle allocator
     void* handle = t->backend->alloc_tensor_handle();
-    if (!handle) return -1;
+    if (!handle) return CGRAD_TENSOR_ERR_HANDLE_UNINITIALIZED;
     if (t->backend->tensor_init(handle, shape)) {
         free(handle);
-        return -1;
+        return CGRAD_TENSOR_ERR_NOT_IMPLEMENTED;
     }
     t->handle = handle;
-    return 0;
+    return CGRAD_SUCCESS;
 }
 
 void cgrad_tensor_free(cgrad_tensor* t) {
@@ -27,23 +28,87 @@ void cgrad_tensor_free(cgrad_tensor* t) {
 }
 
 int cgrad_tensor_fill_rand(cgrad_tensor* t) {
-    if (!t || !t->backend || !t->handle) return -1;
+    if (!t || !t->backend || !t->handle) return CGRAD_TENSOR_ERR_NULL_POINTER;
     return t->backend->tensor_fill_rand(t->handle);
 }
 
-int cgrad_tensor_gemm(cgrad_tensor* a, cgrad_tensor* b, cgrad_tensor* c) {
-    if (!a || !b || !c) return -1;
-    if (!a->backend || !b->backend) return -1;
-    if (a->backend != b->backend || a->backend != c->backend) return -1;
-    return a->backend->tensor_gemm(a->handle, b->handle, c->handle);
+int cgrad_tensor_gemm(
+    const cgrad_tensor* a,
+    const cgrad_tensor* b,
+    cgrad_tensor* r
+) {
+    // validate tensors
+    if (!a || !b || !r) return CGRAD_TENSOR_ERR_NULL_POINTER;
+    if (!a->backend || !b->backend) return CGRAD_TENSOR_ERR_NULL_POINTER;
+    if (a->backend != b->backend) return CGRAD_TENSOR_ERR_BACKEND_MISMATCH;
+
+    // create shallow copies of a and b
+    cgrad_tensor a_bcast = *a;
+    cgrad_tensor b_bcast = *b;
+    a->backend->tensor_shallow_copy(a->handle, a_bcast.handle);
+    b->backend->tensor_shallow_copy(b->handle, b_bcast.handle);
+
+    // broadcast layouts
+    int bcast_err = cgrad_tensor_layout_broadcast(
+        a_bcast.backend->tensor_get_layout(a_bcast.handle),
+        b_bcast.backend->tensor_get_layout(b_bcast.handle),
+        0,
+        MAX_TENSOR_DIM - 2
+    );
+    if (bcast_err != CGRAD_SUCCESS) return bcast_err;
+
+    // build output shape
+    uint32_t r_shape[MAX_TENSOR_DIM];
+    memcpy(r_shape, a_bcast.backend->tensor_get_layout(a_bcast.handle)->shape, sizeof(uint32_t) * (MAX_TENSOR_DIM - 2));
+    r_shape[MAX_TENSOR_DIM - 2] = a_bcast.backend->tensor_get_layout(a_bcast.handle)->shape[MAX_TENSOR_DIM - 2]; // m
+    r_shape[MAX_TENSOR_DIM - 1] = b_bcast.backend->tensor_get_layout(b_bcast.handle)->shape[MAX_TENSOR_DIM - 1]; // n
+
+    // check if r is initialized, if not initialize it
+    if (!r->handle) {
+        cgrad_tensor_init(r, r_shape, a->backend->type);
+    } else {
+        // TODO: support writing to existing tensor with matching shape
+        return CGRAD_TENSOR_ERR_NOT_IMPLEMENTED;
+    }
+
+    return a->backend->tensor_gemm(a->handle, b->handle, r->handle);
 }
 
-int cgrad_tensor_add(cgrad_tensor* a, cgrad_tensor* b, cgrad_tensor* c) {
-    if (!a || !b || !c) return -1;
-    if (!a->backend || !b->backend || !c->backend) return -1;
-    if (a->backend != b->backend || a->backend != c->backend) return -1;
-    if (!a->backend->tensor_add) return -1;
-    return a->backend->tensor_add(a->handle, b->handle, c->handle);
+int cgrad_tensor_add(
+    cgrad_tensor* a,
+    cgrad_tensor* b,
+    cgrad_tensor* r
+) {
+    // validate tensors
+    if (!a || !b || !r) return CGRAD_TENSOR_ERR_NULL_POINTER;
+    if (!a->backend || !b->backend) return CGRAD_TENSOR_ERR_NULL_POINTER;
+    if (a->backend != b->backend) return CGRAD_TENSOR_ERR_BACKEND_MISMATCH;
+
+    // create shallow copies of a and b
+    cgrad_tensor a_bcast = *a;
+    cgrad_tensor b_bcast = *b;
+    a->backend->tensor_shallow_copy(a->handle, a_bcast.handle);
+    b->backend->tensor_shallow_copy(b->handle, b_bcast.handle);
+
+    // broadcast layouts
+    int bcast_err = cgrad_tensor_layout_broadcast(
+        a_bcast.backend->tensor_get_layout(a_bcast.handle),
+        b_bcast.backend->tensor_get_layout(b_bcast.handle),
+        0,
+        MAX_TENSOR_DIM
+    );
+    if (bcast_err != CGRAD_SUCCESS) return bcast_err;
+
+    // check if r is initialized, if not initialize it
+    if (!r->handle) {
+        const uint32_t* shape = a_bcast.backend->tensor_get_layout(a_bcast.handle)->shape;
+        cgrad_tensor_init(r, shape, a->backend->type);
+    } else {
+        // TODO: support writing to existing tensor with matching shape
+        return CGRAD_TENSOR_ERR_NOT_IMPLEMENTED;
+    }
+
+    return a->backend->tensor_add(a->handle, b->handle, r->handle);
 }
 
 void cgrad_tensor_print(const cgrad_tensor* t) {

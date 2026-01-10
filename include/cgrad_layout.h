@@ -31,7 +31,7 @@ size_t cgrad_tensor_flat_index(const uint32_t* indices, const uint32_t* strides)
  * Broadcasting rules:
  * - If the dimensions at a specific index are the same, do nothing.
  * - If they differ and one is 1, set its stride to 0 and set its shape to the other's shape.
- * - If they differ and neither is 1, return -1 (cannot broadcast).
+ * - If they differ and neither is 1, return err (cannot broadcast).
  * 
  * After broadcasting, the shapes between the specified dimensions will be the same.
  * Returns 0 on success, -1 on failure.

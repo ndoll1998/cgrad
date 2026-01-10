@@ -17,9 +17,20 @@ static void test_cgrad_tensor_init_and_free(void **state) {
     assert_null(t.handle);
 }
 
+static void test_cgrad_tensor_init_errors(void **state) {
+    (void)state;
+    uint32_t shape[MAX_TENSOR_DIM] = {2, 3, 4, 5};
+    // Null tensor pointer
+    assert_int_equal(cgrad_tensor_init(NULL, shape, CGRAD_BACKEND_F32_CPU), CGRAD_TENSOR_ERR_NULL_POINTER);
+    // Null shape pointer
+    cgrad_tensor t;
+    assert_int_equal(cgrad_tensor_init(&t, NULL, CGRAD_BACKEND_F32_CPU), CGRAD_TENSOR_ERR_NULL_POINTER);
+}
+
 int run_cgrad_tensor_tests(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_cgrad_tensor_init_and_free),
+        cmocka_unit_test(test_cgrad_tensor_init_errors),
     };
     return _cmocka_run_group_tests("cgrad_tensor", tests, sizeof(tests)/sizeof(tests[0]), NULL, NULL);
 }

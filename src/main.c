@@ -3,7 +3,10 @@
 #include <stdint.h>
 
 int main() {
-  cgrad_tensor t1, t2, out;
+  cgrad_tensor t1 = {0};
+  cgrad_tensor t2 = {0};
+  cgrad_tensor out = {0};
+  cgrad_tensor r = {0};
   uint32_t shapeA[] = {1, 2, 2, 3};
   uint32_t shapeB[] = {1, 1, 2, 3};
 
@@ -21,10 +24,14 @@ int main() {
   cgrad_tensor_print(&t1);
 
   // GEMM
-  cgrad_tensor_init(&out, (uint32_t[]){1,2,2,2}, CGRAD_BACKEND_F32_CPU); // shape is a placeholder, will be overwritten by gemm
   int e = cgrad_tensor_gemm(&t1, &t2, &out);
   printf("GEMM error code: %d\n", e);
   cgrad_tensor_print(&out);
+
+  // Add output to itself
+  e = cgrad_tensor_add(&out, &out, &r);
+  printf("Add error code: %d\n", e);
+  cgrad_tensor_print(&r);
 
   // free
   cgrad_tensor_free(&t1);

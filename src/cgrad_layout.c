@@ -1,7 +1,9 @@
 #include "cgrad_layout.h"
+#include "cgrad_errors.h"
 
 // Layout/tensor initialization
 int cgrad_tensor_layout_init(cgrad_tensor_layout* l, const uint32_t* shape) {
+  if (!l || !shape) return CGRAD_LAYOUT_ERR_NULL_POINTER;
   uint32_t cur_stride = 1;
   # pragma unroll
   for (int i = MAX_TENSOR_DIM - 1; i > -1; i--) {
@@ -10,7 +12,7 @@ int cgrad_tensor_layout_init(cgrad_tensor_layout* l, const uint32_t* shape) {
       cur_stride *= shape[i];
   }
   l->size = cur_stride;
-  return 0;
+  return CGRAD_SUCCESS;
 }
 
 /**
@@ -33,7 +35,7 @@ void cgrad_tensor_layout_copy(cgrad_tensor_layout* dst, const cgrad_tensor_layou
  * Broadcasting rules:
  * - If the dimensions at a specific index are the same, do nothing.
  * - If they differ and one is 1, set its stride to 0 and set its shape to the other's shape.
- * - If they differ and neither is 1, return -1 (cannot broadcast).
+ * - If they differ and neither is 1, return err (cannot broadcast).
  * 
  * After broadcasting, the shapes between the specified dimensions will be the same.
  * Returns 0 on success, -1 on failure.
@@ -44,8 +46,8 @@ int cgrad_tensor_layout_broadcast(
     int start_dim,
     int end_dim
 ) {
-    if (!l1 || !l2) return -1;
-    if (start_dim < 0 || end_dim > MAX_TENSOR_DIM || start_dim >= end_dim) return -1;
+    if (!l1 || !l2) return CGRAD_LAYOUT_ERR_NULL_POINTER;
+    if (start_dim < 0 || end_dim > MAX_TENSOR_DIM || start_dim >= end_dim) return CGRAD_LAYOUT_ERR_SHAPE_MISMATCH;
 
     for (int i = start_dim; i < end_dim; ++i) {
         uint32_t s1 = l1->shape[i];
@@ -59,10 +61,10 @@ int cgrad_tensor_layout_broadcast(
             l2->shape[i] = s1;
             l2->strides[i] = 0;
         } else {
-            return -1;
+            return CGRAD_LAYOUT_ERR_BROADCAST;
         }
     }
-    return 0;
+    return CGRAD_SUCCESS;
 }
 
 // Indexing

@@ -3,15 +3,13 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include "cgrad_layout.h"
 
 // Enum for backend types
 typedef enum {
     CGRAD_BACKEND_F32_CPU = 0,
     // Add more backends here (e.g., CGRAD_BACKEND_F64_CPU, CGRAD_BACKEND_CUDA, ...)
 } cgrad_backend_type;
-
-struct cgrad_tensor_layout;
-struct cgrad_tensor_f32;
 
 typedef struct cgrad_backend {
     cgrad_backend_type type;
@@ -27,6 +25,10 @@ typedef struct cgrad_backend {
     void (*tensor_print)(const void* t);
     void (*tensor_transpose)(void* t, const uint32_t* perm);
     int  (*tensor_add)(void* a, void* b, void* c);
+
+    int  (*tensor_shallow_copy)(const void* src, void* dst);
+    cgrad_tensor_layout* (*tensor_get_layout)(void* t);
+
     // Add more ops as needed
 } cgrad_backend;
 

@@ -1,0 +1,24 @@
+#ifndef CGRAD_ERRORS_H
+#define CGRAD_ERRORS_H
+
+// Success
+#define CGRAD_SUCCESS 0
+
+// General tensor errors
+#define CGRAD_TENSOR_ERR_NULL_POINTER                -1001
+#define CGRAD_TENSOR_ERR_BACKEND_MISMATCH            -1002
+#define CGRAD_TENSOR_ERR_HANDLE_UNINITIALIZED        -1003
+#define CGRAD_TENSOR_ERR_SHAPE_MISMATCH              -1004
+#define CGRAD_TENSOR_ERR_NOT_IMPLEMENTED             -1005
+
+// Layout/broadcasting errors
+#define CGRAD_LAYOUT_ERR_BROADCAST                   -1501
+#define CGRAD_LAYOUT_ERR_NULL_POINTER                -1502
+#define CGRAD_LAYOUT_ERR_SHAPE_MISMATCH              -1503
+
+// Backend: F32 CPU specific errors
+#define CGRAD_TENSOR_F32_CPU_ERR_ALLOC_FAILED        -2001
+#define CGRAD_TENSOR_F32_CPU_ERR_BATCH_ALLOC_FAILED  -2002
+#define CGRAD_TENSOR_F32_CPU_ERR_CONTIGUOUS_FAILED   -2003
+
+#endif // CGRAD_ERRORS_H
