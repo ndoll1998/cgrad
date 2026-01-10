@@ -1,6 +1,7 @@
 #include <cmocka.h>
 #include "cgrad_tensor.h"
 #include "backends/cgrad_tensor_f32_cpu.h"
+#include "cgrad_errors.h"
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>

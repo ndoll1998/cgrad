@@ -107,6 +107,13 @@ int cgrad_tensor_f32_cpu_add(
 ) {
   if (!a || !b || !c) return CGRAD_TENSOR_ERR_NULL_POINTER;
 
+  // check shapes match
+  for (int d = 0; d < MAX_TENSOR_DIM; d++) {
+    if (a->layout.shape[d] != b->layout.shape[d]) {
+      return CGRAD_TENSOR_F32_CPU_ERR_SHAPE_MISMATCH;
+    }
+  }
+
   // Make a contiguous if needed
   cgrad_tensor_f32_cpu a_contig;
   int is_a_contiguous = cgrad_tensor_layout_is_contiguous(&a->layout);
@@ -141,7 +148,22 @@ int cgrad_tensor_f32_cpu_gemm(
   cgrad_tensor_f32_cpu* c
 ) {
   if (!a || !b || !c) return CGRAD_TENSOR_ERR_NULL_POINTER;
- 
+
+  // Check for compatible batch and matrix dimensions (no broadcasting)
+  for (int d = 0; d < MAX_TENSOR_DIM - 2; d++) {
+    if (a->layout.shape[d] != b->layout.shape[d]) {
+      return CGRAD_TENSOR_F32_CPU_ERR_SHAPE_MISMATCH;
+    }
+  }
+  // Check matrix multiplication inner dimensions
+  int a_m = a->layout.shape[MAX_TENSOR_DIM-2];
+  int a_k = a->layout.shape[MAX_TENSOR_DIM-1];
+  int b_k = b->layout.shape[MAX_TENSOR_DIM-2];
+  int b_n = b->layout.shape[MAX_TENSOR_DIM-1];
+  if (a_k != b_k) {
+    return CGRAD_TENSOR_F32_CPU_ERR_SHAPE_MISMATCH;
+  }
+
   // get dimensions
   int m = a->layout.shape[MAX_TENSOR_DIM-2];
   int n = b->layout.shape[MAX_TENSOR_DIM-1];
