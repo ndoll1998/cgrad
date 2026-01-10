@@ -54,6 +54,11 @@ typedef struct cgrad_backend {
     int  (*tensor_shallow_copy)(const void* src, void* dst);
 
     /**
+     * @brief Make a contiguous copy of a tensor.
+     */
+    int  (*tensor_contiguous)(const void* src, void* dst);
+
+    /**
      * @brief Free the memory associated with a tensor.
      */
     void (*tensor_free)(void* t);
@@ -74,6 +79,16 @@ typedef struct cgrad_backend {
     int  (*tensor_gemm)(void* a, void* b, void* c);
 
     // --- Data Access/Info ---
+    /**
+     * @brief Get the value at the given indices.
+     */
+    int  (*tensor_get)(const void* t, const uint32_t* indices, float* out_value);
+
+    /**
+     * @brief Set the value at the given indices.
+     */
+    int  (*tensor_set)(void* t, const uint32_t* indices, float value);
+
     /**
      * @brief Get the layout of a tensor handle.
      */

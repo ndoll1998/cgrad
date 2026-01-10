@@ -1,6 +1,7 @@
 #ifndef CGRAD_TENSOR_F32_CPU_H
 #define CGRAD_TENSOR_F32_CPU_H
 
+#include "cgrad_backend.h"
 #include "cgrad_layout.h"
 #include <stdint.h>
 #include <stddef.h>
@@ -26,28 +27,22 @@ typedef struct cgrad_tensor_f32_cpu {
 int cgrad_tensor_f32_cpu_init(cgrad_tensor_f32_cpu* t, const uint32_t* shape, int ndim);
 
 /**
- * @brief Build a batch array of pointers for batched operations.
- * @param t Pointer to tensor.
- * @param array Output: pointer to array of float pointers.
- * @return CGRAD_SUCCESS on success, error code otherwise.
- */
-int cgrad_tensor_f32_cpu_build_batch_array(cgrad_tensor_f32_cpu* t, float*** array);
-
-/**
- * @brief Get a pointer to the element at the given indices.
+ * @brief Get the value at the given indices.
  * @param t Pointer to tensor.
  * @param indices Array of indices.
- * @return Pointer to the element.
+ * @param out_value Pointer to float where the value will be written.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-float* cgrad_tensor_f32_cpu_ptr(const cgrad_tensor_f32_cpu* t, const uint32_t* indices);
+int cgrad_tensor_f32_cpu_get(const cgrad_tensor_f32_cpu* t, const uint32_t* indices, float* out_value);
 
 /**
  * @brief Set the value at the given indices.
  * @param t Pointer to tensor.
  * @param indices Array of indices.
  * @param value Value to set.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-void cgrad_tensor_f32_cpu_set(cgrad_tensor_f32_cpu* t, const uint32_t* indices, float value);
+int cgrad_tensor_f32_cpu_set(cgrad_tensor_f32_cpu* t, const uint32_t* indices, float value);
 
 /**
  * @brief Fill the tensor with a constant value.
@@ -127,5 +122,7 @@ cgrad_tensor_layout* cgrad_tensor_f32_cpu_get_layout(cgrad_tensor_f32_cpu* t);
  * @param t Pointer to tensor.
  */
 void cgrad_tensor_f32_cpu_print(const cgrad_tensor_f32_cpu* t);
+
+extern cgrad_backend cgrad_backend_f32_cpu;
 
 #endif // CGRAD_TENSOR_F32_CPU_H

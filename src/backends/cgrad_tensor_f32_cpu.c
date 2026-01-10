@@ -1,26 +1,12 @@
-#include "cgrad_tensor.h"
 #include "backends/cgrad_tensor_f32_cpu.h"
-#include "cgrad_layout.h"
+#include "cgrad_backend.h"
 #include "cgrad_errors.h"
+#include "cgrad_layout.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
 
-/**
- * @brief Initialize a float32 CPU tensor with the given shape.
- * @param t Pointer to tensor to initialize.
- * @param shape Array of dimensions.
- * @return CGRAD_SUCCESS on success, error code otherwise.
- */
-int cgrad_tensor_f32_cpu_init(cgrad_tensor_f32_cpu* t, const uint32_t* shape, int ndim) {
-  if (!t || !shape) return CGRAD_TENSOR_ERR_NULL_POINTER;
-  int layout_err = cgrad_tensor_layout_init(&t->layout, shape, ndim);
-  if (layout_err != CGRAD_SUCCESS) return layout_err;
-  t->data = (float*)calloc(t->layout.size, sizeof(float));
-  if (!t->data) return CGRAD_TENSOR_F32_CPU_ERR_ALLOC_FAILED;
-  return CGRAD_SUCCESS;
-}
 
 /**
  * @brief Build a batch array of pointers for batched operations.
@@ -28,7 +14,7 @@ int cgrad_tensor_f32_cpu_init(cgrad_tensor_f32_cpu* t, const uint32_t* shape, in
  * @param array Output: pointer to array of float pointers.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_f32_cpu_build_batch_array(cgrad_tensor_f32_cpu* t, float*** array) {
+int helper_cgrad_tensor_f32_cpu_build_batch_array(cgrad_tensor_f32_cpu* t, float*** array) {
   int batch_size = 1;
   # pragma unroll
   for (int i = 0; i < TENSOR_DIM - 2; i++) {
@@ -45,22 +31,55 @@ int cgrad_tensor_f32_cpu_build_batch_array(cgrad_tensor_f32_cpu* t, float*** arr
       indices[d] = rem % t->layout.shape[d];
       rem /= t->layout.shape[d];
     }
-    (*array)[i] = cgrad_tensor_f32_cpu_ptr(t, indices);
+    size_t idx = 0;
+    int err = cgrad_tensor_layout_flat_index(&t->layout, indices, TENSOR_DIM, &idx);
+    if (err != CGRAD_SUCCESS) {
+      (*array)[i] = NULL;
+    } else {
+      (*array)[i] = t->data + idx;
+    }
   }
   return CGRAD_SUCCESS;
 }
 
+
 /**
- * @brief Get a pointer to the element at the given indices.
+ * @brief Initialize a float32 CPU tensor with the given shape.
+ * @param t Pointer to tensor to initialize.
+ * @param shape Array of dimensions.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_tensor_f32_cpu_init(cgrad_tensor_f32_cpu* t, const uint32_t* shape, int ndim) {
+  if (!t || !shape) return CGRAD_TENSOR_ERR_NULL_POINTER;
+  int layout_err = cgrad_tensor_layout_init(&t->layout, shape, ndim);
+  if (layout_err != CGRAD_SUCCESS) return layout_err;
+  t->data = (float*)calloc(t->layout.size, sizeof(float));
+  if (!t->data) return CGRAD_TENSOR_F32_CPU_ERR_ALLOC_FAILED;
+  return CGRAD_SUCCESS;
+}
+
+static int backend_cgrad_tensor_f32_cpu_tensor_init(void* t, const uint32_t* shape, int ndim) {
+    return cgrad_tensor_f32_cpu_init((cgrad_tensor_f32_cpu*)t, shape, ndim);
+}
+
+/**
+ * @brief Get the value at the given indices.
  * @param t Pointer to tensor.
  * @param indices Array of indices.
- * @return Pointer to the element.
+ * @param out_value Pointer to float where the value will be written.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-float* cgrad_tensor_f32_cpu_ptr(const cgrad_tensor_f32_cpu* t, const uint32_t* indices) {
+int cgrad_tensor_f32_cpu_get(const cgrad_tensor_f32_cpu* t, const uint32_t* indices, float* out_value) {
+  if (!t || !indices || !out_value) return CGRAD_TENSOR_ERR_NULL_POINTER;
   size_t idx = 0;
   int err = cgrad_tensor_layout_flat_index(&t->layout, indices, TENSOR_DIM, &idx);
-  if (err != CGRAD_SUCCESS) return NULL;
-  return t->data + idx;
+  if (err != CGRAD_SUCCESS) return err;
+  *out_value = t->data[idx];
+  return CGRAD_SUCCESS;
+}
+
+static int backend_cgrad_tensor_f32_cpu_tensor_get(const void* t, const uint32_t* indices, float* out_value) {
+    return cgrad_tensor_f32_cpu_get((const cgrad_tensor_f32_cpu*)t, indices, out_value);
 }
 
 /**
@@ -68,12 +87,19 @@ float* cgrad_tensor_f32_cpu_ptr(const cgrad_tensor_f32_cpu* t, const uint32_t* i
  * @param t Pointer to tensor.
  * @param indices Array of indices.
  * @param value Value to set.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-void cgrad_tensor_f32_cpu_set(cgrad_tensor_f32_cpu* t, const uint32_t* indices, float value) {
+int cgrad_tensor_f32_cpu_set(cgrad_tensor_f32_cpu* t, const uint32_t* indices, float value) {
+  if (!t || !indices) return CGRAD_TENSOR_ERR_NULL_POINTER;
   size_t idx = 0;
   int err = cgrad_tensor_layout_flat_index(&t->layout, indices, TENSOR_DIM, &idx);
-  if (err != CGRAD_SUCCESS) return;
+  if (err != CGRAD_SUCCESS) return err;
   t->data[idx] = value;
+  return CGRAD_SUCCESS;
+}
+
+static int backend_cgrad_tensor_f32_cpu_tensor_set(void* t, const uint32_t* indices, float value) {
+    return cgrad_tensor_f32_cpu_set((cgrad_tensor_f32_cpu*)t, indices, value);
 }
 
 /**
@@ -105,6 +131,10 @@ int cgrad_tensor_f32_cpu_fill(cgrad_tensor_f32_cpu* t, float value) {
   return CGRAD_SUCCESS;
 }
 
+static int backend_cgrad_tensor_f32_cpu_tensor_fill(void* t, float value) {
+    return cgrad_tensor_f32_cpu_fill((cgrad_tensor_f32_cpu*)t, value);
+}
+
 /**
  * @brief Fill the tensor with random values.
  * @param t Pointer to tensor.
@@ -115,6 +145,30 @@ int cgrad_tensor_f32_cpu_fill_rand(cgrad_tensor_f32_cpu* t) {
   for (int i = 0; i < t->layout.size; i++)
     t->data[i] = (float)rand()/(float)(RAND_MAX);
   return CGRAD_SUCCESS;
+}
+
+static int backend_cgrad_tensor_f32_cpu_tensor_fill_rand(void* t) {
+    return cgrad_tensor_f32_cpu_fill_rand((cgrad_tensor_f32_cpu*)t);
+}
+
+/**
+ * @brief Create a shallow copy of a tensor handle (deep copy layout, shallow copy data).
+ * @param src Source tensor.
+ * @param dst Destination tensor.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_tensor_f32_cpu_shallow_copy(const cgrad_tensor_f32_cpu* src, cgrad_tensor_f32_cpu* dst) {
+  if (!src || !dst) return CGRAD_TENSOR_ERR_NULL_POINTER;
+  cgrad_tensor_layout_copy(&dst->layout, &src->layout);
+  dst->data = src->data;
+  return CGRAD_SUCCESS;
+}
+
+static int backend_cgrad_tensor_f32_cpu_tensor_shallow_copy(const void* src, void* dst) {
+    return cgrad_tensor_f32_cpu_shallow_copy(
+        (const cgrad_tensor_f32_cpu*)src,
+        (cgrad_tensor_f32_cpu*)dst
+    );
 }
 
 /**
@@ -147,26 +201,25 @@ int cgrad_tensor_f32_cpu_contiguous(const cgrad_tensor_f32_cpu* src, cgrad_tenso
     for (uint32_t d = 0; d < TENSOR_DIM - block_ndim; d++) {
       idx[d] = (offset / dst->layout.strides[d]) % dst->layout.shape[d];
     }
-    cblas_scopy(
-      block_size,
-      cgrad_tensor_f32_cpu_ptr(src, idx), src->layout.strides[TENSOR_DIM-1],
-      cgrad_tensor_f32_cpu_ptr(dst, idx), 1
-    );
+    size_t src_idx = 0, dst_idx = 0;
+    int src_err = cgrad_tensor_layout_flat_index(&src->layout, idx, TENSOR_DIM, &src_idx);
+    int dst_err = cgrad_tensor_layout_flat_index(&dst->layout, idx, TENSOR_DIM, &dst_idx);
+    if (src_err == CGRAD_SUCCESS && dst_err == CGRAD_SUCCESS) {
+      cblas_scopy(
+        block_size,
+        src->data + src_idx, src->layout.strides[TENSOR_DIM-1],
+        dst->data + dst_idx, 1
+      );
+    }
   }
   return CGRAD_SUCCESS;
 }
 
-/**
- * @brief Create a shallow copy of a tensor handle (deep copy layout, shallow copy data).
- * @param src Source tensor.
- * @param dst Destination tensor.
- * @return CGRAD_SUCCESS on success, error code otherwise.
- */
-int cgrad_tensor_f32_cpu_shallow_copy(const cgrad_tensor_f32_cpu* src, cgrad_tensor_f32_cpu* dst) {
-  if (!src || !dst) return CGRAD_TENSOR_ERR_NULL_POINTER;
-  cgrad_tensor_layout_copy(&dst->layout, &src->layout);
-  dst->data = src->data;
-  return CGRAD_SUCCESS;
+static int backend_cgrad_tensor_f32_cpu_tensor_contiguous(const void* src, void* dst) {
+    return cgrad_tensor_f32_cpu_contiguous(
+        (const cgrad_tensor_f32_cpu*)src,
+        (cgrad_tensor_f32_cpu*)dst
+    );
 }
 
 /**
@@ -178,6 +231,10 @@ void cgrad_tensor_f32_cpu_free(cgrad_tensor_f32_cpu* t) {
         free(t->data);
         t->data = NULL;
     }
+}
+
+static void backend_cgrad_tensor_f32_cpu_tensor_free(void* t) {
+    cgrad_tensor_f32_cpu_free((cgrad_tensor_f32_cpu*)t);
 }
 
 /**
@@ -222,6 +279,15 @@ int cgrad_tensor_f32_cpu_add(
   
   if (!is_a_regular) cgrad_tensor_f32_cpu_free(&a_contig);
   return CGRAD_SUCCESS;
+}
+
+static int backend_cgrad_tensor_f32_cpu_tensor_add(float alpha, void* a, void* b, void* c) {
+    return cgrad_tensor_f32_cpu_add(
+        alpha,
+        (const cgrad_tensor_f32_cpu*)a,
+        (const cgrad_tensor_f32_cpu*)b,
+        (cgrad_tensor_f32_cpu*)c
+    );
 }
 
 /**
@@ -273,11 +339,11 @@ int cgrad_tensor_f32_cpu_gemm(
   }
   
   float **A_array, **B_array, **C_array;
-  int batch_err = cgrad_tensor_f32_cpu_build_batch_array((cgrad_tensor_f32_cpu*)a, &A_array);
+  int batch_err = helper_cgrad_tensor_f32_cpu_build_batch_array((cgrad_tensor_f32_cpu*)a, &A_array);
   if (batch_err != CGRAD_SUCCESS) return batch_err;
-  batch_err = cgrad_tensor_f32_cpu_build_batch_array((cgrad_tensor_f32_cpu*)b, &B_array);
+  batch_err = helper_cgrad_tensor_f32_cpu_build_batch_array((cgrad_tensor_f32_cpu*)b, &B_array);
   if (batch_err != CGRAD_SUCCESS) { free(A_array); return batch_err; }
-  batch_err = cgrad_tensor_f32_cpu_build_batch_array(c, &C_array);
+  batch_err = helper_cgrad_tensor_f32_cpu_build_batch_array(c, &C_array);
   if (batch_err != CGRAD_SUCCESS) { free(A_array); free(B_array); return batch_err; }
   
   CBLAS_TRANSPOSE transA = CblasNoTrans;
@@ -313,6 +379,10 @@ int cgrad_tensor_f32_cpu_gemm(
   return CGRAD_SUCCESS;
 }
 
+static int backend_cgrad_tensor_f32_cpu_tensor_gemm(void* a, void* b, void* c) {
+    return cgrad_tensor_f32_cpu_gemm((cgrad_tensor_f32_cpu*)a, (cgrad_tensor_f32_cpu*)b, (cgrad_tensor_f32_cpu*)c);
+}
+
 /**
  * @brief Get the layout of a tensor handle.
  * @param t Pointer to tensor.
@@ -321,6 +391,10 @@ int cgrad_tensor_f32_cpu_gemm(
 cgrad_tensor_layout* cgrad_tensor_f32_cpu_get_layout(cgrad_tensor_f32_cpu* t) {
   if (!t) return NULL;
   return &t->layout;
+}
+
+static cgrad_tensor_layout* backend_cgrad_tensor_f32_cpu_tensor_get_layout(void* t) {
+    return cgrad_tensor_f32_cpu_get_layout((cgrad_tensor_f32_cpu*)t);
 }
 
 /**
@@ -341,7 +415,39 @@ void cgrad_tensor_f32_cpu_print(const cgrad_tensor_f32_cpu* t) {
       if ((i > 0) && ((i % l.strides[j]) == 0)) printf("\n");
     }
     idx[TENSOR_DIM-1] = (i / l.strides[TENSOR_DIM-1]) % l.shape[TENSOR_DIM-1];
-    printf("%f ", *cgrad_tensor_f32_cpu_ptr(t, idx));
+    float value = 0.0f;
+    int err = cgrad_tensor_f32_cpu_get(t, idx, &value);
+    if (err == CGRAD_SUCCESS) {
+      printf("%f ", value);
+    } else {
+      printf("ERR ");
+    }
   }
   printf("\n");
 }
+
+static void backend_cgrad_tensor_f32_cpu_tensor_print(const void* t) {
+    cgrad_tensor_f32_cpu_print((const cgrad_tensor_f32_cpu*)t);
+}
+
+
+static void* backend_alloc_tensor_f32_cpu_handle(void) {
+    return malloc(sizeof(struct cgrad_tensor_f32_cpu));
+}
+
+cgrad_backend cgrad_backend_f32_cpu = {
+    .type = CGRAD_BACKEND_F32_CPU,
+    .alloc_tensor_handle = backend_alloc_tensor_f32_cpu_handle,
+    .tensor_init      = backend_cgrad_tensor_f32_cpu_tensor_init,
+    .tensor_fill      = backend_cgrad_tensor_f32_cpu_tensor_fill,
+    .tensor_fill_rand = backend_cgrad_tensor_f32_cpu_tensor_fill_rand,
+    .tensor_shallow_copy = backend_cgrad_tensor_f32_cpu_tensor_shallow_copy,
+    .tensor_contiguous   = backend_cgrad_tensor_f32_cpu_tensor_contiguous,
+    .tensor_free      = backend_cgrad_tensor_f32_cpu_tensor_free,
+    .tensor_add       = backend_cgrad_tensor_f32_cpu_tensor_add,
+    .tensor_gemm      = backend_cgrad_tensor_f32_cpu_tensor_gemm,
+    .tensor_get       = backend_cgrad_tensor_f32_cpu_tensor_get,
+    .tensor_set       = backend_cgrad_tensor_f32_cpu_tensor_set,
+    .tensor_get_layout   = backend_cgrad_tensor_f32_cpu_tensor_get_layout,
+    .tensor_print     = backend_cgrad_tensor_f32_cpu_tensor_print,
+};

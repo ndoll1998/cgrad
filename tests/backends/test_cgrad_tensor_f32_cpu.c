@@ -36,7 +36,8 @@ static void test_cgrad_tensor_f32_contiguous_swap23(void **state) {
             uint32_t orig_idx[4] = {i, j, k, l};
             uint32_t trans_idx[4] = {i, k, j, l};
             float expected = 1000*i + 100*j + 10*k + l;
-            float got = *cgrad_tensor_f32_cpu_ptr(&t_contig, trans_idx);
+            float got = 0.0f;
+            assert_int_equal(cgrad_tensor_f32_cpu_get(&t_contig, trans_idx, &got), CGRAD_SUCCESS);
             assert_true(fabsf(got - expected) <= EPSILON);
           }
 
@@ -72,7 +73,8 @@ static void test_cgrad_tensor_f32_contiguous_swap01(void **state) {
             uint32_t orig_idx[4] = {i, j, k, l};
             uint32_t trans_idx[4] = {j, i, k, l};
             float expected = 1000*i + 100*j + 10*k + l;
-            float got = *cgrad_tensor_f32_cpu_ptr(&t_contig, trans_idx);
+            float got = 0.0f;
+            assert_int_equal(cgrad_tensor_f32_cpu_get(&t_contig, trans_idx, &got), CGRAD_SUCCESS);
             assert_true(fabsf(got - expected) <= EPSILON);
           }
 
@@ -231,9 +233,10 @@ static void test_add_with_transposed_inputs(void **state) {
     // Check c = a.t + b.t
     for (int i = 0; i < c.layout.size; i++) {
 
-        float x = *cgrad_tensor_f32_cpu_ptr(&a, (uint32_t[]){i / (2*4), (i / 4) % 2, (i % 4), 0});
-        float y = *cgrad_tensor_f32_cpu_ptr(&b, (uint32_t[]){i / (2*4), (i / 4) % 2, (i % 4), 0});
-        float z = *cgrad_tensor_f32_cpu_ptr(&c, (uint32_t[]){i / (2*4), (i / 4) % 2, (i % 4), 0});
+        float x = 0.0f, y = 0.0f, z = 0.0f;
+        assert_int_equal(cgrad_tensor_f32_cpu_get(&a, (uint32_t[]){i / (2*4), (i / 4) % 2, (i % 4), 0}, &x), CGRAD_SUCCESS);
+        assert_int_equal(cgrad_tensor_f32_cpu_get(&b, (uint32_t[]){i / (2*4), (i / 4) % 2, (i % 4), 0}, &y), CGRAD_SUCCESS);
+        assert_int_equal(cgrad_tensor_f32_cpu_get(&c, (uint32_t[]){i / (2*4), (i / 4) % 2, (i % 4), 0}, &z), CGRAD_SUCCESS);
 
         assert_true(fabsf(z - (x + y)) < EPSILON);
     }
@@ -275,7 +278,8 @@ static void test_gemm_with_transposed_inputs(void **state) {
 
     // Check result
     for (int i = 0; i < 9; i++) {
-        cgrad_tensor_f32_cpu_ptr(&c, (uint32_t[]){0,0,i/3,i%3});
+        float got = 0.0f;
+        assert_int_equal(cgrad_tensor_f32_cpu_get(&c, (uint32_t[]){0,0,i/3,i%3}, &got), CGRAD_SUCCESS);
         assert_true(fabsf(c.data[i] - expected[i]) <= EPSILON);
     }
 
