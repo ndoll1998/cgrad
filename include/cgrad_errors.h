@@ -28,6 +28,7 @@
 #define CGRAD_LAYOUT_ERR_NULL_POINTER                -1502
 #define CGRAD_LAYOUT_ERR_SHAPE_MISMATCH              -1503
 #define CGRAD_LAYOUT_ERR_DUPLICATE_DIM               -1504  // Duplicate dimension in permutation array
+#define CGRAD_LAYOUT_ERR_INDEX_OUT_OF_BOUNDS         -1505  // Index out of bounds in layout
 
 // Backend: F32 CPU specific errors
 #define CGRAD_TENSOR_F32_CPU_ERR_ALLOC_FAILED        -2001

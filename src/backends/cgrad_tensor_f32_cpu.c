@@ -57,7 +57,9 @@ int cgrad_tensor_f32_cpu_build_batch_array(cgrad_tensor_f32_cpu* t, float*** arr
  * @return Pointer to the element.
  */
 float* cgrad_tensor_f32_cpu_ptr(const cgrad_tensor_f32_cpu* t, const uint32_t* indices) {
-  size_t idx = cgrad_tensor_flat_index(indices, t->layout.strides);
+  size_t idx = 0;
+  int err = cgrad_tensor_layout_flat_index(&t->layout, indices, &idx);
+  if (err != CGRAD_SUCCESS) return NULL;
   return t->data + idx;
 }
 
@@ -68,7 +70,9 @@ float* cgrad_tensor_f32_cpu_ptr(const cgrad_tensor_f32_cpu* t, const uint32_t* i
  * @param value Value to set.
  */
 void cgrad_tensor_f32_cpu_set(cgrad_tensor_f32_cpu* t, const uint32_t* indices, float value) {
-  size_t idx = cgrad_tensor_flat_index(indices, t->layout.strides);
+  size_t idx = 0;
+  int err = cgrad_tensor_layout_flat_index(&t->layout, indices, &idx);
+  if (err != CGRAD_SUCCESS) return;
   t->data[idx] = value;
 }
 
@@ -345,7 +349,8 @@ void cgrad_tensor_f32_cpu_print(const cgrad_tensor_f32_cpu* t) {
  * @brief Transpose the tensor according to the given permutation.
  * @param t Pointer to tensor.
  * @param perm Permutation array.
+ * @return CGRAD_SUCCESS on success, CGRAD_LAYOUT_ERR_DUPLICATE_DIM if a dimension is repeated.
  */
-void cgrad_tensor_f32_cpu_transpose(cgrad_tensor_f32_cpu* t, const uint32_t* perm) {
-  cgrad_tensor_layout_transpose(&t->layout, perm);
+int cgrad_tensor_f32_cpu_transpose(cgrad_tensor_f32_cpu* t, const uint32_t* perm) {
+  return cgrad_tensor_layout_transpose(&t->layout, perm);
 }

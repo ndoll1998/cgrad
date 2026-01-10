@@ -36,17 +36,25 @@ int cgrad_tensor_layout_init(cgrad_tensor_layout* l, const uint32_t* shape) {
 }
 
 /**
- * @brief Compute the flat index in the data array for the given indices and strides.
- * @param indices Array of indices.
- * @param strides Array of strides.
- * @return Flat index.
+ * @brief Compute the flat index in the data array for the given indices and layout.
+ *        Checks that all indices are within bounds (0 <= idx < shape[i]).
+ *        If any index is out of bounds, returns CGRAD_LAYOUT_ERR_INDEX_OUT_OF_BOUNDS.
+ * @param layout Pointer to tensor layout (provides shape and strides).
+ * @param indices Array of indices (length MAX_TENSOR_DIM).
+ * @param out_flat_index Pointer to size_t where the computed flat index will be stored.
+ * @return CGRAD_SUCCESS on success, CGRAD_LAYOUT_ERR_INDEX_OUT_OF_BOUNDS if any index is out of bounds.
  */
-size_t cgrad_tensor_flat_index(const uint32_t* indices, const uint32_t* strides) {
+int cgrad_tensor_layout_flat_index(const cgrad_tensor_layout* layout, const uint32_t* indices, size_t* out_flat_index) {
+  if (!layout || !indices || !out_flat_index) return CGRAD_LAYOUT_ERR_NULL_POINTER;
   size_t idx = 0;
   for (int i = 0; i < MAX_TENSOR_DIM; i++) {
-    idx += indices[i] * strides[i];
+    if (indices[i] >= layout->shape[i]) {
+      return CGRAD_LAYOUT_ERR_INDEX_OUT_OF_BOUNDS;
+    }
+    idx += indices[i] * layout->strides[i];
   }
-  return idx;
+  *out_flat_index = idx;
+  return CGRAD_SUCCESS;
 }
 
 /**
@@ -97,7 +105,7 @@ int cgrad_tensor_layout_broadcast(
  *        Returns an error if any dimension is repeated in perm.
  * @param layout Pointer to layout.
  * @param perm Permutation array.
- * @return 0 on success, CGRAD_LAYOUT_ERR_DUPLICATE_DIM if a dimension is repeated.
+ * @return CGRAD_SUCCESS on success, CGRAD_LAYOUT_ERR_DUPLICATE_DIM if a dimension is repeated.
  */
 int cgrad_tensor_layout_transpose(cgrad_tensor_layout* layout, const uint32_t* perm) {
   // Check for duplicate dimensions in perm

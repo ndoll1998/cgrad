@@ -1,11 +1,11 @@
 #include <cmocka.h>
 #include "backends/cgrad_tensor_f32_cpu.h"
+#include "cgrad_errors.h"
 #include <stdio.h>
 #include <stdint.h>
 #include <math.h>
 
 #define EPSILON 1e-5
-#define MAX_TENSOR_DIM 4
 
 static void test_cgrad_tensor_f32_contiguous_swap23(void **state) {
     (void)state;
@@ -23,7 +23,7 @@ static void test_cgrad_tensor_f32_contiguous_swap23(void **state) {
           }
 
     uint32_t perm[4] = {0, 2, 1, 3};
-    cgrad_tensor_f32_cpu_transpose(&t, perm);
+    assert_int_equal(cgrad_tensor_f32_cpu_transpose(&t, perm), CGRAD_SUCCESS);
 
     int err = cgrad_tensor_f32_cpu_contiguous(&t, &t_contig);
     assert_int_equal(err, 0);
@@ -59,7 +59,7 @@ static void test_cgrad_tensor_f32_contiguous_swap01(void **state) {
           }
 
     uint32_t perm[4] = {1, 0, 2, 3};
-    cgrad_tensor_f32_cpu_transpose(&t, perm);
+    assert_int_equal(cgrad_tensor_f32_cpu_transpose(&t, perm), CGRAD_SUCCESS);
 
     int err = cgrad_tensor_f32_cpu_contiguous(&t, &t_contig);
     assert_int_equal(err, 0);
@@ -163,8 +163,8 @@ static void test_gemm_with_transpose(void **state) {
     }
 
     uint32_t perm[MAX_TENSOR_DIM] = {0, 1, 3, 2};
-    cgrad_tensor_f32_cpu_transpose(&a, perm);
-    cgrad_tensor_f32_cpu_transpose(&b, perm);
+    assert_int_equal(cgrad_tensor_f32_cpu_transpose(&a, perm), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_tensor_f32_cpu_transpose(&b, perm), CGRAD_SUCCESS);
 
     // Output shape: {1, 1, 3, 3}
     uint32_t shapeC[] = {1, 1, 3, 3};
@@ -220,8 +220,8 @@ static void test_add_with_transposed_inputs(void **state) {
     }
 
     // Make a non-contiguous by transposing memory layout but keep shape the same
-    cgrad_tensor_f32_cpu_transpose(&a, (uint32_t[]){1, 0, 2, 3});
-    cgrad_tensor_f32_cpu_transpose(&b, (uint32_t[]){1, 0, 2, 3});
+    assert_int_equal(cgrad_tensor_f32_cpu_transpose(&a, (uint32_t[]){1, 0, 2, 3}), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_tensor_f32_cpu_transpose(&b, (uint32_t[]){1, 0, 2, 3}), CGRAD_SUCCESS);
 
     // c = a_t + b
     int err = cgrad_tensor_f32_cpu_add(&a, &b, &c);
@@ -262,8 +262,8 @@ static void test_gemm_with_transposed_inputs(void **state) {
 
     // Transpose a and b: swap last two axes
     uint32_t perm[MAX_TENSOR_DIM] = {0, 1, 3, 2};
-    cgrad_tensor_f32_cpu_transpose(&a, perm);
-    cgrad_tensor_f32_cpu_transpose(&b, perm);
+    assert_int_equal(cgrad_tensor_f32_cpu_transpose(&a, perm), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_tensor_f32_cpu_transpose(&b, perm), CGRAD_SUCCESS);
 
     // Output shape: {1, 1, 3, 3}
     uint32_t shapeC[] = {1, 1, 3, 3};
@@ -296,7 +296,7 @@ static void test_transpose(void **state) {
     }
 
     uint32_t perm[MAX_TENSOR_DIM] = {0, 1, 3, 2};
-    cgrad_tensor_f32_cpu_transpose(&t, perm);
+    assert_int_equal(cgrad_tensor_f32_cpu_transpose(&t, perm), CGRAD_SUCCESS);
 
     for (int i = 0; i < MAX_TENSOR_DIM; i++) {
         assert_int_equal(t.layout.shape[i], orig_shape[perm[i]]);

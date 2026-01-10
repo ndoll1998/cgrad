@@ -6,8 +6,6 @@
 #include <string.h>
 #include <stdio.h>
 
-#define MAX_TENSOR_DIM 4
-
 static void test_cgrad_tensor_init_and_free(void **state) {
     (void)state;
     cgrad_tensor t;

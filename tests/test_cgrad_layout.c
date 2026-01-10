@@ -4,8 +4,6 @@
 #include <stdint.h>
 #include <string.h>
 
-#define MAX_TENSOR_DIM 4
-
 static void test_cgrad_tensor_layout_init_and_copy(void **state) {
     (void)state;
     cgrad_tensor_layout l1, l2;
@@ -15,12 +13,23 @@ static void test_cgrad_tensor_layout_init_and_copy(void **state) {
     assert_memory_equal(&l1, &l2, sizeof(cgrad_tensor_layout));
 }
 
-static void test_cgrad_tensor_flat_index(void **state) {
+static void test_cgrad_tensor_layout_flat_index(void **state) {
     (void)state;
-    uint32_t strides[MAX_TENSOR_DIM] = {60, 20, 5, 1};
-    uint32_t indices[MAX_TENSOR_DIM] = {1, 2, 3, 4};
-    size_t idx = cgrad_tensor_flat_index(indices, strides);
-    assert_int_equal(idx, 1*60 + 2*20 + 3*5 + 4*1);
+    cgrad_tensor_layout l;
+    uint32_t shape[MAX_TENSOR_DIM] = {2, 3, 4, 5};
+    assert_int_equal(cgrad_tensor_layout_init(&l, shape), 0);
+
+    // Valid index
+    uint32_t indices_valid[MAX_TENSOR_DIM] = {1, 2, 3, 4};
+    size_t idx = 0;
+    int err = cgrad_tensor_layout_flat_index(&l, indices_valid, &idx);
+    assert_int_equal(err, CGRAD_SUCCESS);
+    assert_int_equal(idx, 1*l.strides[0] + 2*l.strides[1] + 3*l.strides[2] + 4*l.strides[3]);
+
+    // Out-of-bounds index
+    uint32_t indices_oob[MAX_TENSOR_DIM] = {2, 0, 0, 0}; // 2 >= shape[0]
+    err = cgrad_tensor_layout_flat_index(&l, indices_oob, &idx);
+    assert_int_equal(err, CGRAD_LAYOUT_ERR_INDEX_OUT_OF_BOUNDS);
 }
 
 static void test_cgrad_tensor_layout_transpose(void **state) {
@@ -97,7 +106,7 @@ static void test_cgrad_tensor_layout_is_regular(void **state) {
 int run_cgrad_layout_tests(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_cgrad_tensor_layout_init_and_copy),
-        cmocka_unit_test(test_cgrad_tensor_flat_index),
+        cmocka_unit_test(test_cgrad_tensor_layout_flat_index),
         cmocka_unit_test(test_cgrad_tensor_layout_transpose),
         cmocka_unit_test(test_cgrad_tensor_layout_is_contiguous),
         cmocka_unit_test(test_cgrad_tensor_layout_transpose_duplicate_dim),
