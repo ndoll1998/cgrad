@@ -184,11 +184,17 @@ static void test_tensor_add(void **state) {
     uint32_t shape[] = {2, 3, 4, 1};
     cgrad_tensor_f32_cpu_init(&a, shape, 4);
     cgrad_tensor_f32_cpu_init(&b, shape, 4);
+    cgrad_tensor_f32_cpu_init(&c, shape, 4);
 
     // Fill a and b with known values
     for (int i = 0; i < a.layout.size; i++) {
         a.data[i] = (float)i;
         b.data[i] = (float)(1000 + i);
+    }
+
+    // Zero c before add
+    for (int i = 0; i < c.layout.size; i++) {
+        c.data[i] = 0.0f;
     }
 
     int err = cgrad_tensor_f32_cpu_add(1.0f, &a, &b, &c);
@@ -207,13 +213,19 @@ static void test_tensor_add(void **state) {
 static void test_add_with_transposed_inputs(void **state) {
     (void)state;
     cgrad_tensor_f32_cpu a, b, c;
-    cgrad_tensor_f32_cpu_init(&a, (uint32_t[]){2,3,4,1}, 4);
-    cgrad_tensor_f32_cpu_init(&b, (uint32_t[]){2,3,4,1}, 4);
+    cgrad_tensor_f32_cpu_init(&a, (uint32_t[]){2, 3, 4, 1}, 4);
+    cgrad_tensor_f32_cpu_init(&b, (uint32_t[]){2, 3, 4, 1}, 4);
+    cgrad_tensor_f32_cpu_init(&c, (uint32_t[]){3, 2, 4, 1}, 4);
 
     // Fill a and b with known values
     for (int i = 0; i < a.layout.size; i++) {
         a.data[i] = (float)i;
         b.data[i] = (float)(1000 + i);
+    }
+
+    // Zero c before add
+    for (int i = 0; i < c.layout.size; i++) {
+        c.data[i] = 0.0f;
     }
 
     // Make a non-contiguous by transposing memory layout but keep shape the same
@@ -228,9 +240,9 @@ static void test_add_with_transposed_inputs(void **state) {
     for (int i = 0; i < c.layout.size; i++) {
 
         float x = 0.0f, y = 0.0f, z = 0.0f;
-assert_int_equal(cgrad_tensor_f32_cpu_get(&a, (uint32_t[]){i / (2*4), (i / 4) % 2, (i % 4), 0}, 4, &x), CGRAD_SUCCESS);
-assert_int_equal(cgrad_tensor_f32_cpu_get(&b, (uint32_t[]){i / (2*4), (i / 4) % 2, (i % 4), 0}, 4, &y), CGRAD_SUCCESS);
-assert_int_equal(cgrad_tensor_f32_cpu_get(&c, (uint32_t[]){i / (2*4), (i / 4) % 2, (i % 4), 0}, 4, &z), CGRAD_SUCCESS);
+        assert_int_equal(cgrad_tensor_f32_cpu_get(&a, (uint32_t[]){i / (2*4), (i / 4) % 2, (i % 4), 0}, 4, &x), CGRAD_SUCCESS);
+        assert_int_equal(cgrad_tensor_f32_cpu_get(&b, (uint32_t[]){i / (2*4), (i / 4) % 2, (i % 4), 0}, 4, &y), CGRAD_SUCCESS);
+        assert_int_equal(cgrad_tensor_f32_cpu_get(&c, (uint32_t[]){i / (2*4), (i / 4) % 2, (i % 4), 0}, 4, &z), CGRAD_SUCCESS);
 
         assert_true(fabsf(z - (x + y)) < EPSILON);
     }
@@ -301,4 +313,3 @@ int main(void) {
     return run_cgrad_tensor_f32_cpu_tests();
 }
 #endif
-

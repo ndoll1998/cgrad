@@ -35,6 +35,13 @@ int main() {
     t_trans = t;
     cgrad_tensor_layout_transpose(&t_trans.layout, perm, 4);
 
+    // Initialize t_contig with the same shape as t_trans
+    if (cgrad_tensor_f32_cpu_init(&t_contig, t_trans.layout.shape, TENSOR_DIM)) {
+        printf("Failed to initialize t_contig\n");
+        cgrad_tensor_f32_cpu_free(&t);
+        return 1;
+    }
+
     // Benchmark make_contiguous
     clock_gettime(CLOCK_MONOTONIC, &start);
     ret = cgrad_tensor_f32_cpu_contiguous(&t_trans, &t_contig);
@@ -43,6 +50,7 @@ int main() {
     if (ret) {
         printf("cgrad_tensor_f32_cpu_make_contiguous failed\n");
         cgrad_tensor_f32_cpu_free(&t);
+        cgrad_tensor_f32_cpu_free(&t_contig);
         return 1;
     }
 

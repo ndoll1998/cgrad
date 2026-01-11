@@ -62,9 +62,14 @@ int cgrad_tensor_f32_cpu_fill(cgrad_tensor_f32_cpu* t, float value);
 int cgrad_tensor_f32_cpu_fill_rand(cgrad_tensor_f32_cpu* t);
 
 /**
- * @brief Make a contiguous copy of a tensor.
+ * @brief Copy a tensor into a pre-initialized, contiguous destination tensor.
+ *
+ * The destination tensor (dst) must already be initialized with the same shape as src,
+ * and its layout must be contiguous (see cgrad_tensor_layout_is_contiguous).
+ * No memory allocation or initialization is performed inside this function.
+ *
  * @param src Source tensor.
- * @param dst Destination tensor.
+ * @param dst Destination tensor (must be pre-initialized and contiguous).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
 int cgrad_tensor_f32_cpu_contiguous(const cgrad_tensor_f32_cpu* src, cgrad_tensor_f32_cpu* dst);

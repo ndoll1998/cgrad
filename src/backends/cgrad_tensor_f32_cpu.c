@@ -184,8 +184,18 @@ static int backend_cgrad_tensor_f32_cpu_tensor_shallow_copy(const void* src, voi
  */
 int cgrad_tensor_f32_cpu_contiguous(const cgrad_tensor_f32_cpu* src, cgrad_tensor_f32_cpu* dst) {
   if (!src || !dst) return CGRAD_TENSOR_ERR_NULL_POINTER;
-  int init_err = cgrad_tensor_f32_cpu_init(dst, src->layout.shape, TENSOR_DIM);
-  if (init_err != CGRAD_SUCCESS) return init_err;
+
+  // Check shape
+  for (int d = 0; d < TENSOR_DIM; d++) {
+    if (src->layout.shape[d] != dst->layout.shape[d]) {
+      return CGRAD_TENSOR_F32_CPU_ERR_SHAPE_MISMATCH;
+    }
+  }
+
+  // Check that dst is contiguous
+  if (!cgrad_tensor_layout_is_contiguous(&dst->layout)) {
+    return CGRAD_TENSOR_F32_CPU_ERR_LAYOUT_NOT_CONTIGUOUS;
+  }
 
   uint32_t block_size = src->layout.shape[TENSOR_DIM-1];
   uint32_t block_ndim = 1;
@@ -269,11 +279,13 @@ int cgrad_tensor_f32_cpu_add(
   const cgrad_tensor_f32_cpu* a_used = a;
   const cgrad_tensor_f32_cpu* b_used = b;
   if (!is_a_regular) {
+    cgrad_tensor_f32_cpu_init(&a_contig, a->layout.shape, TENSOR_DIM);
     int contig_err = cgrad_tensor_f32_cpu_contiguous(a, &a_contig);
     if (contig_err != CGRAD_SUCCESS) return contig_err;
     a_used = &a_contig;
   }
   if (!is_b_regular) {
+    cgrad_tensor_f32_cpu_init(&b_contig, b->layout.shape, TENSOR_DIM);
     int contig_err = cgrad_tensor_f32_cpu_contiguous(b, &b_contig);
     if (contig_err != CGRAD_SUCCESS) {
       if (!is_a_regular) cgrad_tensor_f32_cpu_free(&a_contig);
@@ -347,11 +359,13 @@ int cgrad_tensor_f32_cpu_gemm(
   int is_a_regular = cgrad_tensor_layout_is_regular(&a->layout);
   int is_b_regular = cgrad_tensor_layout_is_regular(&b->layout);
   if (!is_a_regular) {
+    cgrad_tensor_f32_cpu_init(&a_contig, a->layout.shape, TENSOR_DIM);
     int contig_err = cgrad_tensor_f32_cpu_contiguous(a, &a_contig);
     if (contig_err != CGRAD_SUCCESS) return contig_err;
     a = &a_contig;
   }
   if (!is_b_regular) {
+    cgrad_tensor_f32_cpu_init(&b_contig, b->layout.shape, TENSOR_DIM);
     int contig_err = cgrad_tensor_f32_cpu_contiguous(b, &b_contig);
     if (contig_err != CGRAD_SUCCESS) {
       if (!is_a_regular) cgrad_tensor_f32_cpu_free(&a_contig);
@@ -473,4 +487,3 @@ cgrad_backend cgrad_backend_f32_cpu = {
     .tensor_get_layout   = backend_cgrad_tensor_f32_cpu_tensor_get_layout,
     .tensor_print     = backend_cgrad_tensor_f32_cpu_tensor_print,
 };
-
