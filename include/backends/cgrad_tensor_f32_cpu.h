@@ -30,19 +30,21 @@ int cgrad_tensor_f32_cpu_init(cgrad_tensor_f32_cpu* t, const uint32_t* shape, in
  * @brief Get the value at the given indices.
  * @param t Pointer to tensor.
  * @param indices Array of indices.
+ * @param ndim Number of dimensions in indices.
  * @param out_value Pointer to float where the value will be written.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_f32_cpu_get(const cgrad_tensor_f32_cpu* t, const uint32_t* indices, float* out_value);
+int cgrad_tensor_f32_cpu_get(const cgrad_tensor_f32_cpu* t, const uint32_t* indices, int ndim, float* out_value);
 
 /**
  * @brief Set the value at the given indices.
  * @param t Pointer to tensor.
  * @param indices Array of indices.
+ * @param ndim Number of dimensions in indices.
  * @param value Value to set.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_f32_cpu_set(cgrad_tensor_f32_cpu* t, const uint32_t* indices, float value);
+int cgrad_tensor_f32_cpu_set(cgrad_tensor_f32_cpu* t, const uint32_t* indices, int ndim, float value);
 
 /**
  * @brief Fill the tensor with a constant value.

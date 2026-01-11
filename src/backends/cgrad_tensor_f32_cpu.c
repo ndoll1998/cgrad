@@ -26,10 +26,14 @@ int helper_cgrad_tensor_f32_cpu_build_batch_array(cgrad_tensor_f32_cpu* t, float
   #pragma omp parallel for
   for (int i = 0; i < batch_size; i++) {
     size_t rem = i;
-    # pragma unroll
+    // Compute multi-dimensional index for the batch dims (0..TENSOR_DIM-3) in the current layout
     for (int d = TENSOR_DIM - 3; d >= 0; d--) {
       indices[d] = rem % t->layout.shape[d];
       rem /= t->layout.shape[d];
+    }
+    // Set the matrix dims to zero (for the start of each batch)
+    for (int d = TENSOR_DIM - 3; d < TENSOR_DIM; d++) {
+      indices[d] = 0;
     }
     size_t idx = 0;
     int err = cgrad_tensor_layout_flat_index(&t->layout, indices, TENSOR_DIM, &idx);
@@ -69,37 +73,38 @@ static int backend_cgrad_tensor_f32_cpu_tensor_init(void* t, const uint32_t* sha
  * @param out_value Pointer to float where the value will be written.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_f32_cpu_get(const cgrad_tensor_f32_cpu* t, const uint32_t* indices, float* out_value) {
+int cgrad_tensor_f32_cpu_get(const cgrad_tensor_f32_cpu* t, const uint32_t* indices, int ndim, float* out_value) {
   if (!t || !indices || !out_value) return CGRAD_TENSOR_ERR_NULL_POINTER;
   size_t idx = 0;
-  int err = cgrad_tensor_layout_flat_index(&t->layout, indices, TENSOR_DIM, &idx);
+  int err = cgrad_tensor_layout_flat_index(&t->layout, indices, ndim, &idx);
   if (err != CGRAD_SUCCESS) return err;
   *out_value = t->data[idx];
   return CGRAD_SUCCESS;
 }
 
-static int backend_cgrad_tensor_f32_cpu_tensor_get(const void* t, const uint32_t* indices, float* out_value) {
-    return cgrad_tensor_f32_cpu_get((const cgrad_tensor_f32_cpu*)t, indices, out_value);
+static int backend_cgrad_tensor_f32_cpu_tensor_get(const void* t, const uint32_t* indices, int ndim, float* out_value) {
+    return cgrad_tensor_f32_cpu_get((const cgrad_tensor_f32_cpu*)t, indices, ndim, out_value);
 }
 
 /**
  * @brief Set the value at the given indices.
  * @param t Pointer to tensor.
  * @param indices Array of indices.
+ * @param ndim Number of dimensions in indices.
  * @param value Value to set.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_f32_cpu_set(cgrad_tensor_f32_cpu* t, const uint32_t* indices, float value) {
+int cgrad_tensor_f32_cpu_set(cgrad_tensor_f32_cpu* t, const uint32_t* indices, int ndim, float value) {
   if (!t || !indices) return CGRAD_TENSOR_ERR_NULL_POINTER;
   size_t idx = 0;
-  int err = cgrad_tensor_layout_flat_index(&t->layout, indices, TENSOR_DIM, &idx);
+  int err = cgrad_tensor_layout_flat_index(&t->layout, indices, ndim, &idx);
   if (err != CGRAD_SUCCESS) return err;
   t->data[idx] = value;
   return CGRAD_SUCCESS;
 }
 
-static int backend_cgrad_tensor_f32_cpu_tensor_set(void* t, const uint32_t* indices, float value) {
-    return cgrad_tensor_f32_cpu_set((cgrad_tensor_f32_cpu*)t, indices, value);
+static int backend_cgrad_tensor_f32_cpu_tensor_set(void* t, const uint32_t* indices, int ndim, float value) {
+    return cgrad_tensor_f32_cpu_set((cgrad_tensor_f32_cpu*)t, indices, ndim, value);
 }
 
 /**
@@ -258,26 +263,41 @@ int cgrad_tensor_f32_cpu_add(
     }
   }
   
-  cgrad_tensor_f32_cpu a_contig;
+  cgrad_tensor_f32_cpu a_contig, b_contig;
   int is_a_regular = cgrad_tensor_layout_is_regular(&a->layout);
+  int is_b_regular = cgrad_tensor_layout_is_regular(&b->layout);
   const cgrad_tensor_f32_cpu* a_used = a;
+  const cgrad_tensor_f32_cpu* b_used = b;
   if (!is_a_regular) {
     int contig_err = cgrad_tensor_f32_cpu_contiguous(a, &a_contig);
     if (contig_err != CGRAD_SUCCESS) return contig_err;
     a_used = &a_contig;
   }
-  
-  int contig_err = cgrad_tensor_f32_cpu_contiguous(b, c);
-  if (contig_err != CGRAD_SUCCESS) return contig_err;
-  
+  if (!is_b_regular) {
+    int contig_err = cgrad_tensor_f32_cpu_contiguous(b, &b_contig);
+    if (contig_err != CGRAD_SUCCESS) {
+      if (!is_a_regular) cgrad_tensor_f32_cpu_free(&a_contig);
+      return contig_err;
+    }
+    b_used = &b_contig;
+  }
+
+  int contig_err = cgrad_tensor_f32_cpu_contiguous(b_used, c);
+  if (contig_err != CGRAD_SUCCESS) {
+    if (!is_a_regular) cgrad_tensor_f32_cpu_free(&a_contig);
+    if (!is_b_regular) cgrad_tensor_f32_cpu_free(&b_contig);
+    return contig_err;
+  }
+
   cblas_saxpy(
     c->layout.size,
     alpha,
     a_used->data, a_used->layout.strides[TENSOR_DIM-1],
     c->data, 1
   );
-  
+
   if (!is_a_regular) cgrad_tensor_f32_cpu_free(&a_contig);
+  if (!is_b_regular) cgrad_tensor_f32_cpu_free(&b_contig);
   return CGRAD_SUCCESS;
 }
 
@@ -323,18 +343,20 @@ int cgrad_tensor_f32_cpu_gemm(
   int k = b->layout.shape[TENSOR_DIM-2];
   int bs = a->layout.size / (m * k);
   
-  cgrad_tensor_f32_cpu a_contig;
-  cgrad_tensor_f32_cpu b_contig;
-  int is_a_contiguous = (a->layout.strides[TENSOR_DIM-1] == 1);
-  int is_b_contiguous = (b->layout.strides[TENSOR_DIM-1] == 1);
-  if (!is_a_contiguous) {
+  cgrad_tensor_f32_cpu a_contig, b_contig;
+  int is_a_regular = cgrad_tensor_layout_is_regular(&a->layout);
+  int is_b_regular = cgrad_tensor_layout_is_regular(&b->layout);
+  if (!is_a_regular) {
     int contig_err = cgrad_tensor_f32_cpu_contiguous(a, &a_contig);
     if (contig_err != CGRAD_SUCCESS) return contig_err;
     a = &a_contig;
   }
-  if (!is_b_contiguous) {
+  if (!is_b_regular) {
     int contig_err = cgrad_tensor_f32_cpu_contiguous(b, &b_contig);
-    if (contig_err != CGRAD_SUCCESS) return contig_err;
+    if (contig_err != CGRAD_SUCCESS) {
+      if (!is_a_regular) cgrad_tensor_f32_cpu_free(&a_contig);
+      return contig_err;
+    }
     b = &b_contig;
   }
   
@@ -373,8 +395,8 @@ int cgrad_tensor_f32_cpu_gemm(
   free(B_array);
   free(C_array);
   
-  if (!is_a_contiguous) cgrad_tensor_f32_cpu_free(&a_contig);
-  if (!is_b_contiguous) cgrad_tensor_f32_cpu_free(&b_contig);
+  if (!is_a_regular) cgrad_tensor_f32_cpu_free(&a_contig);
+  if (!is_b_regular) cgrad_tensor_f32_cpu_free(&b_contig);
   
   return CGRAD_SUCCESS;
 }
@@ -416,7 +438,7 @@ void cgrad_tensor_f32_cpu_print(const cgrad_tensor_f32_cpu* t) {
     }
     idx[TENSOR_DIM-1] = (i / l.strides[TENSOR_DIM-1]) % l.shape[TENSOR_DIM-1];
     float value = 0.0f;
-    int err = cgrad_tensor_f32_cpu_get(t, idx, &value);
+    int err = cgrad_tensor_f32_cpu_get(t, idx, TENSOR_DIM, &value);
     if (err == CGRAD_SUCCESS) {
       printf("%f ", value);
     } else {
@@ -432,7 +454,7 @@ static void backend_cgrad_tensor_f32_cpu_tensor_print(const void* t) {
 
 
 static void* backend_alloc_tensor_f32_cpu_handle(void) {
-    return malloc(sizeof(struct cgrad_tensor_f32_cpu));
+    return calloc(1, sizeof(struct cgrad_tensor_f32_cpu));
 }
 
 cgrad_backend cgrad_backend_f32_cpu = {
@@ -451,3 +473,4 @@ cgrad_backend cgrad_backend_f32_cpu = {
     .tensor_get_layout   = backend_cgrad_tensor_f32_cpu_tensor_get_layout,
     .tensor_print     = backend_cgrad_tensor_f32_cpu_tensor_print,
 };
+

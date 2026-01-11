@@ -81,13 +81,21 @@ typedef struct cgrad_backend {
     // --- Data Access/Info ---
     /**
      * @brief Get the value at the given indices.
+     * @param t Pointer to tensor.
+     * @param indices Array of indices.
+     * @param ndim Number of dimensions in indices.
+     * @param out_value Pointer to float where the value will be written.
      */
-    int  (*tensor_get)(const void* t, const uint32_t* indices, float* out_value);
+    int  (*tensor_get)(const void* t, const uint32_t* indices, int ndim, float* out_value);
 
     /**
      * @brief Set the value at the given indices.
+     * @param t Pointer to tensor.
+     * @param indices Array of indices.
+     * @param ndim Number of dimensions in indices.
+     * @param value Value to set.
      */
-    int  (*tensor_set)(void* t, const uint32_t* indices, float value);
+    int  (*tensor_set)(void* t, const uint32_t* indices, int ndim, float value);
 
     /**
      * @brief Get the layout of a tensor handle.

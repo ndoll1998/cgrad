@@ -85,7 +85,7 @@ TEST_BINS := $(patsubst $(TESTS_DIR)/%.c,$(BUILD_TESTS_DIR)/%,$(TEST_BIN_SRCS))
 
 BENCH_BIN := $(BUILD_TESTS_DIR)/bench_contiguous
 
-test: $(OBJ_NO_MAIN) $(TEST_BINS)
+test: $(OBJ_NO_MAIN) $(TEST_OBJ_FILES)
 	@FILE_VAL="$(FILE)"; \
 	if [ -z "$$FILE_VAL" ]; then \
 		FILE_VAL="tests/test_all.c"; \

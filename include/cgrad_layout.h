@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#define TENSOR_DIM 4
+#define TENSOR_DIM 8
 
 /**
  * @brief Structure representing the layout (shape, strides, size) of a tensor.
@@ -105,5 +105,19 @@ int cgrad_tensor_layout_is_regular(const cgrad_tensor_layout* l);
  * @return 1 if contiguous, 0 otherwise.
  */
 int cgrad_tensor_layout_is_contiguous(const cgrad_tensor_layout* l);
+
+/**
+ * @brief Reshape the layout to a new shape (with at most one -1 to infer dimension).
+ *        The layout must be regular. Updates shape and strides in-place.
+ *        The new strides are computed as for a regular layout, but scaled by the original step size (last stride).
+ *        Returns error if the shape is invalid or the layout is not regular.
+ * @param layout Pointer to layout to reshape.
+ * @param new_shape Array of new dimensions (length ndim, may contain one -1).
+ * @param ndim Number of dimensions in new_shape (<= TENSOR_DIM).
+ * @return CGRAD_SUCCESS on success,
+ *         CGRAD_LAYOUT_ERR_RESHAPE_INVALID_SHAPE if shape is invalid,
+ *         CGRAD_LAYOUT_ERR_NOT_REGULAR if layout is not regular.
+ */
+int cgrad_tensor_layout_reshape(cgrad_tensor_layout* layout, const int32_t* new_shape, int ndim);
 
 #endif // CGRAD_LAYOUT_H

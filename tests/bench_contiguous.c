@@ -1,4 +1,5 @@
 #include "backends/cgrad_tensor_f32_cpu.h"
+#include "cgrad_layout.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -15,7 +16,7 @@ int main() {
     int ret = 0;
 
     // Initialize tensor
-    if (cgrad_tensor_f32_cpu_init(&t, shape)) {
+    if (cgrad_tensor_f32_cpu_init(&t, shape, 4)) {
         printf("Failed to initialize tensor\n");
         return 1;
     }
@@ -32,7 +33,7 @@ int main() {
     // Make tensor non-contiguous by transposing axes 0 and 1
     uint32_t perm[TENSOR_DIM] = {2, 1, 3, 1};
     t_trans = t;
-    cgrad_tensor_f32_cpu_transpose(&t_trans, perm);
+    cgrad_tensor_layout_transpose(&t_trans.layout, perm, 4);
 
     // Benchmark make_contiguous
     clock_gettime(CLOCK_MONOTONIC, &start);

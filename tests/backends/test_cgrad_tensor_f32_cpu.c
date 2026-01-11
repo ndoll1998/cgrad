@@ -10,7 +10,7 @@
 
 static void test_cgrad_tensor_f32_contiguous_swap23(void **state) {
     (void)state;
-    cgrad_tensor_f32_cpu t, t_contig;
+    cgrad_tensor_f32_cpu t;
     uint32_t shape[] = {2, 3, 4, 5};
     cgrad_tensor_f32_cpu_init(&t, shape, 4);
 
@@ -20,34 +20,31 @@ static void test_cgrad_tensor_f32_contiguous_swap23(void **state) {
           for (int l = 0; l < 5; l++) {
             uint32_t idx[4] = {i, j, k, l};
             float val = 1000*i + 100*j + 10*k + l;
-            cgrad_tensor_f32_cpu_set(&t, idx, val);
+            cgrad_tensor_f32_cpu_set(&t, idx, 4, val);
           }
 
     uint32_t perm[4] = {0, 2, 1, 3};
     assert_int_equal(cgrad_tensor_layout_transpose(&t.layout, perm, 4), CGRAD_SUCCESS);
 
-    int err = cgrad_tensor_f32_cpu_contiguous(&t, &t_contig);
-    assert_int_equal(err, 0);
-
     for (int i = 0; i < 2; i++)
       for (int j = 0; j < 3; j++)
         for (int k = 0; k < 4; k++)
           for (int l = 0; l < 5; l++) {
-            uint32_t orig_idx[4] = {i, j, k, l};
-            uint32_t trans_idx[4] = {i, k, j, l};
+            // After permuting {0,2,1,3}, the shape is {2,4,3,5}
+            // The original index {i,j,k,l} maps to {i,k,j,l}
+            uint32_t permuted_idx[4] = {i, k, j, l};
             float expected = 1000*i + 100*j + 10*k + l;
             float got = 0.0f;
-            assert_int_equal(cgrad_tensor_f32_cpu_get(&t_contig, trans_idx, &got), CGRAD_SUCCESS);
+            assert_int_equal(cgrad_tensor_f32_cpu_get(&t, permuted_idx, 4, &got), CGRAD_SUCCESS);
             assert_true(fabsf(got - expected) <= EPSILON);
           }
 
     cgrad_tensor_f32_cpu_free(&t);
-    cgrad_tensor_f32_cpu_free(&t_contig);
 }
 
 static void test_cgrad_tensor_f32_contiguous_swap01(void **state) {
     (void)state;
-    cgrad_tensor_f32_cpu t, t_contig;
+    cgrad_tensor_f32_cpu t;
     uint32_t shape[] = {2, 3, 4, 5};
     cgrad_tensor_f32_cpu_init(&t, shape, 4);
 
@@ -57,29 +54,26 @@ static void test_cgrad_tensor_f32_contiguous_swap01(void **state) {
           for (int l = 0; l < 5; l++) {
             uint32_t idx[4] = {i, j, k, l};
             float val = 1000*i + 100*j + 10*k + l;
-            cgrad_tensor_f32_cpu_set(&t, idx, val);
+            cgrad_tensor_f32_cpu_set(&t, idx, 4, val);
           }
 
     uint32_t perm[4] = {1, 0, 2, 3};
     assert_int_equal(cgrad_tensor_layout_transpose(&t.layout, perm, 4), CGRAD_SUCCESS);
 
-    int err = cgrad_tensor_f32_cpu_contiguous(&t, &t_contig);
-    assert_int_equal(err, 0);
-
     for (int i = 0; i < 2; i++)
       for (int j = 0; j < 3; j++)
         for (int k = 0; k < 4; k++)
           for (int l = 0; l < 5; l++) {
-            uint32_t orig_idx[4] = {i, j, k, l};
-            uint32_t trans_idx[4] = {j, i, k, l};
+            // After permuting {1,0,2,3}, the shape is {3,2,4,5}
+            // The original index {i,j,k,l} maps to {j,i,k,l}
+            uint32_t permuted_idx[4] = {j, i, k, l};
             float expected = 1000*i + 100*j + 10*k + l;
             float got = 0.0f;
-            assert_int_equal(cgrad_tensor_f32_cpu_get(&t_contig, trans_idx, &got), CGRAD_SUCCESS);
+            assert_int_equal(cgrad_tensor_f32_cpu_get(&t, permuted_idx, 4, &got), CGRAD_SUCCESS);
             assert_true(fabsf(got - expected) <= EPSILON);
           }
 
     cgrad_tensor_f32_cpu_free(&t);
-    cgrad_tensor_f32_cpu_free(&t_contig);
 }
 
 static void test_gemm_simple(void **state) {
@@ -234,9 +228,9 @@ static void test_add_with_transposed_inputs(void **state) {
     for (int i = 0; i < c.layout.size; i++) {
 
         float x = 0.0f, y = 0.0f, z = 0.0f;
-        assert_int_equal(cgrad_tensor_f32_cpu_get(&a, (uint32_t[]){i / (2*4), (i / 4) % 2, (i % 4), 0}, &x), CGRAD_SUCCESS);
-        assert_int_equal(cgrad_tensor_f32_cpu_get(&b, (uint32_t[]){i / (2*4), (i / 4) % 2, (i % 4), 0}, &y), CGRAD_SUCCESS);
-        assert_int_equal(cgrad_tensor_f32_cpu_get(&c, (uint32_t[]){i / (2*4), (i / 4) % 2, (i % 4), 0}, &z), CGRAD_SUCCESS);
+assert_int_equal(cgrad_tensor_f32_cpu_get(&a, (uint32_t[]){i / (2*4), (i / 4) % 2, (i % 4), 0}, 4, &x), CGRAD_SUCCESS);
+assert_int_equal(cgrad_tensor_f32_cpu_get(&b, (uint32_t[]){i / (2*4), (i / 4) % 2, (i % 4), 0}, 4, &y), CGRAD_SUCCESS);
+assert_int_equal(cgrad_tensor_f32_cpu_get(&c, (uint32_t[]){i / (2*4), (i / 4) % 2, (i % 4), 0}, 4, &z), CGRAD_SUCCESS);
 
         assert_true(fabsf(z - (x + y)) < EPSILON);
     }
@@ -279,7 +273,7 @@ static void test_gemm_with_transposed_inputs(void **state) {
     // Check result
     for (int i = 0; i < 9; i++) {
         float got = 0.0f;
-        assert_int_equal(cgrad_tensor_f32_cpu_get(&c, (uint32_t[]){0,0,i/3,i%3}, &got), CGRAD_SUCCESS);
+        assert_int_equal(cgrad_tensor_f32_cpu_get(&c, (uint32_t[]){0,0,i/3,i%3}, 4, &got), CGRAD_SUCCESS);
         assert_true(fabsf(c.data[i] - expected[i]) <= EPSILON);
     }
 
