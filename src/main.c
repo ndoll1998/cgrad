@@ -1,4 +1,5 @@
 #include "cgrad_tensor.h"
+#include "backends/cgrad_tensor_f32_cpu.h"
 #include <stdio.h>
 #include <stdint.h>
 
@@ -13,17 +14,15 @@ int main() {
   cgrad_tensor r = {0};
   
   // initialize tensors (CPU backend)
-  cgrad_tensor_init(&t1, (uint32_t[]){1, 2, 2, 3}, 4, CGRAD_BACKEND_F32_CPU);
-  cgrad_tensor_init(&t2, (uint32_t[]){1, 1, 2, 3}, 4, CGRAD_BACKEND_F32_CPU);
+  cgrad_tensor_init(&t1, (uint32_t[]){1, 2, 3, 3}, 4, CGRAD_BACKEND_F32_CPU);
+  cgrad_tensor_init(&t2, (uint32_t[]){1, 1, 3, 3}, 4, CGRAD_BACKEND_F32_CPU);
 
   // fill with random numbers
   cgrad_tensor_fill_rand(&t1);
   cgrad_tensor_fill_rand(&t2);
 
   // print, transpose, print
-  cgrad_tensor_print(&t1);
   cgrad_tensor_transpose(&t1, (uint32_t[]){0,1,3,2}, 4);
-  cgrad_tensor_print(&t1);
 
   // GEMM
   int e = cgrad_tensor_gemm(&t1, &t2, &out);

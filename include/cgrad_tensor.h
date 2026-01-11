@@ -10,7 +10,7 @@
  */
 typedef struct cgrad_tensor {
     cgrad_backend* backend; /**< Pointer to backend ops */
-    void* handle;           /**< Backend-specific tensor object (e.g., cgrad_tensor_f32*) */
+    void* data;             /**< Backend-specific tensor object (e.g., cgrad_tensor_f32*) */
 } cgrad_tensor;
 
 // --- Initialization/Allocation ---
@@ -28,7 +28,7 @@ typedef struct cgrad_tensor {
 int cgrad_tensor_init(cgrad_tensor* t, const uint32_t* shape, int ndim, cgrad_backend_type backend_type);
 
 /**
- * @brief Perform a shallow copy of a tensor (copies handle, not data).
+ * @brief Perform a shallow copy of a tensor (copies data pointer, not underlying data).
  * @param src Source tensor.
  * @param dst Destination tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
@@ -37,9 +37,11 @@ int cgrad_tensor_shallow_copy(const cgrad_tensor* src, cgrad_tensor* dst);
 
 /**
  * @brief Free the memory associated with a high-level tensor.
+ *        Returns the error code from the registry deregistration.
  * @param t Pointer to tensor.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-void cgrad_tensor_free(cgrad_tensor* t);
+int cgrad_tensor_free(cgrad_tensor* t);
 
 /**
  * @brief Fill the tensor with a constant value.

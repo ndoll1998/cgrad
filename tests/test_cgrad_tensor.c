@@ -12,9 +12,9 @@ static void test_cgrad_tensor_init_and_free(void **state) {
     cgrad_tensor t;
     uint32_t shape[TENSOR_DIM] = {2, 3, 4, 5};
     assert_int_equal(cgrad_tensor_init(&t, shape, 4, CGRAD_BACKEND_F32_CPU), CGRAD_SUCCESS);
-    assert_non_null(t.handle);
+    assert_non_null(t.data);
     cgrad_tensor_free(&t);
-    assert_null(t.handle);
+    assert_null(t.data);
 }
 
 static void test_cgrad_tensor_init_errors(void **state) {
@@ -32,7 +32,7 @@ static void test_cgrad_tensor_fill(void **state) {
     float fill_value = 7.5f;
     assert_int_equal(cgrad_tensor_init(&t, shape, 4, CGRAD_BACKEND_F32_CPU), CGRAD_SUCCESS);
     assert_int_equal(cgrad_tensor_fill(&t, fill_value), CGRAD_SUCCESS);
-    cgrad_tensor_f32_cpu* handle = (cgrad_tensor_f32_cpu*)t.handle;
+    cgrad_tensor_f32_cpu* handle = (cgrad_tensor_f32_cpu*)t.data;
     for (int i = 0; i < handle->layout.size; i++) {
         assert_float_equal(handle->data[i], fill_value, 1e-6);
     }
@@ -50,7 +50,7 @@ static void test_cgrad_tensor_reshape(void **state) {
     assert_int_equal(cgrad_tensor_reshape(&src, &dst, new_shape, 2), CGRAD_SUCCESS);
 
     // Check dst layout shape
-    cgrad_tensor_layout* dst_layout = dst.backend->tensor_get_layout(dst.handle);
+    cgrad_tensor_layout* dst_layout = dst.backend->tensor_get_layout(dst.data);
     assert_int_equal(dst_layout->shape[TENSOR_DIM-2], 10);
     assert_int_equal(dst_layout->shape[TENSOR_DIM-1], 12);
 
@@ -79,7 +79,7 @@ static void test_cgrad_tensor_registry_root_freed_only_after_all_children(void *
     // Create root tensor
     cgrad_tensor root = {0};
     root.backend = &mock_backend;
-    root.handle = malloc(1);
+    root.data = malloc(1);
 
     // Register root
     cgrad_tensor_registry_register(&root, NULL);
@@ -87,11 +87,11 @@ static void test_cgrad_tensor_registry_root_freed_only_after_all_children(void *
     // Create two children (simulate shallow copies)
     cgrad_tensor child1 = {0}, child2 = {0};
     child1.backend = &mock_backend;
-    child1.handle = malloc(1);
+    child1.data = malloc(1);
     cgrad_tensor_registry_register(&child1, &root);
 
     child2.backend = &mock_backend;
-    child2.handle = malloc(1);
+    child2.data = malloc(1);
     cgrad_tensor_registry_register(&child2, &root);
 
     mock_tensor_free_count = 0;
@@ -109,9 +109,9 @@ static void test_cgrad_tensor_registry_root_freed_only_after_all_children(void *
     assert_int_equal(mock_tensor_free_count, 1);
 
     // Manually free all handles to avoid memory leaks
-    free(root.handle);
-    free(child1.handle);
-    free(child2.handle);
+    free(root.data);
+    free(child1.data);
+    free(child2.data);
 }
 
 int run_cgrad_tensor_tests(void) {

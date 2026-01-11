@@ -7,41 +7,46 @@
 #include <math.h>
 #include <time.h>
 
-
 /**
  * @brief Build a batch array of pointers for batched operations.
  * @param t Pointer to tensor.
  * @param array Output: pointer to array of float pointers.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int helper_cgrad_tensor_f32_cpu_build_batch_array(cgrad_tensor_f32_cpu* t, float*** array) {
+int helper_cgrad_tensor_f32_cpu_build_batch_array(const cgrad_tensor_f32_cpu* t, float*** array, uint32_t ndim) {
+
+  // compute number of arrays in the batch
   int batch_size = 1;
-  # pragma unroll
-  for (int i = 0; i < TENSOR_DIM - 2; i++) {
+  for (int i = 0; i < TENSOR_DIM - ndim; i++) {
     batch_size *= t->layout.shape[i];
   }
+  
+  // allocate memory for array of pointers
   *array = (float**)malloc(batch_size * sizeof(float*));
   if (!(*array)) return CGRAD_TENSOR_F32_CPU_ERR_BATCH_ALLOC_FAILED;
+  
+  // fill array
   uint32_t indices[TENSOR_DIM] = {0};
   #pragma omp parallel for
   for (int i = 0; i < batch_size; i++) {
+  
     size_t rem = i;
-    // Compute multi-dimensional index for the batch dims (0..TENSOR_DIM-3) in the current layout
-    for (int d = TENSOR_DIM - 3; d >= 0; d--) {
+    // Compute multi-dimensional index for the batch dims in the current layout
+    // The remaining ndims are set to 0
+    for (int d = TENSOR_DIM - ndim - 1; d >= 0; d--) {
       indices[d] = rem % t->layout.shape[d];
       rem /= t->layout.shape[d];
     }
-    // Set the matrix dims to zero (for the start of each batch)
-    for (int d = TENSOR_DIM - 3; d < TENSOR_DIM; d++) {
-      indices[d] = 0;
-    }
+    
+    // compute the flat index of to find the data pointer
     size_t idx = 0;
     int err = cgrad_tensor_layout_flat_index(&t->layout, indices, TENSOR_DIM, &idx);
     if (err != CGRAD_SUCCESS) {
-      (*array)[i] = NULL;
-    } else {
-      (*array)[i] = t->data + idx;
+      return err;
     }
+
+    // set pointer in array
+    (*array)[i] = t->data + idx;
   }
   return CGRAD_SUCCESS;
 }
@@ -375,13 +380,13 @@ int cgrad_tensor_f32_cpu_gemm(
   }
   
   float **A_array, **B_array, **C_array;
-  int batch_err = helper_cgrad_tensor_f32_cpu_build_batch_array((cgrad_tensor_f32_cpu*)a, &A_array);
+  int batch_err = helper_cgrad_tensor_f32_cpu_build_batch_array(a, &A_array, 2);
   if (batch_err != CGRAD_SUCCESS) return batch_err;
-  batch_err = helper_cgrad_tensor_f32_cpu_build_batch_array((cgrad_tensor_f32_cpu*)b, &B_array);
+  batch_err = helper_cgrad_tensor_f32_cpu_build_batch_array(b, &B_array, 2);
   if (batch_err != CGRAD_SUCCESS) { free(A_array); return batch_err; }
-  batch_err = helper_cgrad_tensor_f32_cpu_build_batch_array(c, &C_array);
+  batch_err = helper_cgrad_tensor_f32_cpu_build_batch_array(c, &C_array, 2);
   if (batch_err != CGRAD_SUCCESS) { free(A_array); free(B_array); return batch_err; }
-  
+
   CBLAS_TRANSPOSE transA = CblasNoTrans;
   CBLAS_TRANSPOSE transB = CblasNoTrans;
   float alpha = 1.0f;
@@ -390,7 +395,7 @@ int cgrad_tensor_f32_cpu_gemm(
   int lda = a->layout.strides[TENSOR_DIM-2];
   int ldb = b->layout.strides[TENSOR_DIM-2];
   int ldc = c->layout.strides[TENSOR_DIM-2];
-  
+
   cblas_sgemm_batch(
     CblasRowMajor,
     &transA,
