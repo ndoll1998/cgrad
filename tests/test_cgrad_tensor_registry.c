@@ -104,6 +104,41 @@ static void test_register_with_unregistered_parent(void **state) {
     free(parent);
 }
 
+static void test_registry_count(void **state) {
+    (void)state;
+    // Should be empty at start
+    assert_int_equal(cgrad_tensor_registry_count(), 0);
+
+    cgrad_tensor* t1 = (cgrad_tensor*)malloc(sizeof(cgrad_tensor));
+    cgrad_tensor* t2 = (cgrad_tensor*)malloc(sizeof(cgrad_tensor));
+    assert_non_null(t1);
+    assert_non_null(t2);
+
+    // Register t1
+    int rc = cgrad_tensor_registry_register(t1, NULL);
+    assert_int_equal(rc, CGRAD_SUCCESS);
+    assert_int_equal(cgrad_tensor_registry_count(), 1);
+
+    // Register t2
+    rc = cgrad_tensor_registry_register(t2, NULL);
+    assert_int_equal(rc, CGRAD_SUCCESS);
+    assert_int_equal(cgrad_tensor_registry_count(), 2);
+
+    // Deregister t1
+    cgrad_tensor* out_root = NULL;
+    rc = cgrad_tensor_registry_deregister(t1, &out_root);
+    assert_int_equal(rc, CGRAD_SUCCESS);
+    assert_int_equal(cgrad_tensor_registry_count(), 1);
+
+    // Deregister t2
+    rc = cgrad_tensor_registry_deregister(t2, &out_root);
+    assert_int_equal(rc, CGRAD_SUCCESS);
+    assert_int_equal(cgrad_tensor_registry_count(), 0);
+
+    free(t1);
+    free(t2);
+}
+
 static void test_idempotency(void **state) {
     (void)state;
     cgrad_tensor* tensor = (cgrad_tensor*)malloc(sizeof(cgrad_tensor));
@@ -138,6 +173,7 @@ int run_cgrad_tensor_registry_tests(void) {
         cmocka_unit_test(test_register_child_and_bucket_sharing),
         cmocka_unit_test(test_register_with_unregistered_parent),
         cmocka_unit_test(test_idempotency),
+        cmocka_unit_test(test_registry_count),
     };
     return _cmocka_run_group_tests("cgrad_tensor_registry", tests, sizeof(tests)/sizeof(tests[0]), NULL, NULL);
 }

@@ -1,4 +1,5 @@
 #include "cgrad_tensor.h"
+#include "cgrad_tensor_registry.h"
 #include "backends/cgrad_tensor_f32_cpu.h"
 #include <stdio.h>
 #include <stdint.h>
@@ -34,10 +35,16 @@ int main() {
   printf("Add error code: %d\n", e);
   cgrad_tensor_print(&r);
 
+  size_t n = cgrad_tensor_registry_count();
+  printf("Number of tensors in registry: %zu\n", n);
+
   // free
   cgrad_tensor_free(&t1);
   cgrad_tensor_free(&t2);
   cgrad_tensor_free(&out);
+  cgrad_tensor_free(&r);
+
+  printf("Number of tensors in registry: %zu\n", n);
 
   return 0;
 }

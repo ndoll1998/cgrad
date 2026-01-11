@@ -1,6 +1,7 @@
 #include "cgrad_tensor_registry.h"
 #include "cgrad_errors.h"
 #include <stdlib.h>
+#include <stddef.h>
 
 /* Global tensor registry instance */
 cgrad_tensor_registry global_tensor_registry = {NULL};
@@ -84,6 +85,14 @@ int cgrad_tensor_registry_register(cgrad_tensor* t, const cgrad_tensor* parent) 
     }
 
     return CGRAD_SUCCESS;
+}
+
+/**
+ * @brief Get the number of tensors currently registered in the global tensor registry.
+ * @return Number of registered tensors.
+ */
+size_t cgrad_tensor_registry_count(void) {
+    return (size_t)HASH_COUNT(global_tensor_registry.tensor_map);
 }
 
 /**

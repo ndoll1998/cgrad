@@ -67,6 +67,12 @@ int cgrad_tensor_registry_register(cgrad_tensor* t, const cgrad_tensor* parent);
  */
 int cgrad_tensor_registry_deregister(cgrad_tensor* t, cgrad_tensor** root);
 
+/**
+ * @brief Get the number of tensors currently registered in the global tensor registry.
+ * @return Number of registered tensors.
+ */
+size_t cgrad_tensor_registry_count(void);
+
 #ifdef __cplusplus
 }
 #endif

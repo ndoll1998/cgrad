@@ -56,6 +56,9 @@ static void test_cgrad_tensor_reshape(void **state) {
 
     cgrad_tensor_free(&src);
     cgrad_tensor_free(&dst);
+
+    // Ensure registry is empty
+    assert_int_equal(cgrad_tensor_registry_count(), 0);
 }
 
 static int mock_tensor_free_count = 0;
