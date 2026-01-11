@@ -186,12 +186,6 @@ int cgrad_tensor_layout_reshape(cgrad_tensor_layout* layout, const int32_t* new_
   if (ndim < 0 || ndim > TENSOR_DIM) return CGRAD_LAYOUT_ERR_SHAPE_MISMATCH;
   if (!cgrad_tensor_layout_is_regular(layout)) return CGRAD_LAYOUT_ERR_NOT_REGULAR;
 
-  // Compute total elements in old layout
-  uint32_t old_size = 1;
-  for (int i = 0; i < TENSOR_DIM; ++i) {
-    old_size *= layout->shape[i];
-  }
-
   // Validate new_shape and find -1
   int minus1_idx = -1;
   uint32_t new_size = 1;
@@ -208,11 +202,11 @@ int cgrad_tensor_layout_reshape(cgrad_tensor_layout* layout, const int32_t* new_
 
   uint32_t inferred_dim = 0;
   if (minus1_idx != -1) {
-    if (new_size == 0 || old_size % new_size != 0) return CGRAD_LAYOUT_ERR_RESHAPE_INVALID_SHAPE;
-    inferred_dim = old_size / new_size;
+    if (new_size == 0 || layout->size % new_size != 0) return CGRAD_LAYOUT_ERR_RESHAPE_INVALID_SHAPE;
+    inferred_dim = layout->size / new_size;
     if (inferred_dim == 0) return CGRAD_LAYOUT_ERR_RESHAPE_INVALID_SHAPE;
   } else {
-    if (new_size != old_size) return CGRAD_LAYOUT_ERR_RESHAPE_INVALID_SHAPE;
+    if (new_size != layout->size) return CGRAD_LAYOUT_ERR_RESHAPE_INVALID_SHAPE;
   }
 
   // Fill new shape into layout->shape (right-aligned, leading dims set to 1)
@@ -228,13 +222,6 @@ int cgrad_tensor_layout_reshape(cgrad_tensor_layout* layout, const int32_t* new_
     }
     layout->shape[i] = dim;
   }
-
-  // Update size
-  uint32_t final_size = 1;
-  for (int i = 0; i < TENSOR_DIM; ++i) {
-    final_size *= layout->shape[i];
-  }
-  layout->size = final_size;
 
   // Compute new strides: like contiguous, but scale by original step size
   uint32_t step = layout->strides[TENSOR_DIM - 1];

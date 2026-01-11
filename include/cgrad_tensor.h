@@ -89,6 +89,16 @@ int cgrad_tensor_sub(cgrad_tensor* a, cgrad_tensor* b, cgrad_tensor* r);
  */
 void cgrad_tensor_print(const cgrad_tensor* t);
 
+/**
+ * @brief Reshape a tensor, using layout reshape and backend copy ops.
+ * @param src Source tensor.
+ * @param dst Destination tensor.
+ * @param new_shape Array of new dimensions (length ndim, may contain one -1).
+ * @param ndim Number of dimensions in new_shape (<= TENSOR_DIM).
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_tensor_reshape(const cgrad_tensor* src, cgrad_tensor* dst, const int32_t* new_shape, int ndim);
+
 // --- Transform ---
 
 /**

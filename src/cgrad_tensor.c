@@ -208,6 +208,57 @@ void cgrad_tensor_print(const cgrad_tensor* t) {
     t->backend->tensor_print(t->handle);
 }
 
+#include <stdio.h>
+/**
+ * @brief Reshape a tensor, using layout reshape and backend copy ops.
+ * @param src Source tensor.
+ * @param dst Destination tensor.
+ * @param new_shape Array of new dimensions (length ndim, may contain one -1).
+ * @param ndim Number of dimensions in new_shape (<= TENSOR_DIM).
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_tensor_reshape(const cgrad_tensor* src, cgrad_tensor* dst, const int32_t* new_shape, int ndim) {
+    if (!src || !src->backend || !src->handle)
+        return CGRAD_TENSOR_ERR_NULL_POINTER;
+
+    if (!dst->handle) {
+        // initialize tensor
+        dst->handle = src->backend->alloc_tensor_handle();
+        dst->backend = src->backend;
+    } else {
+        // not supported yet
+        return CGRAD_TENSOR_ERR_NOT_IMPLEMENTED;
+    }
+
+    // make sure tensor handle is allocated
+    if (!dst->handle)
+        return CGRAD_TENSOR_ERR_HANDLE_UNINITIALIZED;
+    
+    if (cgrad_tensor_layout_is_regular(src->backend->tensor_get_layout(src->handle))) {
+        // If src is regular, we can do a shallow copy
+        if (!src->backend->tensor_shallow_copy)
+            return CGRAD_TENSOR_ERR_NOT_IMPLEMENTED;
+
+        int err = src->backend->tensor_shallow_copy(src->handle, dst->handle);
+        if (err != CGRAD_SUCCESS)
+            return err;
+    } else {
+        // If src is not regular, make a contiguous copy into dst
+        if (!src->backend->tensor_contiguous)
+            return CGRAD_TENSOR_ERR_NOT_IMPLEMENTED;
+
+        int err = src->backend->tensor_contiguous(src->handle, dst->handle);
+        if (err != CGRAD_SUCCESS)
+            return err;
+    }
+
+    return cgrad_tensor_layout_reshape(
+        src->backend->tensor_get_layout(dst->handle),
+        new_shape,
+        ndim
+    );
+}
+
 /**
  * @brief Transpose the tensor according to the given permutation, applied to the last ndim dims.
  * @param t Pointer to tensor.
