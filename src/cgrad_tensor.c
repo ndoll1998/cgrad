@@ -265,6 +265,37 @@ void cgrad_tensor_print(const cgrad_tensor* t) {
 }
 
 /**
+ * @brief Make a contiguous copy of a tensor into dst.
+ * @param src Source tensor.
+ * @param dst Destination tensor.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_tensor_contiguous(const cgrad_tensor* src, cgrad_tensor* dst) {
+    if (!dst || !src || !src->backend || !src->data)
+        return CGRAD_TENSOR_ERR_NULL_POINTER;
+    if (!src->backend->tensor_contiguous)
+        return CGRAD_TENSOR_ERR_NOT_IMPLEMENTED;
+
+    if (cgrad_tensor_layout_is_contiguous(
+        src->backend->tensor_get_layout(src->data)
+    )) {
+        // already contiguous, do a shallow copy
+        return cgrad_tensor_shallow_copy(src, dst);
+    }
+
+    uint32_t* src_shape = src->backend->tensor_get_layout(src->data)->shape;
+    int err = cgrad_tensor_init(dst, src_shape, TENSOR_DIM, src->backend->type);
+    if (err != CGRAD_SUCCESS)
+        return err;
+
+    err = src->backend->tensor_contiguous(src->data, dst->data);
+    if (err != CGRAD_SUCCESS)
+        return err;
+
+    return CGRAD_SUCCESS;
+}
+
+/**
  * @brief Reshape a tensor, using layout reshape and backend copy ops.
  * @param src Source tensor.
  * @param dst Destination tensor.
@@ -291,15 +322,7 @@ int cgrad_tensor_reshape(const cgrad_tensor* src, cgrad_tensor* dst, const int32
             return err;
     } else {
         // If src is not regular, make a contiguous copy into dst
-        if (!src->backend->tensor_contiguous)
-            return CGRAD_TENSOR_ERR_NOT_IMPLEMENTED;
-
-        uint32_t* src_shape = src->backend->tensor_get_layout(src->data)->shape;
-        int err = cgrad_tensor_init(dst, src_shape, TENSOR_DIM, src->backend->type);
-        if (err != CGRAD_SUCCESS)
-            return err;
-        
-        err = src->backend->tensor_contiguous(src->data, dst->data);
+        int err = cgrad_tensor_contiguous(src, dst);
         if (err != CGRAD_SUCCESS)
             return err;
     }

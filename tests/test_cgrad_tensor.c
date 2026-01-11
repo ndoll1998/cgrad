@@ -39,6 +39,27 @@ static void test_cgrad_tensor_fill(void **state) {
     cgrad_tensor_free(&t);
 }
 
+static void test_cgrad_tensor_contiguous(void **state) {
+    cgrad_tensor src = {0}, dst = {0};
+    uint32_t shape[TENSOR_DIM] = {2, 3, 4, 5};
+    assert_int_equal(cgrad_tensor_init(&src, shape, 4, CGRAD_BACKEND_F32_CPU), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_tensor_fill(&src, 3.14f), CGRAD_SUCCESS);
+
+    // Make a contiguous copy
+    assert_int_equal(cgrad_tensor_contiguous(&src, &dst), CGRAD_SUCCESS);
+
+    // Check that the data matches
+    cgrad_tensor_f32_cpu* src_handle = (cgrad_tensor_f32_cpu*)src.data;
+    cgrad_tensor_f32_cpu* dst_handle = (cgrad_tensor_f32_cpu*)dst.data;
+    assert_int_equal(src_handle->layout.size, dst_handle->layout.size);
+    for (int i = 0; i < src_handle->layout.size; ++i) {
+        assert_float_equal(src_handle->data[i], dst_handle->data[i], 1e-6);
+    }
+
+    cgrad_tensor_free(&src);
+    cgrad_tensor_free(&dst);
+}
+
 static void test_cgrad_tensor_reshape(void **state) {
     cgrad_tensor src, dst = {0};
     uint32_t shape[TENSOR_DIM] = {2, 3, 4, 5};
@@ -180,6 +201,7 @@ int run_cgrad_tensor_tests(void) {
         cmocka_unit_test(test_cgrad_tensor_init_and_free),
         cmocka_unit_test(test_cgrad_tensor_init_errors),
         cmocka_unit_test(test_cgrad_tensor_fill),
+        cmocka_unit_test(test_cgrad_tensor_contiguous),
         cmocka_unit_test(test_cgrad_tensor_reshape),
         cmocka_unit_test(test_cgrad_tensor_registry_root_freed_only_after_all_children),
         cmocka_unit_test(test_cgrad_tensor_sum),

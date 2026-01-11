@@ -36,6 +36,14 @@ int cgrad_tensor_init(cgrad_tensor* t, const uint32_t* shape, int ndim, cgrad_ba
 int cgrad_tensor_shallow_copy(const cgrad_tensor* src, cgrad_tensor* dst);
 
 /**
+ * @brief Make a contiguous copy of a tensor into dst.
+ * @param src Source tensor.
+ * @param dst Destination tensor.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_tensor_contiguous(const cgrad_tensor* src, cgrad_tensor* dst);
+
+/**
  * @brief Free the memory associated with a high-level tensor.
  *        Returns the error code from the registry deregistration.
  * @param t Pointer to tensor.

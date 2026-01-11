@@ -36,7 +36,7 @@ int main() {
   //cgrad_tensor_print(&r);
 
   e = cgrad_tensor_sum(
-    &out, (const uint8_t[]){0,0,1}, 3, &r
+    &out, (const uint8_t[]){1,1,1}, 3, &r
   );
   printf("Sum error code: %d\n", e);
   cgrad_tensor_print(&r);
