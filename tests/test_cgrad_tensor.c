@@ -117,6 +117,64 @@ static void test_cgrad_tensor_registry_root_freed_only_after_all_children(void *
     free(child2.data);
 }
 
+static void test_cgrad_tensor_sum(void **state) {
+    (void)state;
+    // Create a 2x3 tensor with values 1,2,3,4,5,6
+    cgrad_tensor t = {0};
+    uint32_t shape[TENSOR_DIM] = {1,1,1,1,1,1,2,3};
+    assert_int_equal(cgrad_tensor_init(&t, shape, 8, CGRAD_BACKEND_F32_CPU), CGRAD_SUCCESS);
+
+    // Fill with values
+    float vals[6] = {1,2,3,4,5,6};
+    for (uint32_t i = 0; i < 2; ++i) {
+        for (uint32_t j = 0; j < 3; ++j) {
+            uint32_t idx[TENSOR_DIM] = {0,0,0,0,0,0,i,j};
+            assert_int_equal(t.backend->tensor_set(t.data, idx, TENSOR_DIM, vals[i*3+j]), CGRAD_SUCCESS);
+        }
+    }
+
+    // Sum over axis 1 (columns): mask = [0,1] (right-aligned)
+    uint8_t mask1[2] = {0,1};
+    cgrad_tensor r1 = {0};
+    assert_int_equal(cgrad_tensor_sum(&t, mask1, 2, &r1), CGRAD_SUCCESS);
+    // Should be shape [2,1], values [6,15]
+    float expected1[2] = {6,15};
+    for (uint32_t i = 0; i < 2; ++i) {
+        uint32_t idx[TENSOR_DIM] = {0,0,0,0,0,0,i,0};
+        float v = 0;
+        assert_int_equal(r1.backend->tensor_get(r1.data, idx, TENSOR_DIM, &v), CGRAD_SUCCESS);
+        assert_float_equal(v, expected1[i], 1e-6);
+    }
+    cgrad_tensor_free(&r1);
+
+    // Sum over axis 0 (rows): mask = [1,0] (right-aligned)
+    uint8_t mask2[2] = {1,0};
+    cgrad_tensor r2 = {0};
+    assert_int_equal(cgrad_tensor_sum(&t, mask2, 2, &r2), CGRAD_SUCCESS);
+    // Should be shape [1,3], values [5,7,9]
+    float expected2[3] = {5,7,9};
+    for (uint32_t j = 0; j < 3; ++j) {
+        uint32_t idx[TENSOR_DIM] = {0,0,0,0,0,0,0,j};
+        float v = 0;
+        assert_int_equal(r2.backend->tensor_get(r2.data, idx, TENSOR_DIM, &v), CGRAD_SUCCESS);
+        assert_float_equal(v, expected2[j], 1e-6);
+    }
+    cgrad_tensor_free(&r2);
+
+    // Sum over all axes: mask = [1,1]
+    uint8_t mask3[2] = {1,1};
+    cgrad_tensor r3 = {0};
+    assert_int_equal(cgrad_tensor_sum(&t, mask3, 2, &r3), CGRAD_SUCCESS);
+    // Should be scalar [21]
+    float v3 = 0;
+    uint32_t idx3[TENSOR_DIM] = {0,0,0,0,0,0,0,0};
+    assert_int_equal(r3.backend->tensor_get(r3.data, idx3, TENSOR_DIM, &v3), CGRAD_SUCCESS);
+    assert_float_equal(v3, 21.0f, 1e-6);
+    cgrad_tensor_free(&r3);
+
+    cgrad_tensor_free(&t);
+}
+
 int run_cgrad_tensor_tests(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_cgrad_tensor_init_and_free),
@@ -124,6 +182,7 @@ int run_cgrad_tensor_tests(void) {
         cmocka_unit_test(test_cgrad_tensor_fill),
         cmocka_unit_test(test_cgrad_tensor_reshape),
         cmocka_unit_test(test_cgrad_tensor_registry_root_freed_only_after_all_children),
+        cmocka_unit_test(test_cgrad_tensor_sum),
     };
     return _cmocka_run_group_tests("cgrad_tensor", tests, sizeof(tests)/sizeof(tests[0]), NULL, NULL);
 }

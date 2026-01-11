@@ -31,19 +31,30 @@ int main() {
   cgrad_tensor_print(&out);
 
   // Add output to itself
-  e = cgrad_tensor_add(&out, &out, &r);
-  printf("Add error code: %d\n", e);
+  //e = cgrad_tensor_add(&out, &out, &r);
+  //printf("Add error code: %d\n", e);
+  //cgrad_tensor_print(&r);
+
+  e = cgrad_tensor_sum(
+    &out, (const uint8_t[]){0,0,1}, 3, &r
+  );
+  printf("Sum error code: %d\n", e);
   cgrad_tensor_print(&r);
 
   size_t n = cgrad_tensor_registry_count();
   printf("Number of tensors in registry: %zu\n", n);
 
   // free
+  printf("Freeing tensors t1\n");
   cgrad_tensor_free(&t1);
+  printf("Freeing tensors t2\n");
   cgrad_tensor_free(&t2);
+  printf("Freeing tensors out\n");
   cgrad_tensor_free(&out);
+  printf("Freeing tensors r\n");
   cgrad_tensor_free(&r);
 
+  n = cgrad_tensor_registry_count();
   printf("Number of tensors in registry: %zu\n", n);
 
   return 0;

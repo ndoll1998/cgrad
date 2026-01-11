@@ -4,6 +4,7 @@
 #include "cgrad_tensor_registry.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 /**
  * @brief Initialize a high-level tensor with the given shape and backend type.
@@ -33,6 +34,8 @@ int cgrad_tensor_init(cgrad_tensor* t, const uint32_t* shape, int ndim, cgrad_ba
     return CGRAD_SUCCESS;
 }
 
+#include <stdio.h>
+
 /**
  * @brief Perform a shallow copy of a tensor (copies handle, not data).
  * @param dst Destination tensor.
@@ -40,8 +43,9 @@ int cgrad_tensor_init(cgrad_tensor* t, const uint32_t* shape, int ndim, cgrad_ba
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
 int cgrad_tensor_shallow_copy(const cgrad_tensor* src, cgrad_tensor* dst) {
-    if (!dst || !src || !src->backend || !src->data)
+    if (!dst || !src || !src->backend || !src->data) {
         return CGRAD_TENSOR_ERR_NULL_POINTER;
+    }
     dst->backend = src->backend;
     if (!dst->data) {
         dst->data = dst->backend->alloc_tensor_handle();
@@ -144,8 +148,18 @@ int cgrad_tensor_gemm(
     if (!r->data) {
         cgrad_tensor_init(r, r_shape, TENSOR_DIM, a->backend->type);
     } else {
-        // TODO: support writing to existing tensor with matching shape
-        return CGRAD_TENSOR_ERR_NOT_IMPLEMENTED;
+        // Allow writing to existing tensor if shape matches
+        cgrad_tensor_layout* r_layout = r->backend->tensor_get_layout(r->data);
+        int shape_match = 1;
+        for (int i = 0; i < TENSOR_DIM; ++i) {
+            if (r_layout->shape[i] != r_shape[i]) {
+                shape_match = 0;
+                break;
+            }
+        }
+        if (!shape_match) {
+            return CGRAD_TENSOR_ERR_SHAPE_MISMATCH;
+        }
     }
 
     return a->backend->tensor_gemm(a->data, b->data, r->data);
@@ -302,8 +316,122 @@ int cgrad_tensor_reshape(const cgrad_tensor* src, cgrad_tensor* dst, const int32
  * @param t Pointer to tensor.
  * @param perm Permutation array (length ndim).
  * @param ndim Number of trailing dimensions to permute (≤ TENSOR_DIM).
+ * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-void cgrad_tensor_transpose(cgrad_tensor* t, const uint32_t* perm, int ndim) {
-    if (!t || !t->backend || !t->data) return;
-    cgrad_tensor_layout_transpose(t->backend->tensor_get_layout(t->data), perm, ndim);
+int cgrad_tensor_transpose(cgrad_tensor* t, const uint32_t* perm, int ndim) {
+    if (!t || !t->backend || !t->data) return CGRAD_TENSOR_ERR_NULL_POINTER;
+    return cgrad_tensor_layout_transpose(t->backend->tensor_get_layout(t->data), perm, ndim);
+}
+
+#include <stdio.h>
+/**
+ * @brief Sum a tensor over specified axes using reshape and GEMM with a tensor of all ones.
+ * @param a Input tensor.
+ * @param mask Right-aligned mask (length ndim) indicating which axes to sum (1=sum, 0=keep).
+ * @param ndim Number of dimensions in mask (≤ TENSOR_DIM).
+ * @param r Output tensor (initialized inside function).
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_tensor_sum(
+    const cgrad_tensor* a,
+    const uint8_t* mask,
+    int ndim,
+    cgrad_tensor* r
+) {
+    if (!a || !mask || !r) return CGRAD_TENSOR_ERR_NULL_POINTER;
+    if (!a->backend) return CGRAD_TENSOR_ERR_NULL_POINTER;
+
+    // Right-align the mask to TENSOR_DIM
+    uint8_t full_mask[TENSOR_DIM] = {0};
+    int mask_offset = TENSOR_DIM - ndim;
+    for (int i = 0; i < ndim; ++i) {
+        full_mask[mask_offset + i] = mask[i];
+    }
+
+    // Compute the target shape
+    int32_t target_shape[TENSOR_DIM];
+    const cgrad_tensor_layout* layout = a->backend->tensor_get_layout(a->data);
+    for (int i = 0; i < TENSOR_DIM; ++i) {
+        target_shape[i] = (full_mask[i]) ? 1 : layout->shape[i];
+    }
+
+    // Check if summed dims are already last
+    int already_last = 1;
+    for (int i = 0; i < TENSOR_DIM - 1; ++i) {
+        if (full_mask[i] && !full_mask[i + 1]) {
+            already_last = 0;
+            break;
+        }
+    }
+    
+    // create a shallow copy of a in case we need to transpose
+    cgrad_tensor a_perm = {0};
+    int err = cgrad_tensor_shallow_copy(a, &a_perm);
+    if (err != CGRAD_SUCCESS) return err;
+
+    if (!already_last) {
+        // Compute permutation to move summed dims to the end
+        // kept dims first, then summed dims, preserving order
+        uint32_t perm[TENSOR_DIM];
+        int kept_count = 0, sum_count = 0;
+        for (int i = 0; i < TENSOR_DIM; ++i) {
+            if (!full_mask[i]) perm[kept_count++] = i;
+        }
+        for (int i = 0; i < TENSOR_DIM; ++i) {
+            if (full_mask[i]) perm[kept_count + sum_count++] = i;
+        }
+        
+        err = cgrad_tensor_transpose(&a_perm, perm, TENSOR_DIM);
+        if (err != CGRAD_SUCCESS) return err;
+    }
+
+    // Count kept and summed dims
+    int kept_count = 0;
+    for (int i = 0; i < TENSOR_DIM; ++i) {
+        if (!full_mask[i]) kept_count++;
+    }
+
+    // Compute dimensions
+    int32_t kept_size = 1, summed_size = 1;
+    for (int i = 0; i < TENSOR_DIM; ++i) {
+        if (full_mask[i]) summed_size *= layout->shape[i];
+        else kept_size *= layout->shape[i];
+    }
+
+    // Reshape to collapse kept and summed dims
+    cgrad_tensor a_reshaped = {0};
+    err = cgrad_tensor_reshape(&a_perm, &a_reshaped, (const int32_t[]){kept_size, summed_size}, 2);
+    if (err != CGRAD_SUCCESS) return err;
+    
+    // Create ones tensor of shape (summed_size, 1)
+    cgrad_tensor ones = {0};
+    err = cgrad_tensor_init(&ones, (const uint32_t[]){summed_size, 1}, 2, a_perm.backend->type);
+    if (err != CGRAD_SUCCESS) {
+        return err;
+    }
+    err = cgrad_tensor_fill(&ones, 1.0f);
+    if (err != CGRAD_SUCCESS) {
+        return err;
+    }
+
+    // Compute sum via GEMM
+    cgrad_tensor r_mat = {0};
+    err = cgrad_tensor_gemm(&a_reshaped, &ones, &r_mat);
+    if (err != CGRAD_SUCCESS) {
+        return err;
+    }
+
+    // Reshape r_mat back to target shape
+    err = cgrad_tensor_reshape(&r_mat, r, target_shape, TENSOR_DIM);
+    if (err != CGRAD_SUCCESS) {
+        return err;
+    }
+
+    // cleanup
+    cgrad_tensor_free(&ones);
+    cgrad_tensor_free(&r_mat);
+    cgrad_tensor_free(&a_reshaped);
+    cgrad_tensor_free(&a_perm);
+
+    return CGRAD_SUCCESS;
 }
