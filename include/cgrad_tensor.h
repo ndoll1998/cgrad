@@ -1,5 +1,5 @@
-#ifndef CGRAD_TENSOR_BASE_H
-#define CGRAD_TENSOR_BASE_H
+#ifndef CGRAD_TENSOR_H
+#define CGRAD_TENSOR_H
 
 #include "cgrad_backend.h"
 #include <stdint.h>
@@ -27,7 +27,13 @@ typedef struct cgrad_tensor {
  */
 int cgrad_tensor_init(cgrad_tensor* t, const uint32_t* shape, int ndim, cgrad_backend_type backend_type);
 
-// --- Memory Management ---
+/**
+ * @brief Perform a shallow copy of a tensor (copies handle, not data).
+ * @param src Source tensor.
+ * @param dst Destination tensor.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_tensor_shallow_copy(const cgrad_tensor* src, cgrad_tensor* dst);
 
 /**
  * @brief Free the memory associated with a high-level tensor.
@@ -118,4 +124,4 @@ void cgrad_tensor_transpose(cgrad_tensor* t, const uint32_t* perm, int ndim);
  */
 cgrad_backend* cgrad_get_backend(cgrad_backend_type type);
 
-#endif // CGRAD_TENSOR_BASE_H
+#endif // CGRAD_TENSOR_H

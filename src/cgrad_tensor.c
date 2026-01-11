@@ -1,6 +1,7 @@
 #include "cgrad_tensor.h"
 #include "cgrad_errors.h"
 #include "cgrad_layout.h"
+#include "cgrad_tensor_registry.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -19,12 +20,41 @@ int cgrad_tensor_init(cgrad_tensor* t, const uint32_t* shape, int ndim, cgrad_ba
     // Use backend's tensor handle allocator
     void* handle = t->backend->alloc_tensor_handle();
     if (!handle) return CGRAD_TENSOR_ERR_HANDLE_UNINITIALIZED;
-    if (t->backend->tensor_init(handle, shape, ndim)) {
+    
+    int err = t->backend->tensor_init(handle, shape, ndim);
+    if (err != CGRAD_SUCCESS) {
         free(handle);
-        return CGRAD_TENSOR_ERR_NOT_IMPLEMENTED;
+        return err;
     }
+    
     t->handle = handle;
+    // Register tensor in global registry as a new root
+    cgrad_tensor_registry_register(t, NULL);
     return CGRAD_SUCCESS;
+}
+
+/**
+ * @brief Perform a shallow copy of a tensor (copies handle, not data).
+ * @param dst Destination tensor.
+ * @param src Source tensor.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_tensor_shallow_copy(const cgrad_tensor* src, cgrad_tensor* dst) {
+    if (!dst || !src || !src->backend || !src->handle)
+        return CGRAD_TENSOR_ERR_NULL_POINTER;
+    dst->backend = src->backend;
+    if (!dst->handle) {
+        dst->handle = dst->backend->alloc_tensor_handle();
+        if (!dst->handle)
+            return CGRAD_TENSOR_ERR_HANDLE_UNINITIALIZED;
+    }
+    if (!dst->backend->tensor_shallow_copy)
+        return CGRAD_TENSOR_ERR_NOT_IMPLEMENTED;
+    int err = dst->backend->tensor_shallow_copy(src->handle, dst->handle);
+    if (err != CGRAD_SUCCESS)
+        return err;
+    // Register the shallow copy in the registry with src as parent
+    return cgrad_tensor_registry_register(dst, src);
 }
 
 /**
@@ -33,7 +63,11 @@ int cgrad_tensor_init(cgrad_tensor* t, const uint32_t* shape, int ndim, cgrad_ba
  */
 void cgrad_tensor_free(cgrad_tensor* t) {
     if (!t || !t->backend || !t->handle) return;
-    t->backend->tensor_free(t->handle);
+    cgrad_tensor* root = NULL;
+    cgrad_tensor_registry_deregister(t, &root);
+    if (root) {
+        t->backend->tensor_free(root->handle);
+    }
     free(t->handle);
     t->handle = NULL;
 }
@@ -208,7 +242,6 @@ void cgrad_tensor_print(const cgrad_tensor* t) {
     t->backend->tensor_print(t->handle);
 }
 
-#include <stdio.h>
 /**
  * @brief Reshape a tensor, using layout reshape and backend copy ops.
  * @param src Source tensor.
@@ -221,25 +254,17 @@ int cgrad_tensor_reshape(const cgrad_tensor* src, cgrad_tensor* dst, const int32
     if (!src || !src->backend || !src->handle)
         return CGRAD_TENSOR_ERR_NULL_POINTER;
 
-    if (!dst->handle) {
-        // initialize tensor
-        dst->handle = src->backend->alloc_tensor_handle();
-        dst->backend = src->backend;
-    } else {
+    if (dst->handle) {
         // not supported yet
         return CGRAD_TENSOR_ERR_NOT_IMPLEMENTED;
     }
 
-    // make sure tensor handle is allocated
-    if (!dst->handle)
-        return CGRAD_TENSOR_ERR_HANDLE_UNINITIALIZED;
-    
     if (cgrad_tensor_layout_is_regular(src->backend->tensor_get_layout(src->handle))) {
         // If src is regular, we can do a shallow copy
         if (!src->backend->tensor_shallow_copy)
             return CGRAD_TENSOR_ERR_NOT_IMPLEMENTED;
 
-        int err = src->backend->tensor_shallow_copy(src->handle, dst->handle);
+        int err = cgrad_tensor_shallow_copy(src, dst);
         if (err != CGRAD_SUCCESS)
             return err;
     } else {
@@ -247,7 +272,12 @@ int cgrad_tensor_reshape(const cgrad_tensor* src, cgrad_tensor* dst, const int32
         if (!src->backend->tensor_contiguous)
             return CGRAD_TENSOR_ERR_NOT_IMPLEMENTED;
 
-        int err = src->backend->tensor_contiguous(src->handle, dst->handle);
+        uint32_t* src_shape = src->backend->tensor_get_layout(src->handle)->shape;
+        int err = cgrad_tensor_init(dst, src_shape, TENSOR_DIM, src->backend->type);
+        if (err != CGRAD_SUCCESS)
+            return err;
+        
+        err = src->backend->tensor_contiguous(src->handle, dst->handle);
         if (err != CGRAD_SUCCESS)
             return err;
     }

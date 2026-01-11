@@ -22,6 +22,7 @@
 #define CGRAD_TENSOR_ERR_HANDLE_UNINITIALIZED        -1003
 #define CGRAD_TENSOR_ERR_SHAPE_MISMATCH              -1004
 #define CGRAD_TENSOR_ERR_NOT_IMPLEMENTED             -1005
+#define CGRAD_TENSOR_ERR_PARENT_NOT_REGISTERED       -1006
 
 // Layout/broadcasting errors
 #define CGRAD_LAYOUT_ERR_BROADCAST                   -1501
