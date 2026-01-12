@@ -4,11 +4,13 @@
 #include "cgrad_backend.h"
 #include <stdint.h>
 #include <stddef.h>
+#include <uuid/uuid.h>
 
 /**
  * @brief High-level tensor object supporting multiple backends.
  */
 typedef struct cgrad_tensor {
+    uuid_t uuid;            /**< Unique identifier for this tensor */
     cgrad_backend* backend; /**< Pointer to backend ops */
     void* data;             /**< Backend-specific tensor object (e.g., cgrad_tensor_f32*) */
 } cgrad_tensor;

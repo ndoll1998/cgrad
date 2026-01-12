@@ -1,6 +1,7 @@
 #include "cgrad_layout.h"
 #include "cgrad_errors.h"
 #include <string.h>
+#include <stdio.h>
 
 /**
  * @brief Deep copy a tensor layout from src to dst.
@@ -40,6 +41,24 @@ int cgrad_tensor_layout_init(cgrad_tensor_layout* l, const uint32_t* shape, int 
   }
   l->size = size;
   return CGRAD_SUCCESS;
+}
+
+/**
+ * @brief Print the shape of the layout in the format (d0, d1, ..., dn).
+ * @param l Pointer to layout.
+ * @param ndim Number of dimensions to print (<= TENSOR_DIM).
+ */
+void cgrad_tensor_layout_print_shape(const cgrad_tensor_layout* l, int ndim) {
+    if (!l || ndim < 0 || ndim > TENSOR_DIM) {
+        printf("(invalid)\n");
+        return;
+    }
+    printf("(");
+    for (int i = TENSOR_DIM - ndim; i < TENSOR_DIM; ++i) {
+        printf("%u", l->shape[i]);
+        if (i < TENSOR_DIM - 1) printf(", ");
+    }
+    printf(")\n");
 }
 
 /**

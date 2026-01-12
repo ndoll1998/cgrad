@@ -120,4 +120,11 @@ int cgrad_tensor_layout_is_contiguous(const cgrad_tensor_layout* l);
  */
 int cgrad_tensor_layout_reshape(cgrad_tensor_layout* layout, const int32_t* new_shape, int ndim);
 
+/**
+ * @brief Print the shape of the layout in the format (d0, d1, ..., dn).
+ * @param l Pointer to layout.
+ * @param ndim Number of dimensions to print (<= TENSOR_DIM).
+ */
+void cgrad_tensor_layout_print_shape(const cgrad_tensor_layout* l, int ndim);
+
 #endif // CGRAD_LAYOUT_H

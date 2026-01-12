@@ -15,20 +15,27 @@
  */
 int cgrad_tensor_init(cgrad_tensor* t, const uint32_t* shape, int ndim, cgrad_backend_type backend_type) {
     if (!t || !shape) return CGRAD_TENSOR_ERR_NULL_POINTER;
-    t->backend = cgrad_get_backend(backend_type);
-    if (!t->backend) return CGRAD_TENSOR_ERR_BACKEND_MISMATCH;
+
+    // get the backend
+    cgrad_backend* backend = cgrad_get_backend(backend_type);
+    if (!backend) return CGRAD_TENSOR_ERR_BACKEND_MISMATCH;
 
     // Use backend's tensor handle allocator
-    void* data = t->backend->alloc_tensor_handle();
+    void* data = backend->alloc_tensor_handle();
     if (!data) return CGRAD_TENSOR_ERR_HANDLE_UNINITIALIZED;
     
-    int err = t->backend->tensor_init(data, shape, ndim);
+    // initialize the tensor
+    int err = backend->tensor_init(data, shape, ndim);
     if (err != CGRAD_SUCCESS) {
         free(data);
         return err;
     }
     
+    // populate tensor attributes
+    uuid_generate(t->uuid);
     t->data = data;
+    t->backend = backend;
+
     // Register tensor in global registry as a new root
     cgrad_tensor_registry_register(t, NULL);
     return CGRAD_SUCCESS;
@@ -46,17 +53,24 @@ int cgrad_tensor_shallow_copy(const cgrad_tensor* src, cgrad_tensor* dst) {
     if (!dst || !src || !src->backend || !src->data) {
         return CGRAD_TENSOR_ERR_NULL_POINTER;
     }
-    dst->backend = src->backend;
-    if (!dst->data) {
-        dst->data = dst->backend->alloc_tensor_handle();
-        if (!dst->data)
-            return CGRAD_TENSOR_ERR_HANDLE_UNINITIALIZED;
-    }
-    if (!dst->backend->tensor_shallow_copy)
+    if (!src->backend->tensor_shallow_copy)
         return CGRAD_TENSOR_ERR_NOT_IMPLEMENTED;
-    int err = dst->backend->tensor_shallow_copy(src->data, dst->data);
-    if (err != CGRAD_SUCCESS)
+    
+    void* data = src->backend->alloc_tensor_handle();
+    if (!data)
+        return CGRAD_TENSOR_ERR_HANDLE_UNINITIALIZED;
+    
+    int err = src->backend->tensor_shallow_copy(src->data, data);
+    if (err != CGRAD_SUCCESS) {
+        free(data);
         return err;
+    }
+
+    // populate tensor attributes
+    uuid_generate(dst->uuid);
+    dst->data = data;
+    dst->backend = src->backend;
+
     // Register the shallow copy in the registry with src as parent
     return cgrad_tensor_registry_register(dst, src);
 }
@@ -69,18 +83,33 @@ int cgrad_tensor_shallow_copy(const cgrad_tensor* src, cgrad_tensor* dst) {
  */
 int cgrad_tensor_free(cgrad_tensor* t) {
     if (!t || !t->backend || !t->data) return CGRAD_TENSOR_ERR_NULL_POINTER;
-    // unregister from tensor registry
-    cgrad_tensor* root = NULL;
-    int err = cgrad_tensor_registry_deregister(t, &root);
-    if (err != CGRAD_SUCCESS)
-        return err;
-    // free tensor handle if this is the root tensor
-    if (root) {
-        t->backend->tensor_free(root->data);
+
+    // get the root tensor (holding the data)
+    cgrad_tensor root;
+    int err = cgrad_tensor_registry_get_root(t, &root);
+    if (err != CGRAD_SUCCESS) return err;
+
+    if (cgrad_tensor_registry_get_bucket_size(t) == 1) {
+        // this is the only tensor in the bucket
+        // free the root
+        t->backend->tensor_free(root.data);
+        // delete the whole bucket
+        err = cgrad_tensor_registry_deregister_and_delete_bucket(t);
+        if (err != CGRAD_SUCCESS) return err;
+        // free root handle after delete
+        free(t->data);
+        t->data = NULL;
+    } else {
+        // deregister the tensor
+        err = cgrad_tensor_registry_deregister(t);
+        if (err != CGRAD_SUCCESS) return err;
+        // free the tensor handle if this is not the root tensor
+        if (uuid_compare(t->uuid, root.uuid)) {
+            free(t->data);
+            t->data = NULL;
+        }
     }
-    // free the tensor handle
-    free(t->data);
-    t->data = NULL;
+    
     return CGRAD_SUCCESS;
 }
 
@@ -261,7 +290,10 @@ int cgrad_tensor_sub(
  */
 void cgrad_tensor_print(const cgrad_tensor* t) {
     if (!t || !t->backend || !t->data) return;
-    t->backend->tensor_print(t->data);
+    cgrad_tensor_layout* layout = t->backend->tensor_get_layout(t->data);
+    printf("Shape: ");
+    cgrad_tensor_layout_print_shape(layout, TENSOR_DIM);
+    t->backend->tensor_print_data(t->data);
 }
 
 /**

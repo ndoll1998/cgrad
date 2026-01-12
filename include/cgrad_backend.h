@@ -103,9 +103,9 @@ typedef struct cgrad_backend {
     cgrad_tensor_layout* (*tensor_get_layout)(void* t);
 
     /**
-     * @brief Print the tensor's shape and contents.
+     * @brief Print only the tensor's data (no shape).
      */
-    void (*tensor_print)(const void* t);
+    void (*tensor_print_data)(const void* t);
 
     // Add more ops as needed (e.g., build_batch_array, ptr, set, contiguous, etc.)
 } cgrad_backend;

@@ -439,13 +439,10 @@ static cgrad_tensor_layout* backend_cgrad_tensor_f32_cpu_tensor_get_layout(void*
 }
 
 /**
- * @brief Print the tensor's shape and contents.
+ * @brief Print only the tensor's data (no shape).
  * @param t Pointer to tensor.
  */
-void cgrad_tensor_f32_cpu_print(const cgrad_tensor_f32_cpu* t) {
-  printf("Shape: (");
-  for (int i = 0; i < TENSOR_DIM; i++) printf(" %i ", t->layout.shape[i]);
-  printf(")\n");
+void cgrad_tensor_f32_cpu_print_data(const cgrad_tensor_f32_cpu* t) {
   cgrad_tensor_layout l;
   cgrad_tensor_layout_init(&l, t->layout.shape, TENSOR_DIM);
   uint32_t idx[TENSOR_DIM] = {0};
@@ -467,8 +464,8 @@ void cgrad_tensor_f32_cpu_print(const cgrad_tensor_f32_cpu* t) {
   printf("\n");
 }
 
-static void backend_cgrad_tensor_f32_cpu_tensor_print(const void* t) {
-    cgrad_tensor_f32_cpu_print((const cgrad_tensor_f32_cpu*)t);
+static void backend_cgrad_tensor_f32_cpu_tensor_print_data(const void* t) {
+    cgrad_tensor_f32_cpu_print_data((const cgrad_tensor_f32_cpu*)t);
 }
 
 
@@ -490,5 +487,5 @@ cgrad_backend cgrad_backend_f32_cpu = {
     .tensor_get       = backend_cgrad_tensor_f32_cpu_tensor_get,
     .tensor_set       = backend_cgrad_tensor_f32_cpu_tensor_set,
     .tensor_get_layout   = backend_cgrad_tensor_f32_cpu_tensor_get_layout,
-    .tensor_print     = backend_cgrad_tensor_f32_cpu_tensor_print,
+    .tensor_print_data   = backend_cgrad_tensor_f32_cpu_tensor_print_data,
 };

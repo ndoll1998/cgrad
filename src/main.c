@@ -45,13 +45,9 @@ int main() {
   printf("Number of tensors in registry: %zu\n", n);
 
   // free
-  printf("Freeing tensors t1\n");
   cgrad_tensor_free(&t1);
-  printf("Freeing tensors t2\n");
   cgrad_tensor_free(&t2);
-  printf("Freeing tensors out\n");
   cgrad_tensor_free(&out);
-  printf("Freeing tensors r\n");
   cgrad_tensor_free(&r);
 
   n = cgrad_tensor_registry_count();
