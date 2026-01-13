@@ -469,13 +469,9 @@ static void backend_cgrad_tensor_f32_cpu_tensor_print_data(const void* t) {
 }
 
 
-static void* backend_alloc_tensor_f32_cpu_handle(void) {
-    return calloc(1, sizeof(struct cgrad_tensor_f32_cpu));
-}
-
 cgrad_backend cgrad_backend_f32_cpu = {
     .type = CGRAD_BACKEND_F32_CPU,
-    .alloc_tensor_handle = backend_alloc_tensor_f32_cpu_handle,
+    .tensor_handle_size = sizeof(struct cgrad_tensor_f32_cpu),
     .tensor_init      = backend_cgrad_tensor_f32_cpu_tensor_init,
     .tensor_fill      = backend_cgrad_tensor_f32_cpu_tensor_fill,
     .tensor_fill_rand = backend_cgrad_tensor_f32_cpu_tensor_fill_rand,

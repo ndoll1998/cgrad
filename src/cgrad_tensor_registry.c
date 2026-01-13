@@ -62,7 +62,7 @@ static void delete_bucket(cgrad_tensor_registry_bucket* bucket) {
  *        If parent is not NULL, adds t to the parent's bucket (if parent is registered).
  * @param t Pointer to tensor to register.
  * @param parent Pointer to parent tensor (or NULL).
- * @return CGRAD_SUCCESS on success, CGRAD_TENSOR_ERR_PARENT_NOT_REGISTERED if parent is not in registry.
+ * @return CGRAD_SUCCESS on success, CGRAD_TENSOR_REGISTRY_PARENT_NOT_REGISTERED if parent is not in registry.
  */
 int cgrad_tensor_registry_register(cgrad_tensor* t, const cgrad_tensor* parent) {
     if (!t) return CGRAD_TENSOR_ERR_NULL_POINTER;
@@ -80,21 +80,21 @@ int cgrad_tensor_registry_register(cgrad_tensor* t, const cgrad_tensor* parent) 
     if (parent == NULL) {
         // Create new bucket and add t to it
         bucket = create_new_bucket(t);
-        if (!bucket) return CGRAD_TENSOR_F32_CPU_ERR_ALLOC_FAILED;
+        if (!bucket) return CGRAD_TENSOR_REGISTRY_ALLOC_FAILED;
         if (add_to_bucket(bucket, t) != 0) {
             delete_bucket(bucket);
-            return CGRAD_TENSOR_F32_CPU_ERR_ALLOC_FAILED;
+            return CGRAD_TENSOR_REGISTRY_ALLOC_FAILED;
         }
     } else {
         // Find parent's bucket
         cgrad_tensor_registry_entry* parent_entry = NULL;
         HASH_FIND(hh, global_tensor_registry.tensor_map, parent->uuid, sizeof(uuid_t), parent_entry);
         if (!parent_entry) {
-            return CGRAD_TENSOR_ERR_PARENT_NOT_REGISTERED;
+            return CGRAD_TENSOR_REGISTRY_PARENT_NOT_REGISTERED;
         }
         bucket = parent_entry->bucket;
         if (add_to_bucket(bucket, t) != 0) {
-            return CGRAD_TENSOR_F32_CPU_ERR_ALLOC_FAILED;
+            return CGRAD_TENSOR_REGISTRY_ALLOC_FAILED;
         }
     }
 
@@ -114,7 +114,7 @@ int cgrad_tensor_registry_register(cgrad_tensor* t, const cgrad_tensor* parent) 
                 delete_bucket(bucket);
             }
         }
-        return CGRAD_TENSOR_F32_CPU_ERR_ALLOC_FAILED;
+        return CGRAD_TENSOR_REGISTRY_ALLOC_FAILED;
     }
     memcpy(reg_entry->uuid, t->uuid, sizeof(uuid_t));
     reg_entry->tensor = t;
@@ -127,14 +127,14 @@ int cgrad_tensor_registry_register(cgrad_tensor* t, const cgrad_tensor* parent) 
 /**
  * @brief Deregister a tensor from the global tensor registry.
  * @param t Pointer to tensor to deregister.
- * @return CGRAD_SUCCESS on success, CGRAD_TENSOR_ERR_PARENT_NOT_REGISTERED if tensor is not registered.
+ * @return CGRAD_SUCCESS on success, CGRAD_TENSOR_REGISTRY_PARENT_NOT_REGISTERED if tensor is not registered.
  */
 int cgrad_tensor_registry_deregister(cgrad_tensor* t) {
     if (!t) return CGRAD_TENSOR_ERR_NULL_POINTER;
 
     cgrad_tensor_registry_entry* reg_entry = NULL;
     HASH_FIND(hh, global_tensor_registry.tensor_map, t->uuid, sizeof(uuid_t), reg_entry);
-    if (!reg_entry) return CGRAD_TENSOR_ERR_PARENT_NOT_REGISTERED;
+    if (!reg_entry) return CGRAD_TENSOR_REGISTRY_PARENT_NOT_REGISTERED;
 
     cgrad_tensor_registry_bucket* bucket = reg_entry->bucket;
 
@@ -160,15 +160,15 @@ size_t cgrad_tensor_registry_count(void) {
  * @brief Deregister all tensors in the bucket containing the given tensor and delete the bucket.
  *        Only succeeds if the bucket is empty.
  * @param t Pointer to any tensor in the bucket.
- * @return CGRAD_SUCCESS on success, CGRAD_TENSOR_ERR_PARENT_NOT_REGISTERED if tensor is not registered,
- *         CGRAD_TENSOR_ERR_BUCKET_NOT_EMPTY if the bucket is not empty.
+ * @return CGRAD_SUCCESS on success, CGRAD_TENSOR_REGISTRY_PARENT_NOT_REGISTERED if tensor is not registered,
+ *         CGRAD_TENSOR_REGISTRY_BUCKET_NOT_EMPTY if the bucket is not empty.
  */
 int cgrad_tensor_registry_deregister_and_delete_bucket(const cgrad_tensor* t) {
     if (!t) return CGRAD_TENSOR_ERR_NULL_POINTER;
 
     cgrad_tensor_registry_entry* reg_entry = NULL;
     HASH_FIND(hh, global_tensor_registry.tensor_map, t->uuid, sizeof(uuid_t), reg_entry);
-    if (!reg_entry || !reg_entry->bucket) return CGRAD_TENSOR_ERR_PARENT_NOT_REGISTERED;
+    if (!reg_entry || !reg_entry->bucket) return CGRAD_TENSOR_REGISTRY_PARENT_NOT_REGISTERED;
 
     cgrad_tensor_registry_bucket* bucket = reg_entry->bucket;
 
@@ -181,14 +181,14 @@ int cgrad_tensor_registry_deregister_and_delete_bucket(const cgrad_tensor* t) {
 
     // If the bucket is not empty, return error
     if (HASH_COUNT(bucket->tensor_map) > 0) {
-        return CGRAD_TENSOR_ERR_BUCKET_NOT_EMPTY;
+        return CGRAD_TENSOR_REGISTRY_BUCKET_NOT_EMPTY;
     }
 
     // Remove all registry entries that point to this bucket
     cgrad_tensor_registry_entry *entry, *tmp;
     HASH_ITER(hh, global_tensor_registry.tensor_map, entry, tmp) {
         if (entry->bucket == bucket) {
-            return CGRAD_TENSOR_ERR_BUCKET_NOT_EMPTY;
+            return CGRAD_TENSOR_REGISTRY_BUCKET_NOT_EMPTY;
         }
     }
 
@@ -203,13 +203,13 @@ int cgrad_tensor_registry_deregister_and_delete_bucket(const cgrad_tensor* t) {
  *        Writes the root tensor to *root_out.
  * @param t Pointer to any tensor in the bucket.
  * @param root_out Output pointer to receive the root tensor (by value).
- * @return CGRAD_SUCCESS on success, CGRAD_TENSOR_ERR_PARENT_NOT_REGISTERED if tensor is not registered.
+ * @return CGRAD_SUCCESS on success, CGRAD_TENSOR_REGISTRY_PARENT_NOT_REGISTERED if tensor is not registered.
  */
 int cgrad_tensor_registry_get_root(const cgrad_tensor* t, cgrad_tensor* root_out) {
     if (!t || !root_out) return CGRAD_TENSOR_ERR_NULL_POINTER;
     cgrad_tensor_registry_entry* reg_entry = NULL;
     HASH_FIND(hh, global_tensor_registry.tensor_map, t->uuid, sizeof(uuid_t), reg_entry);
-    if (!reg_entry || !reg_entry->bucket) return CGRAD_TENSOR_ERR_PARENT_NOT_REGISTERED;
+    if (!reg_entry || !reg_entry->bucket) return CGRAD_TENSOR_REGISTRY_PARENT_NOT_REGISTERED;
     *root_out = reg_entry->bucket->root;
     return CGRAD_SUCCESS;
 }

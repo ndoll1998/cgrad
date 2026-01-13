@@ -22,8 +22,11 @@
 #define CGRAD_TENSOR_ERR_HANDLE_UNINITIALIZED        -1003
 #define CGRAD_TENSOR_ERR_SHAPE_MISMATCH              -1004
 #define CGRAD_TENSOR_ERR_NOT_IMPLEMENTED             -1005
-#define CGRAD_TENSOR_ERR_PARENT_NOT_REGISTERED       -1006
-#define CGRAD_TENSOR_ERR_BUCKET_NOT_EMPTY            -1007  // Attempted to delete a non-empty bucket
+
+// Tensor registry errors
+#define CGRAD_TENSOR_REGISTRY_ALLOC_FAILED           -1101
+#define CGRAD_TENSOR_REGISTRY_PARENT_NOT_REGISTERED  -1102
+#define CGRAD_TENSOR_REGISTRY_BUCKET_NOT_EMPTY       -1103  // Attempted to delete a non-empty bucket
 
 // Layout/broadcasting errors
 #define CGRAD_LAYOUT_ERR_BROADCAST                   -1501

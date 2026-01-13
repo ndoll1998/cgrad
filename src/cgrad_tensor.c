@@ -20,8 +20,8 @@ int cgrad_tensor_init(cgrad_tensor* t, const uint32_t* shape, int ndim, cgrad_ba
     cgrad_backend* backend = cgrad_get_backend(backend_type);
     if (!backend) return CGRAD_TENSOR_ERR_BACKEND_MISMATCH;
 
-    // Use backend's tensor handle allocator
-    void* data = backend->alloc_tensor_handle();
+    // Allocate tensor handle using the backend's handle size
+    void* data = calloc(1, backend->tensor_handle_size);
     if (!data) return CGRAD_TENSOR_ERR_HANDLE_UNINITIALIZED;
     
     // initialize the tensor
@@ -56,7 +56,8 @@ int cgrad_tensor_shallow_copy(const cgrad_tensor* src, cgrad_tensor* dst) {
     if (!src->backend->tensor_shallow_copy)
         return CGRAD_TENSOR_ERR_NOT_IMPLEMENTED;
     
-    void* data = src->backend->alloc_tensor_handle();
+    // Allocate tensor handle using the backend's handle size
+    void* data = calloc(1, src->backend->tensor_handle_size);
     if (!data)
         return CGRAD_TENSOR_ERR_HANDLE_UNINITIALIZED;
     

@@ -83,9 +83,6 @@ static void test_cgrad_tensor_reshape(void **state) {
 }
 
 static int mock_tensor_free_count = 0;
-static void* mock_alloc_tensor_handle(void) {
-    return malloc(1);
-}
 static void mock_tensor_free(void* handle) {
     // Do not free here; freeing is handled after test to avoid double free
     mock_tensor_free_count++;
@@ -95,7 +92,6 @@ static void test_cgrad_tensor_registry_root_freed_only_after_all_children(void *
     (void)state;
     // Setup mock backend
     cgrad_backend mock_backend = {0};
-    mock_backend.alloc_tensor_handle = mock_alloc_tensor_handle;
     mock_backend.tensor_free = mock_tensor_free;
     mock_backend.tensor_shallow_copy = NULL; // Not needed for this test
     mock_backend.tensor_init = NULL; // Not needed for this test

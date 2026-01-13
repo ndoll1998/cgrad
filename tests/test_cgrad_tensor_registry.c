@@ -33,7 +33,7 @@ static void test_register_root_and_find(void **state) {
 
     // Deregister again (should return error)
     rc = cgrad_tensor_registry_deregister(tensor);
-    assert_int_equal(rc, CGRAD_TENSOR_ERR_PARENT_NOT_REGISTERED);
+    assert_int_equal(rc, CGRAD_TENSOR_REGISTRY_PARENT_NOT_REGISTERED);
 
     free(tensor);
 }
@@ -99,7 +99,7 @@ static void test_register_with_unregistered_parent(void **state) {
 
     // Do not register parent
     int rc = cgrad_tensor_registry_register(child, parent);
-    assert_int_equal(rc, CGRAD_TENSOR_ERR_PARENT_NOT_REGISTERED);
+    assert_int_equal(rc, CGRAD_TENSOR_REGISTRY_PARENT_NOT_REGISTERED);
 
     free(child);
     free(parent);
@@ -163,7 +163,7 @@ static void test_idempotency(void **state) {
     assert_int_equal(rc, CGRAD_SUCCESS);
 
     rc = cgrad_tensor_registry_deregister(tensor);
-    assert_int_equal(rc, CGRAD_TENSOR_ERR_PARENT_NOT_REGISTERED);
+    assert_int_equal(rc, CGRAD_TENSOR_REGISTRY_PARENT_NOT_REGISTERED);
 
     free(tensor);
 }

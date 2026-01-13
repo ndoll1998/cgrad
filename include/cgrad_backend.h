@@ -21,10 +21,10 @@ typedef struct cgrad_backend {
     cgrad_backend_type type;
 
     /**
-     * @brief Allocate a backend-specific tensor handle.
-     * @return Pointer to the allocated tensor handle.
+     * @brief Size of the backend-specific tensor handle in bytes.
+     * Used for allocating memory in cgrad_tensor_init.
      */
-    void* (*alloc_tensor_handle)(void);
+    size_t tensor_handle_size;
 
     // --- Initialization/Allocation ---
     /**
