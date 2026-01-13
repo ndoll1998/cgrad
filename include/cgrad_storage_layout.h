@@ -127,4 +127,22 @@ int cgrad_storage_layout_reshape(cgrad_storage_layout* layout, const int32_t* ne
  */
 void cgrad_storage_layout_print_shape(const cgrad_storage_layout* l, int ndim);
 
+/**
+ * @brief Apply a reduction mask to a layout, computing the output shape.
+ *        Dimensions where mask is 1 are reduced to size 1.
+ *        Updates shape, strides, and size in-place.
+ * 
+ * The mask is applied to the last ndim dimensions of the layout.
+ * For example, with mask={1,0} and ndim=2 on a (2,3,4,5) tensor:
+ * - Last 2 dims are (4,5)
+ * - Apply mask: dim -2 becomes 1, dim -1 stays 5
+ * - Result shape: (2,3,1,5)
+ * 
+ * @param layout Pointer to layout to reduce.
+ * @param mask Reduction mask array (length ndim, 1=reduce, 0=keep).
+ * @param ndim Number of dimensions in mask (<= TENSOR_DIM).
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_storage_layout_reduce(cgrad_storage_layout* layout, const uint8_t* mask, int ndim);
+
 #endif // CGRAD_STORAGE_LAYOUT_H

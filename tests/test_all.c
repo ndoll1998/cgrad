@@ -3,6 +3,8 @@
 #include "test_cgrad_storage.c"
 #include "storage_backends/test_cgrad_storage_f32_cpu.c"
 #include "test_cgrad_storage_registry.c"
+#include "test_cgrad_compute_graph.c"
+#include "test_cgrad_tensor.c"
 
 int main(void) {
     int failed = 0;
@@ -10,5 +12,7 @@ int main(void) {
     failed |= run_cgrad_storage_tests();
     failed |= run_cgrad_storage_f32_cpu_tests();
     failed |= run_cgrad_storage_registry_tests();
+    failed |= test_cgrad_compute_graph_main();
+    failed |= test_cgrad_tensor_main();
     return failed;
 }

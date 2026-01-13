@@ -6,8 +6,8 @@
 OPENBLAS_VERSION := 0.3.30
 CMOCKA_VERSION   := 2.0.1
 BENCHMARK_VERSION := 1.9.4
+GRAPHVIZ_VERSION := 14.1.1
 
-# --------- Dependency Paths/URLs ---------
 # --------- Dependency Paths/URLs ---------
 OPENBLAS_NAME    := OpenBLAS-$(OPENBLAS_VERSION)
 OPENBLAS_URL     := https://github.com/OpenMathLib/OpenBLAS/releases/download/v$(OPENBLAS_VERSION)/$(OPENBLAS_NAME).tar.gz
@@ -30,10 +30,17 @@ BENCHMARK_TMPDIR    := /tmp/benchmark_build
 BENCHMARK_SRCDIR    := $(BENCHMARK_TMPDIR)/$(BENCHMARK_NAME)
 BENCHMARK_PREFIX    ?= $(CURDIR)/deps/benchmark
 
+GRAPHVIZ_NAME       := graphviz-$(GRAPHVIZ_VERSION)
+GRAPHVIZ_URL        := https://gitlab.com/api/v4/projects/4207231/packages/generic/graphviz-releases/$(GRAPHVIZ_VERSION)/$(GRAPHVIZ_NAME).tar.gz
+GRAPHVIZ_TARBALL    := /tmp/$(GRAPHVIZ_NAME).tar.gz
+GRAPHVIZ_TMPDIR     := /tmp/graphviz_build
+GRAPHVIZ_SRCDIR     := $(GRAPHVIZ_TMPDIR)/$(GRAPHVIZ_NAME)
+GRAPHVIZ_PREFIX     ?= $(CURDIR)/deps/graphviz
+
 # --------- Compiler/Flags ---------
 CC      := gcc
-CFLAGS  := -I$(OPENBLAS_PREFIX)/include -I$(CMOCKA_PREFIX)/include -Iinclude -O3
-LDFLAGS := -L$(OPENBLAS_PREFIX)/lib -lopenblas
+CFLAGS  := -I$(OPENBLAS_PREFIX)/include -I$(CMOCKA_PREFIX)/include -I$(GRAPHVIZ_PREFIX)/include -Iinclude -O3
+LDFLAGS := -L$(OPENBLAS_PREFIX)/lib -lopenblas -L$(GRAPHVIZ_PREFIX)/lib -lcgraph
 
 # --------- Project Structure ---------
 SRC_DIR      := src
@@ -52,13 +59,13 @@ TEST_SRC_FILES := $(shell find $(TESTS_DIR) -name '*.c')
 TEST_OBJ_FILES := $(patsubst $(TESTS_DIR)/%.c,$(BUILD_TESTS_DIR)/%.o,$(TEST_SRC_FILES))
 
 # --------- Phony Targets ---------
-.PHONY: all build test clean install_deps install_openblas install_cmocka install_benchmark clean_openblas clean_cmocka clean_benchmark
+.PHONY: all build test clean install_deps install_openblas install_cmocka install_benchmark install_graphviz clean_openblas clean_cmocka clean_benchmark clean_graphviz
 
 # --------- Default Target ---------
 all: build
 
 # --------- Dependency Installation ---------
-install_deps: install_openblas install_cmocka install_benchmark
+install_deps: install_openblas install_cmocka install_benchmark install_graphviz
 
 install_openblas:
 	@echo "==> Installing OpenBLAS $(OPENBLAS_VERSION)"
@@ -89,9 +96,23 @@ install_benchmark:
 	@cmake --build $(BENCHMARK_SRCDIR)/build --config Release
 	@cmake --install $(BENCHMARK_SRCDIR)/build --prefix $(BENCHMARK_PREFIX)
 
+install_graphviz:
+	@echo "==> Installing Graphviz $(GRAPHVIZ_VERSION)"
+	@rm -rf $(GRAPHVIZ_TMPDIR)
+	@mkdir -p $(GRAPHVIZ_TMPDIR)
+	@curl -L -o $(GRAPHVIZ_TARBALL) $(GRAPHVIZ_URL)
+	@tar -xzf $(GRAPHVIZ_TARBALL) -C $(GRAPHVIZ_TMPDIR)
+	@cd $(GRAPHVIZ_SRCDIR) && ./configure --prefix=$(GRAPHVIZ_PREFIX)
+	@cd $(GRAPHVIZ_SRCDIR) && make
+	@cd $(GRAPHVIZ_SRCDIR) && make install
+
 clean_benchmark:
 	@rm -rf $(BENCHMARK_TMPDIR)
 	@rm -f $(BENCHMARK_TARBALL)
+
+clean_graphviz:
+	@rm -rf $(GRAPHVIZ_TMPDIR)
+	@rm -f $(GRAPHVIZ_TARBALL)
 
 # --------- Build Rules ---------
 build: $(OUT)

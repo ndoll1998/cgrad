@@ -44,6 +44,36 @@ int cgrad_storage_layout_init(cgrad_storage_layout* l, const uint32_t* shape, in
 }
 
 /**
+ * @brief Apply a reduction mask to a layout, computing the output shape.
+ */
+int cgrad_storage_layout_reduce(cgrad_storage_layout* layout, const uint8_t* mask, int ndim) {
+    if (!layout || !mask) return CGRAD_STORAGE_LAYOUT_ERR_NULL_POINTER;
+    if (ndim < 0 || ndim > TENSOR_DIM) return CGRAD_STORAGE_LAYOUT_ERR_SHAPE_MISMATCH;
+    
+    // Apply mask to last ndim dimensions
+    int mask_offset = TENSOR_DIM - ndim;
+    for (int i = 0; i < ndim; i++) {
+        if (mask[i]) {
+            layout->shape[mask_offset + i] = 1;
+        }
+    }
+    
+    // Recalculate strides based on new shape
+    layout->strides[TENSOR_DIM - 1] = 1;
+    for (int i = TENSOR_DIM - 2; i >= 0; i--) {
+        layout->strides[i] = layout->strides[i + 1] * layout->shape[i + 1];
+    }
+    
+    // Recalculate size
+    layout->size = 1;
+    for (int i = 0; i < TENSOR_DIM; i++) {
+        layout->size *= layout->shape[i];
+    }
+    
+    return CGRAD_SUCCESS;
+}
+
+/**
  * @brief Print the shape of the layout in the format (d0, d1, ..., dn).
  * @param l Pointer to layout.
  * @param ndim Number of dimensions to print (<= TENSOR_DIM).

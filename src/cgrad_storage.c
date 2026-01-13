@@ -379,7 +379,6 @@ int cgrad_storage_transpose(cgrad_storage* t, const uint32_t* perm, int ndim) {
     return cgrad_storage_layout_transpose(t->backend->storage_get_layout(t->data), perm, ndim);
 }
 
-#include <stdio.h>
 /**
  * @brief Sum a tensor over specified axes using reshape and GEMM with a tensor of all ones.
  * @param a Input tensor.
@@ -397,18 +396,24 @@ int cgrad_storage_sum(
     if (!a || !mask || !r) return CGRAD_ERR_NULL_POINTER;
     if (!a->backend) return CGRAD_ERR_NULL_POINTER;
 
-    // Right-align the mask to TENSOR_DIM
+    const cgrad_storage_layout* layout = a->backend->storage_get_layout(a->data);
+    
+    // Compute the target shape using layout reduce
+    cgrad_storage_layout target_layout = *layout;
+    int ret = cgrad_storage_layout_reduce(&target_layout, mask, ndim);
+    if (ret != CGRAD_SUCCESS) return ret;
+    
+    // Convert to int32_t for reshape
+    int32_t target_shape[TENSOR_DIM];
+    for (int i = 0; i < TENSOR_DIM; ++i) {
+        target_shape[i] = (int32_t)target_layout.shape[i];
+    }
+    
+    // Create full mask for checking which dims are summed
     uint8_t full_mask[TENSOR_DIM] = {0};
     int mask_offset = TENSOR_DIM - ndim;
     for (int i = 0; i < ndim; ++i) {
         full_mask[mask_offset + i] = mask[i];
-    }
-
-    // Compute the target shape
-    int32_t target_shape[TENSOR_DIM];
-    const cgrad_storage_layout* layout = a->backend->storage_get_layout(a->data);
-    for (int i = 0; i < TENSOR_DIM; ++i) {
-        target_shape[i] = (full_mask[i]) ? 1 : layout->shape[i];
     }
 
     // Check if summed dims are already last

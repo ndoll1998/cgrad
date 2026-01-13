@@ -262,6 +262,72 @@ static void test_cgrad_storage_layout_reshape(void **state) {
     assert_int_equal(l.shape[TENSOR_DIM-1], expected_size);
 }
 
+static void test_cgrad_storage_layout_reduce(void **state) {
+    (void)state;
+    cgrad_storage_layout l;
+    
+    // Test 1: Reduce single dimension
+    uint32_t shape1[2] = {3, 4};
+    assert_int_equal(cgrad_storage_layout_init(&l, shape1, 2), 0);
+    // Reduce first of last 2 dims: mask={1,0}
+    uint8_t mask1[2] = {1, 0};
+    assert_int_equal(cgrad_storage_layout_reduce(&l, mask1, 2), CGRAD_SUCCESS);
+    // Shape should be (1, 4) in last 2 dims
+    assert_int_equal(l.shape[TENSOR_DIM - 2], 1);
+    assert_int_equal(l.shape[TENSOR_DIM - 1], 4);
+    // Size should be updated
+    assert_int_equal(l.size, 4);
+    // Strides should be recalculated
+    assert_int_equal(l.strides[TENSOR_DIM - 1], 1);
+    assert_int_equal(l.strides[TENSOR_DIM - 2], 4);
+    
+    // Test 2: Reduce second dimension
+    uint32_t shape2[2] = {3, 4};
+    assert_int_equal(cgrad_storage_layout_init(&l, shape2, 2), 0);
+    uint8_t mask2[2] = {0, 1};
+    assert_int_equal(cgrad_storage_layout_reduce(&l, mask2, 2), CGRAD_SUCCESS);
+    // Shape should be (3, 1)
+    assert_int_equal(l.shape[TENSOR_DIM - 2], 3);
+    assert_int_equal(l.shape[TENSOR_DIM - 1], 1);
+    assert_int_equal(l.size, 3);
+    
+    // Test 3: Reduce both dimensions
+    uint32_t shape3[2] = {3, 4};
+    assert_int_equal(cgrad_storage_layout_init(&l, shape3, 2), 0);
+    uint8_t mask3[2] = {1, 1};
+    assert_int_equal(cgrad_storage_layout_reduce(&l, mask3, 2), CGRAD_SUCCESS);
+    assert_int_equal(l.shape[TENSOR_DIM - 2], 1);
+    assert_int_equal(l.shape[TENSOR_DIM - 1], 1);
+    assert_int_equal(l.size, 1);
+    
+    // Test 4: Reduce with 3 dimensions
+    uint32_t shape4[3] = {2, 3, 4};
+    assert_int_equal(cgrad_storage_layout_init(&l, shape4, 3), 0);
+    uint8_t mask4[3] = {1, 0, 1};  // Reduce first and last of last 3 dims
+    assert_int_equal(cgrad_storage_layout_reduce(&l, mask4, 3), CGRAD_SUCCESS);
+    assert_int_equal(l.shape[TENSOR_DIM - 3], 1);
+    assert_int_equal(l.shape[TENSOR_DIM - 2], 3);
+    assert_int_equal(l.shape[TENSOR_DIM - 1], 1);
+    assert_int_equal(l.size, 3);
+    
+    // Test 5: No reduction (all zeros in mask)
+    uint32_t shape5[2] = {3, 4};
+    assert_int_equal(cgrad_storage_layout_init(&l, shape5, 2), 0);
+    uint8_t mask5[2] = {0, 0};
+    assert_int_equal(cgrad_storage_layout_reduce(&l, mask5, 2), CGRAD_SUCCESS);
+    assert_int_equal(l.shape[TENSOR_DIM - 2], 3);
+    assert_int_equal(l.shape[TENSOR_DIM - 1], 4);
+    assert_int_equal(l.size, 12);
+    
+    // Test 6: Error - NULL pointer
+    assert_int_equal(cgrad_storage_layout_reduce(NULL, mask1, 2), CGRAD_STORAGE_LAYOUT_ERR_NULL_POINTER);
+    assert_int_equal(cgrad_storage_layout_reduce(&l, NULL, 2), CGRAD_STORAGE_LAYOUT_ERR_NULL_POINTER);
+    
+    // Test 7: Error - invalid ndim
+    assert_int_equal(cgrad_storage_layout_reduce(&l, mask1, -1), CGRAD_STORAGE_LAYOUT_ERR_SHAPE_MISMATCH);
+    assert_int_equal(cgrad_storage_layout_reduce(&l, mask1, TENSOR_DIM + 1), CGRAD_STORAGE_LAYOUT_ERR_SHAPE_MISMATCH);
+}
+
 int run_cgrad_storage_layout_tests(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_cgrad_storage_layout_init_and_copy),
@@ -273,6 +339,7 @@ int run_cgrad_storage_layout_tests(void) {
         cmocka_unit_test(test_cgrad_storage_layout_partial_shape_and_index),
         cmocka_unit_test(test_cgrad_storage_layout_partial_transpose),
         cmocka_unit_test(test_cgrad_storage_layout_reshape),
+        cmocka_unit_test(test_cgrad_storage_layout_reduce),
     };
     return _cmocka_run_group_tests("cgrad_storage_layout", tests, sizeof(tests)/sizeof(tests[0]), NULL, NULL);
 }
