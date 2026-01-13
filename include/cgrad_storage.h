@@ -1,19 +1,19 @@
-#ifndef CGRAD_TENSOR_H
-#define CGRAD_TENSOR_H
+#ifndef CGRAD_STORAGE_H
+#define CGRAD_STORAGE_H
 
-#include "cgrad_backend.h"
+#include "cgrad_storage_backend.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <uuid/uuid.h>
 
 /**
- * @brief High-level tensor object supporting multiple backends.
+ * @brief High-level storage object supporting multiple backends.
  */
-typedef struct cgrad_tensor {
-    uuid_t uuid;            /**< Unique identifier for this tensor */
-    cgrad_backend* backend; /**< Pointer to backend ops */
-    void* data;             /**< Backend-specific tensor object (e.g., cgrad_tensor_f32*) */
-} cgrad_tensor;
+typedef struct cgrad_storage {
+    uuid_t uuid;             /**< Unique identifier for this storage */
+    cgrad_storage_backend* backend;  /**< Pointer to backend ops */
+    void* data;              /**< Backend-specific storage object (e.g., cgrad_tensor_f32*) */
+} cgrad_storage;
 
 // --- Initialization/Allocation ---
 
@@ -27,7 +27,7 @@ typedef struct cgrad_tensor {
  * @param backend_type Backend type to use.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_init(cgrad_tensor* t, const uint32_t* shape, int ndim, cgrad_backend_type backend_type);
+int cgrad_storage_init(cgrad_storage* t, const uint32_t* shape, int ndim, cgrad_storage_backend_type backend_type);
 
 /**
  * @brief Perform a shallow copy of a tensor (copies data pointer, not underlying data).
@@ -35,7 +35,7 @@ int cgrad_tensor_init(cgrad_tensor* t, const uint32_t* shape, int ndim, cgrad_ba
  * @param dst Destination tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_shallow_copy(const cgrad_tensor* src, cgrad_tensor* dst);
+int cgrad_storage_shallow_copy(const cgrad_storage* src, cgrad_storage* dst);
 
 /**
  * @brief Make a contiguous copy of a tensor into dst.
@@ -43,7 +43,7 @@ int cgrad_tensor_shallow_copy(const cgrad_tensor* src, cgrad_tensor* dst);
  * @param dst Destination tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_contiguous(const cgrad_tensor* src, cgrad_tensor* dst);
+int cgrad_storage_contiguous(const cgrad_storage* src, cgrad_storage* dst);
 
 /**
  * @brief Free the memory associated with a high-level tensor.
@@ -51,7 +51,7 @@ int cgrad_tensor_contiguous(const cgrad_tensor* src, cgrad_tensor* dst);
  * @param t Pointer to tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_free(cgrad_tensor* t);
+int cgrad_storage_free(cgrad_storage* t);
 
 /**
  * @brief Fill the tensor with a constant value.
@@ -59,14 +59,14 @@ int cgrad_tensor_free(cgrad_tensor* t);
  * @param value The value to fill the tensor with.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_fill(cgrad_tensor* t, float value);
+int cgrad_storage_fill(cgrad_storage* t, float value);
 
 /**
  * @brief Fill the tensor with random values.
  * @param t Pointer to tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_fill_rand(cgrad_tensor* t);
+int cgrad_storage_fill_rand(cgrad_storage* t);
 
 // --- Math Ops ---
 
@@ -78,7 +78,7 @@ int cgrad_tensor_fill_rand(cgrad_tensor* t);
  * @param r Output tensor (initialized inside function).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_sum(const cgrad_tensor* a, const uint8_t* mask, int ndim, cgrad_tensor* r);
+int cgrad_storage_sum(const cgrad_storage* a, const uint8_t* mask, int ndim, cgrad_storage* r);
 
 /**
  * @brief Perform batched matrix multiplication (GEMM) on two tensors.
@@ -87,7 +87,7 @@ int cgrad_tensor_sum(const cgrad_tensor* a, const uint8_t* mask, int ndim, cgrad
  * @param r Output tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_gemm(const cgrad_tensor* a, const cgrad_tensor* b, cgrad_tensor* r);
+int cgrad_storage_gemm(const cgrad_storage* a, const cgrad_storage* b, cgrad_storage* r);
 
 /**
  * @brief Add two tensors elementwise and store the result in a third tensor.
@@ -97,7 +97,7 @@ int cgrad_tensor_gemm(const cgrad_tensor* a, const cgrad_tensor* b, cgrad_tensor
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
 
-int cgrad_tensor_add(cgrad_tensor* a, cgrad_tensor* b, cgrad_tensor* r);
+int cgrad_storage_add(cgrad_storage* a, cgrad_storage* b, cgrad_storage* r);
 
 /**
  * @brief Subtract two tensors elementwise and store the result in a third tensor.
@@ -107,7 +107,7 @@ int cgrad_tensor_add(cgrad_tensor* a, cgrad_tensor* b, cgrad_tensor* r);
  * @param r Output tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_sub(cgrad_tensor* a, cgrad_tensor* b, cgrad_tensor* r);
+int cgrad_storage_sub(cgrad_storage* a, cgrad_storage* b, cgrad_storage* r);
 
 // --- Data Access/Info ---
 
@@ -115,7 +115,7 @@ int cgrad_tensor_sub(cgrad_tensor* a, cgrad_tensor* b, cgrad_tensor* r);
  * @brief Print the tensor's shape and contents.
  * @param t Pointer to tensor.
  */
-void cgrad_tensor_print(const cgrad_tensor* t);
+void cgrad_storage_print(const cgrad_storage* t);
 
 /**
  * @brief Reshape a tensor, using layout reshape and backend copy ops.
@@ -125,7 +125,7 @@ void cgrad_tensor_print(const cgrad_tensor* t);
  * @param ndim Number of dimensions in new_shape (<= TENSOR_DIM).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_reshape(const cgrad_tensor* src, cgrad_tensor* dst, const int32_t* new_shape, int ndim);
+int cgrad_storage_reshape(const cgrad_storage* src, cgrad_storage* dst, const int32_t* new_shape, int ndim);
 
 // --- Transform ---
 
@@ -136,7 +136,7 @@ int cgrad_tensor_reshape(const cgrad_tensor* src, cgrad_tensor* dst, const int32
  * @param ndim Number of trailing dimensions to permute (≤ MAX_TENSOR_DIM).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_transpose(cgrad_tensor* t, const uint32_t* perm, int ndim);
+int cgrad_storage_transpose(cgrad_storage* t, const uint32_t* perm, int ndim);
 
 // --- Backend Registry (for internal use) ---
 
@@ -145,6 +145,6 @@ int cgrad_tensor_transpose(cgrad_tensor* t, const uint32_t* perm, int ndim);
  * @param type Backend type.
  * @return Pointer to the backend.
  */
-cgrad_backend* cgrad_get_backend(cgrad_backend_type type);
+cgrad_storage_backend* cgrad_get_backend(cgrad_storage_backend_type type);
 
-#endif // CGRAD_TENSOR_H
+#endif // CGRAD_STORAGE_H

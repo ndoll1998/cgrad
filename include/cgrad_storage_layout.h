@@ -1,5 +1,5 @@
-#ifndef CGRAD_LAYOUT_H
-#define CGRAD_LAYOUT_H
+#ifndef CGRAD_STORAGE_LAYOUT_H
+#define CGRAD_STORAGE_LAYOUT_H
 
 #include <stdint.h>
 #include <stddef.h>
@@ -9,11 +9,11 @@
 /**
  * @brief Structure representing the layout (shape, strides, size) of a tensor.
  */
-typedef struct cgrad_tensor_layout {
+typedef struct cgrad_storage_layout {
   uint32_t size;                  /**< Total number of elements */
   uint32_t shape[TENSOR_DIM]; /**< Shape of each dimension */
   uint32_t strides[TENSOR_DIM]; /**< Strides for each dimension */
-} cgrad_tensor_layout;
+} cgrad_storage_layout;
 
 // --- Copy/Initialization ---
 
@@ -23,7 +23,7 @@ typedef struct cgrad_tensor_layout {
  * @param dst Destination layout.
  * @param src Source layout.
  */
-void cgrad_tensor_layout_copy(cgrad_tensor_layout* dst, const cgrad_tensor_layout* src);
+void cgrad_storage_layout_copy(cgrad_storage_layout* dst, const cgrad_storage_layout* src);
 
 /**
  * @brief Initialize a tensor layout with the given shape and ndim.
@@ -34,7 +34,7 @@ void cgrad_tensor_layout_copy(cgrad_tensor_layout* dst, const cgrad_tensor_layou
  * @param ndim Number of dimensions in shape (<= TENSOR_DIM).
  * @return 0 on success, error code otherwise.
  */
-int cgrad_tensor_layout_init(cgrad_tensor_layout* l, const uint32_t* shape, int ndim);
+int cgrad_storage_layout_init(cgrad_storage_layout* l, const uint32_t* shape, int ndim);
 
 // --- Indexing ---
 
@@ -43,14 +43,14 @@ int cgrad_tensor_layout_init(cgrad_tensor_layout* l, const uint32_t* shape, int 
  *        Checks that all indices are within bounds (0 <= idx < shape[i]).
  *        Indices of length ndim are mapped to the last ndim dims; leading indices behave as 0.
  *        For example, indices={2,3}, ndim=2, TENSOR_DIM=4 => layout.shape={1,1,3,4}, indices used as {0,0,2,3}
- *        If any index is out of bounds, returns CGRAD_LAYOUT_ERR_INDEX_OUT_OF_BOUNDS.
+ *        If any index is out of bounds, returns CGRAD_STORAGE_LAYOUT_ERR_INDEX_OUT_OF_BOUNDS.
  * @param layout Pointer to tensor layout (provides shape and strides).
  * @param indices Array of indices (length ndim).
  * @param ndim Number of dimensions in indices (<= TENSOR_DIM).
  * @param out_flat_index Pointer to size_t where the computed flat index will be stored.
- * @return CGRAD_SUCCESS on success, CGRAD_LAYOUT_ERR_INDEX_OUT_OF_BOUNDS if any index is out of bounds.
+ * @return CGRAD_SUCCESS on success, CGRAD_STORAGE_LAYOUT_ERR_INDEX_OUT_OF_BOUNDS if any index is out of bounds.
  */
-int cgrad_tensor_layout_flat_index(const cgrad_tensor_layout* layout, const uint32_t* indices, int ndim, size_t* out_flat_index);
+int cgrad_storage_layout_flat_index(const cgrad_storage_layout* layout, const uint32_t* indices, int ndim, size_t* out_flat_index);
 
 // --- Broadcasting ---
 
@@ -70,9 +70,9 @@ int cgrad_tensor_layout_flat_index(const cgrad_tensor_layout* layout, const uint
  * @param end_dim End dimension (exclusive).
  * @return 0 on success, -1 on failure.
  */
-int cgrad_tensor_layout_broadcast(
-    cgrad_tensor_layout* l1,
-    cgrad_tensor_layout* l2,
+int cgrad_storage_layout_broadcast(
+    cgrad_storage_layout* l1,
+    cgrad_storage_layout* l2,
     int start_dim,
     int end_dim
 );
@@ -86,9 +86,9 @@ int cgrad_tensor_layout_broadcast(
  * @param layout Pointer to layout.
  * @param perm Permutation array (length ndim).
  * @param ndim Number of dimensions to permute (<= TENSOR_DIM).
- * @return 0 on success, CGRAD_LAYOUT_ERR_DUPLICATE_DIM if a dimension is repeated.
+ * @return 0 on success, CGRAD_STORAGE_LAYOUT_ERR_DUPLICATE_DIM if a dimension is repeated.
  */
-int cgrad_tensor_layout_transpose(cgrad_tensor_layout* layout, const uint32_t* perm, int ndim);
+int cgrad_storage_layout_transpose(cgrad_storage_layout* layout, const uint32_t* perm, int ndim);
 
 // --- Info ---
 
@@ -97,14 +97,14 @@ int cgrad_tensor_layout_transpose(cgrad_tensor_layout* layout, const uint32_t* p
  * @param l Pointer to layout.
  * @return 1 if regular, 0 otherwise.
  */
-int cgrad_tensor_layout_is_regular(const cgrad_tensor_layout* l);
+int cgrad_storage_layout_is_regular(const cgrad_storage_layout* l);
 
 /**
  * @brief Returns 1 if the layout is contiguous, 0 otherwise.
  * @param l Pointer to layout.
  * @return 1 if contiguous, 0 otherwise.
  */
-int cgrad_tensor_layout_is_contiguous(const cgrad_tensor_layout* l);
+int cgrad_storage_layout_is_contiguous(const cgrad_storage_layout* l);
 
 /**
  * @brief Reshape the layout to a new shape (with at most one -1 to infer dimension).
@@ -115,16 +115,16 @@ int cgrad_tensor_layout_is_contiguous(const cgrad_tensor_layout* l);
  * @param new_shape Array of new dimensions (length ndim, may contain one -1).
  * @param ndim Number of dimensions in new_shape (<= TENSOR_DIM).
  * @return CGRAD_SUCCESS on success,
- *         CGRAD_LAYOUT_ERR_RESHAPE_INVALID_SHAPE if shape is invalid,
- *         CGRAD_LAYOUT_ERR_NOT_REGULAR if layout is not regular.
+ *         CGRAD_STORAGE_LAYOUT_ERR_RESHAPE_INVALID_SHAPE if shape is invalid,
+ *         CGRAD_STORAGE_LAYOUT_ERR_NOT_REGULAR if layout is not regular.
  */
-int cgrad_tensor_layout_reshape(cgrad_tensor_layout* layout, const int32_t* new_shape, int ndim);
+int cgrad_storage_layout_reshape(cgrad_storage_layout* layout, const int32_t* new_shape, int ndim);
 
 /**
  * @brief Print the shape of the layout in the format (d0, d1, ..., dn).
  * @param l Pointer to layout.
  * @param ndim Number of dimensions to print (<= TENSOR_DIM).
  */
-void cgrad_tensor_layout_print_shape(const cgrad_tensor_layout* l, int ndim);
+void cgrad_storage_layout_print_shape(const cgrad_storage_layout* l, int ndim);
 
-#endif // CGRAD_LAYOUT_H
+#endif // CGRAD_STORAGE_LAYOUT_H

@@ -3,7 +3,7 @@
 
 extern "C" {
 #include "cgrad_errors.h"
-#include "cgrad_tensor.h"
+#include "cgrad_storage.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -18,28 +18,28 @@ static void BM_MakeContiguous(benchmark::State& state) {
 
     // initialize tensor and fill with random values
     uint32_t shape[4] = {512, 32, 32, 32};
-    if (cgrad_tensor_init(&t, shape, 4, CGRAD_BACKEND)) {
+    if (cgrad_storage_init(&t, shape, 4, CGRAD_BACKEND)) {
         state.SkipWithError("Failed to initialize tensor");
         return;
     }
     
-    if (cgrad_tensor_fill_rand(&t)) {
+    if (cgrad_storage_fill_rand(&t)) {
         state.SkipWithError("Failed to fill tensor with random values");
-        cgrad_tensor_free(&t);
+        cgrad_storage_free(&t);
         return;
     }
 
     uint32_t perm[4] = {2, 1, 3, 0};
-    int err = cgrad_tensor_transpose(&t, perm, 4);
+    int err = cgrad_storage_transpose(&t, perm, 4);
     if (err != CGRAD_SUCCESS) {
         // skip error with error code
         state.SkipWithError("Failed to transpose tensor");
-        cgrad_tensor_free(&t);
+        cgrad_storage_free(&t);
         return;
     }
 
     for (auto _ : state) {
-        int _err = cgrad_tensor_contiguous(&t, &t_contig);
+        int _err = cgrad_storage_contiguous(&t, &t_contig);
 
         state.PauseTiming();
 
@@ -48,13 +48,13 @@ static void BM_MakeContiguous(benchmark::State& state) {
             break;
         }
         // free contiguous tensor
-        cgrad_tensor_free(&t_contig);
+        cgrad_storage_free(&t_contig);
 
         state.ResumeTiming();
     }
 
     // free tensors
-    cgrad_tensor_free(&t);
+    cgrad_storage_free(&t);
 }
 BENCHMARK(BM_MakeContiguous)
     ->Unit(benchmark::kSecond)
@@ -71,26 +71,26 @@ static void BM_TensorGEMM(benchmark::State& state) {
     cgrad_tensor a, b, r;
 
     if (
-        cgrad_tensor_init(&a, shape_a, 2, CGRAD_BACKEND_F32_CPU)
-        || cgrad_tensor_init(&b, shape_b, 2, CGRAD_BACKEND_F32_CPU)
+        cgrad_storage_init(&a, shape_a, 2, CGRAD_BACKEND_F32_CPU)
+        || cgrad_storage_init(&b, shape_b, 2, CGRAD_BACKEND_F32_CPU)
     ) {
         state.SkipWithError("Failed to initialize tensors for GEMM");
         return;
     }
-    cgrad_tensor_fill_rand(&a);
-    cgrad_tensor_fill_rand(&b);
+    cgrad_storage_fill_rand(&a);
+    cgrad_storage_fill_rand(&b);
 
     for (auto _ : state) {
         r.data = NULL; r.backend = NULL;
-        int err = cgrad_tensor_gemm(&a, &b, &r);
+        int err = cgrad_storage_gemm(&a, &b, &r);
         if (err != CGRAD_SUCCESS) {
             state.SkipWithError("GEMM failed");
             break;
         }
-        cgrad_tensor_free(&r);
+        cgrad_storage_free(&r);
     }
-    cgrad_tensor_free(&a);
-    cgrad_tensor_free(&b);
+    cgrad_storage_free(&a);
+    cgrad_storage_free(&b);
 }
 // Register GEMM for several shape setups (M, K, N)
 BENCHMARK(BM_TensorGEMM)
@@ -108,26 +108,26 @@ static void BM_TensorAdd(benchmark::State& state) {
     cgrad_tensor a, b, r;
 
     if (
-        cgrad_tensor_init(&a, shape, 2, CGRAD_BACKEND_F32_CPU)
-        || cgrad_tensor_init(&b, shape, 2, CGRAD_BACKEND_F32_CPU)
+        cgrad_storage_init(&a, shape, 2, CGRAD_BACKEND_F32_CPU)
+        || cgrad_storage_init(&b, shape, 2, CGRAD_BACKEND_F32_CPU)
     ) {
         state.SkipWithError("Failed to initialize tensors for add");
         return;
     }
-    cgrad_tensor_fill_rand(&a);
-    cgrad_tensor_fill_rand(&b);
+    cgrad_storage_fill_rand(&a);
+    cgrad_storage_fill_rand(&b);
 
     for (auto _ : state) {
         r.data = NULL; r.backend = NULL;
-        int err = cgrad_tensor_add(&a, &b, &r);
+        int err = cgrad_storage_add(&a, &b, &r);
         if (err != CGRAD_SUCCESS) {
             state.SkipWithError("Add failed");
             break;
         }
-        cgrad_tensor_free(&r);
+        cgrad_storage_free(&r);
     }
-    cgrad_tensor_free(&a);
-    cgrad_tensor_free(&b);
+    cgrad_storage_free(&a);
+    cgrad_storage_free(&b);
 }
 // Register add for several shape setups (dim0, dim1)
 BENCHMARK(BM_TensorAdd)

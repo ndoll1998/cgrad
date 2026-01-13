@@ -1,52 +1,52 @@
-#ifndef CGRAD_TENSOR_REGISTRY_H
-#define CGRAD_TENSOR_REGISTRY_H
+#ifndef CGRAD_STORAGE_REGISTRY_H
+#define CGRAD_STORAGE_REGISTRY_H
 
-#include "cgrad_tensor.h"
+#include "cgrad_storage.h"
 #include "uthash.h"
 
 /**
- * @brief Wrapper for tracking tensors in a bucket (hashable by pointer).
+ * @brief Wrapper for tracking storage in a bucket (hashable by pointer).
  */
-typedef struct cgrad_tensor_registry_tensor_entry {
-    uuid_t uuid; /**< UUID of the tensor (key). */
-    cgrad_tensor* tensor; /**< Pointer to the tensor (value). */
+typedef struct cgrad_storage_registry_entry_tensor {
+    uuid_t uuid; /**< UUID of the storage (key). */
+    cgrad_storage* storage; /**< Pointer to the storage (value). */
     UT_hash_handle hh;    /**< uthash handle for hashmap. */
-} cgrad_tensor_registry_tensor_entry;
+} cgrad_storage_registry_entry_tensor;
 
 /**
- * @brief Bucket structure for tensor registry.
- *        Tracks tensors sharing the same memory pool.
+ * @brief Bucket structure for storage registry.
+ *        Tracks storage sharing the same memory pool.
  */
-typedef struct cgrad_tensor_registry_bucket {
-    cgrad_tensor root; /**< Root tensor of the bucket (first tensor registered, stored by value). */
-    cgrad_tensor_registry_tensor_entry* tensor_map; /**< Hashmap of tensors in this bucket. */
+typedef struct cgrad_storage_registry_bucket {
+    cgrad_storage root; /**< Root storage of the bucket (first storage registered, stored by value). */
+    cgrad_storage_registry_entry_tensor* storage_map; /**< Hashmap of storage in this bucket. */
     UT_hash_handle hh; /**< uthash handle for bucket_map. */
-} cgrad_tensor_registry_bucket;
+} cgrad_storage_registry_bucket;
 
 /**
- * @brief Registry entry mapping a tensor to its bucket.
+ * @brief Registry entry mapping a storage to its bucket.
  */
-typedef struct cgrad_tensor_registry_entry {
-    uuid_t uuid; /**< UUID of the tensor (key). */
-    cgrad_tensor* tensor; /**< Pointer to the tensor (value). */
-    cgrad_tensor_registry_bucket* bucket; /**< Pointer to the bucket. */
+typedef struct cgrad_storage_registry_entry {
+    uuid_t uuid; /**< UUID of the storage (key). */
+    cgrad_storage* storage; /**< Pointer to the storage (value). */
+    cgrad_storage_registry_bucket* bucket; /**< Pointer to the bucket. */
     UT_hash_handle hh; /**< uthash handle for hashmap. */
-} cgrad_tensor_registry_entry;
+} cgrad_storage_registry_entry;
 
 /**
- * @brief Global tensor registry structure.
- *        Maintains a hashmap of all registered tensors to their buckets,
+ * @brief Global storage registry structure.
+ *        Maintains a hashmap of all registered storage to their buckets,
  *        and a hashmap of all buckets keyed by root uuid.
  */
-typedef struct cgrad_tensor_registry {
-    cgrad_tensor_registry_entry* tensor_map; /**< Hashmap of tensors to buckets. */
-    cgrad_tensor_registry_bucket* bucket_map; /**< Hashmap of all buckets, keyed by root uuid. */
-} cgrad_tensor_registry;
+typedef struct cgrad_storage_registry {
+    cgrad_storage_registry_entry* storage_map; /**< Hashmap of storage to buckets. */
+    cgrad_storage_registry_bucket* bucket_map; /**< Hashmap of all buckets, keyed by root uuid. */
+} cgrad_storage_registry;
 
 /**
- * @brief Global tensor registry instance.
+ * @brief Global storage registry instance.
  */
-extern struct cgrad_tensor_registry global_tensor_registry;
+extern struct cgrad_storage_registry global_storage_registry;
 
 /**
  * @brief Register a tensor in the global tensor registry.
@@ -56,7 +56,7 @@ extern struct cgrad_tensor_registry global_tensor_registry;
  * @param parent Pointer to parent tensor (or NULL).
  * @return CGRAD_SUCCESS on success, CGRAD_TENSOR_ERR_PARENT_NOT_REGISTERED if parent is not in registry.
  */
-int cgrad_tensor_registry_register(cgrad_tensor* t, const cgrad_tensor* parent);
+int cgrad_storage_registry_register(cgrad_storage* t, const cgrad_storage* parent);
 
 /**
  * @brief Deregister a tensor from the global tensor registry.
@@ -71,13 +71,13 @@ int cgrad_tensor_registry_register(cgrad_tensor* t, const cgrad_tensor* parent);
  * @param t Pointer to tensor to deregister.
  * @return CGRAD_SUCCESS on success, CGRAD_TENSOR_ERR_PARENT_NOT_REGISTERED if tensor is not registered.
  */
-int cgrad_tensor_registry_deregister(cgrad_tensor* t);
+int cgrad_storage_registry_deregister(cgrad_storage* t);
 
 /**
  * @brief Get the number of tensors currently registered in the global tensor registry.
  * @return Number of registered tensors.
  */
-size_t cgrad_tensor_registry_count(void);
+size_t cgrad_storage_registry_count(void);
 
 /**
  * @brief Get the number of tensors in the bucket containing the given tensor.
@@ -85,7 +85,7 @@ size_t cgrad_tensor_registry_count(void);
  * @param t Pointer to any tensor in the bucket.
  * @return Number of tensors in the bucket, or 0 if not registered.
  */
-size_t cgrad_tensor_registry_get_bucket_size(const cgrad_tensor* t);
+size_t cgrad_storage_registry_get_bucket_size(const cgrad_storage* t);
 
 /**
  * @brief Deregister all tensors in the bucket containing the given tensor and delete the bucket.
@@ -94,7 +94,7 @@ size_t cgrad_tensor_registry_get_bucket_size(const cgrad_tensor* t);
  * @return CGRAD_SUCCESS on success, CGRAD_TENSOR_ERR_PARENT_NOT_REGISTERED if tensor is not registered,
  *         CGRAD_TENSOR_ERR_BUCKET_NOT_EMPTY if the bucket is not empty.
  */
-int cgrad_tensor_registry_deregister_and_delete_bucket(const cgrad_tensor* t);
+int cgrad_storage_registry_deregister_and_delete_bucket(const cgrad_storage* t);
 
 /**
  * @brief Get the root tensor of the bucket containing the given tensor.
@@ -103,13 +103,13 @@ int cgrad_tensor_registry_deregister_and_delete_bucket(const cgrad_tensor* t);
  * @param root_out Output pointer to receive the root tensor (by value).
  * @return CGRAD_SUCCESS on success, CGRAD_TENSOR_ERR_PARENT_NOT_REGISTERED if tensor is not registered.
  */
-int cgrad_tensor_registry_get_root(const cgrad_tensor* t, cgrad_tensor* root_out);
+int cgrad_storage_registry_get_root(const cgrad_storage* t, cgrad_storage* root_out);
 
 /**
  * @brief Print the contents of the tensor registry to stdout.
  *        Each bucket is printed with its root tensor's uuid and shape, and all members indented below.
  */
-void cgrad_tensor_registry_print(void);
+void cgrad_storage_registry_print(void);
 
 
-#endif // CGRAD_TENSOR_REGISTRY_H
+#endif // CGRAD_STORAGE_REGISTRY_H
