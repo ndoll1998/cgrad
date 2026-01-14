@@ -1,6 +1,7 @@
 #include "cgrad_tensor.h"
 #include "cgrad_errors.h"
 #include "cgrad_storage.h"
+#include "cgrad_storage_registry.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>

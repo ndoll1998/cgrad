@@ -44,19 +44,28 @@ typedef struct cgrad_storage_registry {
 } cgrad_storage_registry;
 
 /**
- * @brief Global storage registry instance.
+ * @brief Initialize a storage registry.
+ * @param registry Pointer to registry to initialize.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-extern struct cgrad_storage_registry global_storage_registry;
+int cgrad_storage_registry_init(cgrad_storage_registry* registry);
 
 /**
- * @brief Register a tensor in the global tensor registry.
+ * @brief Free a storage registry and all its resources.
+ * @param registry Pointer to registry to free.
+ */
+void cgrad_storage_registry_free(cgrad_storage_registry* registry);
+
+/**
+ * @brief Register a tensor in the tensor registry.
  *        If parent is NULL, creates a new bucket with t as root.
  *        If parent is not NULL, adds t to the parent's bucket (if parent is registered).
+ * @param registry Pointer to the registry.
  * @param t Pointer to tensor to register.
  * @param parent Pointer to parent tensor (or NULL).
  * @return CGRAD_SUCCESS on success, CGRAD_TENSOR_ERR_PARENT_NOT_REGISTERED if parent is not in registry.
  */
-int cgrad_storage_registry_register(cgrad_storage* t, const cgrad_storage* parent);
+int cgrad_storage_registry_register(cgrad_storage_registry* registry, cgrad_storage* t, const cgrad_storage* parent);
 
 /**
  * @brief Deregister a tensor from the global tensor registry.
@@ -67,49 +76,55 @@ int cgrad_storage_registry_register(cgrad_storage* t, const cgrad_storage* paren
  * @return CGRAD_SUCCESS on success, CGRAD_TENSOR_ERR_PARENT_NOT_REGISTERED if tensor is not registered.
  */
 /**
- * @brief Deregister a tensor from the global tensor registry.
+ * @brief Deregister a tensor from the tensor registry.
+ * @param registry Pointer to the registry.
  * @param t Pointer to tensor to deregister.
  * @return CGRAD_SUCCESS on success, CGRAD_TENSOR_ERR_PARENT_NOT_REGISTERED if tensor is not registered.
  */
-int cgrad_storage_registry_deregister(cgrad_storage* t);
+int cgrad_storage_registry_deregister(cgrad_storage_registry* registry, cgrad_storage* t);
 
 /**
- * @brief Get the number of tensors currently registered in the global tensor registry.
+ * @brief Get the number of tensors currently registered in the tensor registry.
+ * @param registry Pointer to the registry.
  * @return Number of registered tensors.
  */
-size_t cgrad_storage_registry_count(void);
+size_t cgrad_storage_registry_count(cgrad_storage_registry* registry);
 
 /**
  * @brief Get the number of tensors in the bucket containing the given tensor.
  *        Returns 0 if the tensor is not registered.
+ * @param registry Pointer to the registry.
  * @param t Pointer to any tensor in the bucket.
  * @return Number of tensors in the bucket, or 0 if not registered.
  */
-size_t cgrad_storage_registry_get_bucket_size(const cgrad_storage* t);
+size_t cgrad_storage_registry_get_bucket_size(cgrad_storage_registry* registry, const cgrad_storage* t);
 
 /**
  * @brief Deregister all tensors in the bucket containing the given tensor and delete the bucket.
  *        Only succeeds if the bucket is empty.
+ * @param registry Pointer to the registry.
  * @param t Pointer to any tensor in the bucket.
  * @return CGRAD_SUCCESS on success, CGRAD_TENSOR_ERR_PARENT_NOT_REGISTERED if tensor is not registered,
  *         CGRAD_TENSOR_ERR_BUCKET_NOT_EMPTY if the bucket is not empty.
  */
-int cgrad_storage_registry_deregister_and_delete_bucket(const cgrad_storage* t);
+int cgrad_storage_registry_deregister_and_delete_bucket(cgrad_storage_registry* registry, const cgrad_storage* t);
 
 /**
  * @brief Get the root tensor of the bucket containing the given tensor.
  *        Writes the root tensor to *root_out.
+ * @param registry Pointer to the registry.
  * @param t Pointer to any tensor in the bucket.
  * @param root_out Output pointer to receive the root tensor (by value).
  * @return CGRAD_SUCCESS on success, CGRAD_TENSOR_ERR_PARENT_NOT_REGISTERED if tensor is not registered.
  */
-int cgrad_storage_registry_get_root(const cgrad_storage* t, cgrad_storage* root_out);
+int cgrad_storage_registry_get_root(cgrad_storage_registry* registry, const cgrad_storage* t, cgrad_storage* root_out);
 
 /**
  * @brief Print the contents of the tensor registry to stdout.
  *        Each bucket is printed with its root tensor's uuid and shape, and all members indented below.
+ * @param registry Pointer to the registry.
  */
-void cgrad_storage_registry_print(void);
+void cgrad_storage_registry_print(cgrad_storage_registry* registry);
 
 
 #endif // CGRAD_STORAGE_REGISTRY_H

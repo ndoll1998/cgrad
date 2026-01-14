@@ -5,6 +5,46 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdio.h>
+
+// ============================================================================
+// Global Storage Registry
+// ============================================================================
+
+static cgrad_storage_registry* g_global_registry = NULL;
+
+/**
+ * @brief Get or create the global storage registry.
+ * This is exposed for testing purposes.
+ */
+cgrad_storage_registry* get_global_registry(void) {
+    if (g_global_registry == NULL) {
+        g_global_registry = (cgrad_storage_registry*)malloc(sizeof(cgrad_storage_registry));
+        if (g_global_registry == NULL) {
+            return NULL;
+        }
+        
+        int ret = cgrad_storage_registry_init(g_global_registry);
+        if (ret != CGRAD_SUCCESS) {
+            free(g_global_registry);
+            g_global_registry = NULL;
+            return NULL;
+        }
+    }
+    
+    return g_global_registry;
+}
+
+/**
+ * @brief Cleanup the global storage registry.
+ */
+void cgrad_storage_cleanup_global_registry(void) {
+    if (g_global_registry != NULL) {
+        cgrad_storage_registry_free(g_global_registry);
+        free(g_global_registry);
+        g_global_registry = NULL;
+    }
+}
 
 /**
  * @brief Initialize a high-level tensor with the given shape and backend type.
@@ -37,11 +77,12 @@ int cgrad_storage_init(cgrad_storage* t, const uint32_t* shape, int ndim, cgrad_
     t->backend = backend;
 
     // Register tensor in global registry as a new root
-    cgrad_storage_registry_register(t, NULL);
+    cgrad_storage_registry* registry = get_global_registry();
+    if (registry) {
+        cgrad_storage_registry_register(registry, t, NULL);
+    }
     return CGRAD_SUCCESS;
 }
-
-#include <stdio.h>
 
 /**
  * @brief Perform a shallow copy of a tensor (copies handle, not data).
@@ -73,7 +114,11 @@ int cgrad_storage_shallow_copy(const cgrad_storage* src, cgrad_storage* dst) {
     dst->backend = src->backend;
 
     // Register the shallow copy in the registry with src as parent
-    return cgrad_storage_registry_register(dst, src);
+    cgrad_storage_registry* registry = get_global_registry();
+    if (registry) {
+        return cgrad_storage_registry_register(registry, dst, src);
+    }
+    return CGRAD_SUCCESS;
 }
 
 /**
@@ -85,24 +130,27 @@ int cgrad_storage_shallow_copy(const cgrad_storage* src, cgrad_storage* dst) {
 int cgrad_storage_free(cgrad_storage* t) {
     if (!t || !t->backend || !t->data) return CGRAD_ERR_NULL_POINTER;
 
+    cgrad_storage_registry* registry = get_global_registry();
+    if (!registry) return CGRAD_ERR_NULL_POINTER;
+
     // get the root tensor (holding the data)
     cgrad_storage root;
-    int err = cgrad_storage_registry_get_root(t, &root);
+    int err = cgrad_storage_registry_get_root(registry, t, &root);
     if (err != CGRAD_SUCCESS) return err;
 
-    if (cgrad_storage_registry_get_bucket_size(t) == 1) {
+    if (cgrad_storage_registry_get_bucket_size(registry, t) == 1) {
         // this is the only tensor in the bucket
         // free the root
         t->backend->storage_free(root.data);
         // delete the whole bucket
-        err = cgrad_storage_registry_deregister_and_delete_bucket(t);
+        err = cgrad_storage_registry_deregister_and_delete_bucket(registry, t);
         if (err != CGRAD_SUCCESS) return err;
         // free root handle after delete
         free(t->data);
         t->data = NULL;
     } else {
         // deregister the tensor
-        err = cgrad_storage_registry_deregister(t);
+        err = cgrad_storage_registry_deregister(registry, t);
         if (err != CGRAD_SUCCESS) return err;
         // free the tensor handle if this is not the root tensor
         if (uuid_compare(t->uuid, root.uuid)) {
@@ -154,10 +202,18 @@ int cgrad_storage_gemm(
     if (a->backend != b->backend) return CGRAD_STORAGE_ERR_BACKEND_MISMATCH;
 
     // create shallow copies of a and b
-    cgrad_storage a_bcast = *a;
-    cgrad_storage b_bcast = *b;
-    a->backend->storage_shallow_copy(a->data, a_bcast.data);
-    b->backend->storage_shallow_copy(b->data, b_bcast.data);
+    cgrad_storage a_bcast;
+    int err = cgrad_storage_shallow_copy(a, &a_bcast);
+    if (err != CGRAD_SUCCESS) {
+        return err;
+    }
+    
+    cgrad_storage b_bcast;
+    err = cgrad_storage_shallow_copy(b, &b_bcast);
+    if (err != CGRAD_SUCCESS) {
+        cgrad_storage_free(a_bcast);
+        return err;
+    }
 
     // broadcast layouts
     int bcast_err = cgrad_storage_layout_broadcast(
@@ -178,19 +234,13 @@ int cgrad_storage_gemm(
     if (!r->data) {
         cgrad_storage_init(r, r_shape, TENSOR_DIM, a->backend->type);
     } else {
-        // Allow writing to existing tensor if shape matches
-        const cgrad_storage_layout* r_layout = r->backend->storage_get_layout(r->data);
-        int shape_match = 1;
-        for (int i = 0; i < TENSOR_DIM; ++i) {
-            if (r_layout->shape[i] != r_shape[i]) {
-                shape_match = 0;
-                break;
-            }
-        }
-        if (!shape_match) {
-            return CGRAD_STORAGE_ERR_SHAPE_MISMATCH;
-        }
+        // TODO: Allow writing to existing tensor if shape matches and r is contiguous
+        return CGRAD_ERR_NOT_IMPLEMENTED;
     }
+
+    // cleanup
+    cgrad_storage_free(&a_bcast);
+    cgrad_storage_free(&b_bcast);
 
     return a->backend->storage_gemm(a->data, b->data, r->data);
 }

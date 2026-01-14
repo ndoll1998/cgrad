@@ -8,6 +8,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+// Forward declare getter - it's internal to storage module
+extern cgrad_storage_registry* get_global_registry(void);
+
 static void test_cgrad_storage_init_and_free(void **state) {
     cgrad_storage t;
     uint32_t shape[TENSOR_DIM] = {2, 3, 4, 5};
@@ -79,7 +82,10 @@ static void test_cgrad_storage_reshape(void **state) {
     cgrad_storage_free(&dst);
 
     // Ensure registry is empty
-    assert_int_equal(cgrad_storage_registry_count(), 0);
+    cgrad_storage_registry* registry = get_global_registry();
+    if (registry) {
+        assert_int_equal(cgrad_storage_registry_count(registry), 0);
+    }
 }
 
 static int mock_storage_free_count = 0;
@@ -90,6 +96,9 @@ static void mock_storage_free(void* handle) {
 
 static void test_cgrad_storage_registry_root_freed_only_after_all_children(void **state) {
     (void)state;
+    cgrad_storage_registry* registry = get_global_registry();
+    assert_non_null(registry);
+    
     // Setup mock backend
     cgrad_storage_backend mock_backend = {0};
     mock_backend.storage_free = mock_storage_free;
@@ -100,17 +109,17 @@ static void test_cgrad_storage_registry_root_freed_only_after_all_children(void 
     cgrad_storage root = {0};
 
     // Register root
-    cgrad_storage_registry_register(&root, NULL);
+    cgrad_storage_registry_register(registry, &root, NULL);
 
     // Create two children (simulate shallow copies)
     cgrad_storage child1 = {0}, child2 = {0};
     child1.backend = &mock_backend;
     child1.data = malloc(1);
-    cgrad_storage_registry_register(&child1, &root);
+    cgrad_storage_registry_register(registry, &child1, &root);
 
     child2.backend = &mock_backend;
     child2.data = malloc(1);
-    cgrad_storage_registry_register(&child2, &root);
+    cgrad_storage_registry_register(registry, &child2, &root);
 
     mock_storage_free_count = 0;
 
@@ -127,6 +136,8 @@ static void test_cgrad_storage_registry_root_freed_only_after_all_children(void 
     // Manually free all handles to avoid memory leaks
     free(child1.data);
     free(child2.data);
+    
+    cgrad_storage_cleanup_global_registry();
 }
 
 static void test_cgrad_storage_sum(void **state) {

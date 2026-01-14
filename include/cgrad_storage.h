@@ -54,6 +54,13 @@ int cgrad_storage_contiguous(const cgrad_storage* src, cgrad_storage* dst);
 int cgrad_storage_free(cgrad_storage* t);
 
 /**
+ * @brief Cleanup the global storage registry.
+ * 
+ * This should be called at program shutdown to free all registry resources.
+ */
+void cgrad_storage_cleanup_global_registry(void);
+
+/**
  * @brief Fill the tensor with a constant value.
  * @param t Pointer to tensor.
  * @param value The value to fill the tensor with.
