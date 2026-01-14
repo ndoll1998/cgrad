@@ -110,4 +110,11 @@ typedef struct cgrad_storage_backend {
     // Add more ops as needed (e.g., build_batch_array, ptr, set, contiguous, etc.)
 } cgrad_storage_backend;
 
+/**
+ * @brief Get the backend for a given backend type.
+ * @param type Backend type.
+ * @return Pointer to the backend.
+ */
+cgrad_storage_backend* cgrad_get_backend(cgrad_storage_backend_type type);
+
 #endif // CGRAD_STORAGE_BACKEND_H

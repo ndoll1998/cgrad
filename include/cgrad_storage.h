@@ -170,13 +170,4 @@ int cgrad_storage_reshape(const cgrad_storage* src, cgrad_storage* dst, const in
  */
 int cgrad_storage_transpose(const cgrad_storage* src, cgrad_storage* dst, const uint32_t* perm, int ndim);
 
-// --- Backend Registry (for internal use) ---
-
-/**
- * @brief Get the backend for a given backend type.
- * @param type Backend type.
- * @return Pointer to the backend.
- */
-cgrad_storage_backend* cgrad_get_backend(cgrad_storage_backend_type type);
-
 #endif // CGRAD_STORAGE_H
