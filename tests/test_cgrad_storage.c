@@ -140,6 +140,43 @@ static void test_cgrad_storage_registry_root_freed_only_after_all_children(void 
     cgrad_storage_cleanup_global_registry();
 }
 
+static void test_cgrad_storage_gemm_write_to_existing_tensor(void **state) {
+    (void)state;
+    // Create two input tensors for GEMM: a (2x3) and b (3x4)
+    cgrad_storage a = {0}, b = {0};
+    uint32_t a_shape[TENSOR_DIM] = {1,1,1,1,1,1,2,3};
+    uint32_t b_shape[TENSOR_DIM] = {1,1,1,1,1,1,3,4};
+    assert_int_equal(cgrad_storage_init(&a, a_shape, 8, CGRAD_STORAGE_BACKEND_F32_CPU), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_init(&b, b_shape, 8, CGRAD_STORAGE_BACKEND_F32_CPU), CGRAD_SUCCESS);
+    
+    // Fill with test values
+    assert_int_equal(cgrad_storage_fill(&a, 1.0f), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_fill(&b, 2.0f), CGRAD_SUCCESS);
+    
+    // Test 1: GEMM with uninitialized result tensor (should work)
+    cgrad_storage r1 = {0};
+    assert_int_equal(cgrad_storage_gemm(1.0f, &a, &b, 0.0f, &r1), CGRAD_SUCCESS);
+    cgrad_storage_free(&r1);
+    
+    // Test 2: GEMM with pre-initialized result tensor with matching shape (should work)
+    cgrad_storage r2 = {0};
+    uint32_t r_shape[TENSOR_DIM] = {1,1,1,1,1,1,2,4};
+    assert_int_equal(cgrad_storage_init(&r2, r_shape, 8, CGRAD_STORAGE_BACKEND_F32_CPU), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_gemm(1.0f, &a, &b, 0.0f, &r2), CGRAD_SUCCESS);
+    cgrad_storage_free(&r2);
+    
+    // Test 3: GEMM with pre-initialized result tensor with mismatched shape (should fail with SHAPE_MISMATCH)
+    cgrad_storage r3 = {0};
+    uint32_t wrong_shape[TENSOR_DIM] = {1,1,1,1,1,1,3,3};  // Wrong shape
+    assert_int_equal(cgrad_storage_init(&r3, wrong_shape, 8, CGRAD_STORAGE_BACKEND_F32_CPU), CGRAD_SUCCESS);
+    int err = cgrad_storage_gemm(1.0f, &a, &b, 0.0f, &r3);
+    assert_int_equal(err, CGRAD_STORAGE_ERR_SHAPE_MISMATCH);
+    cgrad_storage_free(&r3);
+    
+    cgrad_storage_free(&a);
+    cgrad_storage_free(&b);
+}
+
 static void test_cgrad_storage_sum(void **state) {
     (void)state;
     // Create a 2x3 tensor with values 1,2,3,4,5,6
@@ -206,6 +243,7 @@ int run_cgrad_storage_tests(void) {
         cmocka_unit_test(test_cgrad_storage_contiguous),
         cmocka_unit_test(test_cgrad_storage_reshape),
         cmocka_unit_test(test_cgrad_storage_registry_root_freed_only_after_all_children),
+        cmocka_unit_test(test_cgrad_storage_gemm_write_to_existing_tensor),
         cmocka_unit_test(test_cgrad_storage_sum),
     };
     return _cmocka_run_group_tests("cgrad_storage", tests, sizeof(tests)/sizeof(tests[0]), NULL, NULL);

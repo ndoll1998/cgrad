@@ -19,9 +19,11 @@ static int sub_forward(
         return CGRAD_GRAPH_ERR_INVALID_OPERATION;
     }
     
+    // Subtraction doesn't need to cache anything for backward pass
     *ctx = NULL;
     
-    return cgrad_storage_sub(inputs[0], inputs[1], output);
+    // Then subtract inputs[1]
+    return cgrad_storage_add(-1.0f, inputs[1], inputs[0], output);
 }
 
 /**

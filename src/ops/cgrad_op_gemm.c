@@ -22,7 +22,7 @@ static int gemm_forward(
     
     *ctx = NULL;
     
-    return cgrad_storage_gemm(inputs[0], inputs[1], output);
+    return cgrad_storage_gemm(1.0f, inputs[0], inputs[1], 0.0f, output);
 }
 
 /**
@@ -55,19 +55,9 @@ static int gemm_backward(
         ret = cgrad_storage_transpose(inputs[1], &b_transposed, perm, 2);
         if (ret != CGRAD_SUCCESS) return ret;
         
-        cgrad_storage grad_a_contrib = {0};
-        ret = cgrad_storage_gemm(grad_output, &b_transposed, &grad_a_contrib);
+        // Accumulate directly: grad_A = grad_A + 1.0 * (grad_C @ B^T)
+        ret = cgrad_storage_gemm(1.0f, grad_output, &b_transposed, 1.0f, grad_inputs[0]);
         cgrad_storage_free(&b_transposed);
-        if (ret != CGRAD_SUCCESS) return ret;
-        
-        // Accumulate: grad_A = grad_A + grad_a_contrib
-        ret = grad_inputs[0]->backend->storage_add(
-            1.0f,
-            grad_a_contrib.data,
-            grad_inputs[0]->data,
-            grad_inputs[0]->data
-        );
-        cgrad_storage_free(&grad_a_contrib);
         if (ret != CGRAD_SUCCESS) return ret;
     }
     
@@ -77,19 +67,9 @@ static int gemm_backward(
         ret = cgrad_storage_transpose(inputs[0], &a_transposed, perm, 2);
         if (ret != CGRAD_SUCCESS) return ret;
         
-        cgrad_storage grad_b_contrib = {0};
-        ret = cgrad_storage_gemm(&a_transposed, grad_output, &grad_b_contrib);
+        // Accumulate directly: grad_B = grad_B + 1.0 * (A^T @ grad_C)
+        ret = cgrad_storage_gemm(1.0f, &a_transposed, grad_output, 1.0f, grad_inputs[1]);
         cgrad_storage_free(&a_transposed);
-        if (ret != CGRAD_SUCCESS) return ret;
-        
-        // Accumulate: grad_B = grad_B + grad_b_contrib
-        ret = grad_inputs[1]->backend->storage_add(
-            1.0f,
-            grad_b_contrib.data,
-            grad_inputs[1]->data,
-            grad_inputs[1]->data
-        );
-        cgrad_storage_free(&grad_b_contrib);
         if (ret != CGRAD_SUCCESS) return ret;
     }
     

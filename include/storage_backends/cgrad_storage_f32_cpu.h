@@ -89,31 +89,34 @@ int cgrad_storage_f32_cpu_shallow_copy(const cgrad_storage_f32_cpu* src, cgrad_s
 void cgrad_storage_f32_cpu_free(cgrad_storage_f32_cpu* t);
 
 /**
- * @brief Add two tensors elementwise and store the result in a third tensor.
- *        Computes c = alpha * a + b.
- * @param a First input tensor.
- * @param b Second input tensor.
- * @param c Output tensor.
+ * @brief Add two tensors elementwise, modifying b in-place.
+ *        Computes b = alpha * a + b.
  * @param alpha Scaling factor for a.
+ * @param a First input tensor (read-only).
+ * @param b Second input tensor (modified in-place).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
 int cgrad_storage_f32_cpu_add(
   float alpha,
   const cgrad_storage_f32_cpu* a,
-  const cgrad_storage_f32_cpu* b,
-  cgrad_storage_f32_cpu* c
+  cgrad_storage_f32_cpu* b
 );
 
 /**
  * @brief Perform batched matrix multiplication (GEMM) on two tensors.
+ *        Computes c = alpha * a * b + beta * c.
+ * @param alpha Scaling factor for the matrix product.
  * @param a First input tensor.
  * @param b Second input tensor.
+ * @param beta Scaling factor for the output tensor.
  * @param c Output tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
 int cgrad_storage_f32_cpu_gemm(
+  float alpha,
   const cgrad_storage_f32_cpu* a,
   const cgrad_storage_f32_cpu* b,
+  float beta,
   cgrad_storage_f32_cpu* c
 );
 

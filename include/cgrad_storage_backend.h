@@ -75,8 +75,13 @@ typedef struct cgrad_storage_backend {
 
     /**
      * @brief Perform batched matrix multiplication (GEMM) on two storages.
+     * @param alpha Scaling factor for the matrix product (c = alpha * a * b + beta * c).
+     * @param a First input storage.
+     * @param b Second input storage.
+     * @param beta Scaling factor for the output storage.
+     * @param c Output storage.
      */
-    int  (*storage_gemm)(void* a, void* b, void* c);
+    int  (*storage_gemm)(float alpha, void* a, void* b, float beta, void* c);
 
     // --- Data Access/Info ---
     /**

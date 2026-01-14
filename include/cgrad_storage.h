@@ -121,32 +121,27 @@ int cgrad_storage_sum(const cgrad_storage* a, const uint8_t* mask, int ndim, cgr
 
 /**
  * @brief Perform batched matrix multiplication (GEMM) on two tensors.
+ *        Computes r = alpha * a * b + beta * r.
+ * @param alpha Scaling factor for the matrix product.
  * @param a First input tensor.
  * @param b Second input tensor.
+ * @param beta Scaling factor for the output tensor.
  * @param r Output tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_gemm(const cgrad_storage* a, const cgrad_storage* b, cgrad_storage* r);
+int cgrad_storage_gemm(float alpha, const cgrad_storage* a, const cgrad_storage* b, float beta, cgrad_storage* r);
 
 /**
  * @brief Add two tensors elementwise and store the result in a third tensor.
+ *        Computes r = alpha * a + r.
+ * @param alpha Scaling factor for a.
  * @param a First input tensor.
- * @param b Second input tensor.
+ * @param b Second input tensor (used to initialize r if r is uninitialized).
  * @param r Output tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
 
-int cgrad_storage_add(cgrad_storage* a, cgrad_storage* b, cgrad_storage* r);
-
-/**
- * @brief Subtract two tensors elementwise and store the result in a third tensor.
- *        Computes r = a - b.
- * @param a First input tensor.
- * @param b Second input tensor.
- * @param r Output tensor.
- * @return CGRAD_SUCCESS on success, error code otherwise.
- */
-int cgrad_storage_sub(cgrad_storage* a, cgrad_storage* b, cgrad_storage* r);
+int cgrad_storage_add(float alpha, cgrad_storage* a, cgrad_storage* b, cgrad_storage* r);
 
 // --- Data Transform ---
 

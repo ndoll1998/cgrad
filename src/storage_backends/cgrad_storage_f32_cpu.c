@@ -258,63 +258,63 @@ static void backend_cgrad_storage_f32_cpu_tensor_free(void* t) {
 }
 
 /**
- * @brief Add two tensors elementwise and store the result in a third tensor.
- * @param a First input tensor.
- * @param b Second input tensor.
- * @param c Output tensor.
+ * @brief Add two tensors elementwise, modifying b in-place.
+ * Computes: b = alpha * a + b
+ * 
+ * @param alpha Scaling factor for a.
+ * @param a First input tensor (read-only).
+ * @param b Second input tensor (modified in-place).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
 int cgrad_storage_f32_cpu_add(
   float alpha,
   const cgrad_storage_f32_cpu* a,
-  const cgrad_storage_f32_cpu* b,
-  cgrad_storage_f32_cpu* c
+  cgrad_storage_f32_cpu* b
 ) {
-  if (!a || !b || !c) return CGRAD_ERR_NULL_POINTER;
+  if (!a || !b) return CGRAD_ERR_NULL_POINTER;
   
+  // Check shapes match
   for (int d = 0; d < TENSOR_DIM; d++) {
     if (a->layout.shape[d] != b->layout.shape[d]) {
       return CGRAD_STORAGE_F32_CPU_ERR_SHAPE_MISMATCH;
     }
   }
-  
-  cgrad_storage_f32_cpu a_contig, b_contig;
-  int is_a_regular = cgrad_storage_layout_is_regular(&a->layout);
-  int is_b_regular = cgrad_storage_layout_is_regular(&b->layout);
-  const cgrad_storage_f32_cpu* a_used = a;
-  const cgrad_storage_f32_cpu* b_used = b;
-  if (!is_a_regular) {
-    cgrad_storage_f32_cpu_init(&a_contig, a->layout.shape, TENSOR_DIM);
-    int contig_err = cgrad_storage_f32_cpu_contiguous(a, &a_contig);
-    if (contig_err != CGRAD_SUCCESS) return contig_err;
-    a_used = &a_contig;
+
+  // Check if b is regular (required for in-place modification)
+  if (!cgrad_storage_layout_is_regular(&b->layout)) {
+    return CGRAD_ERR_NOT_IMPLEMENTED;
   }
-  if (!is_b_regular) {
-    cgrad_storage_f32_cpu_init(&b_contig, b->layout.shape, TENSOR_DIM);
-    int contig_err = cgrad_storage_f32_cpu_contiguous(b, &b_contig);
+
+  // Make a contiguous copy of a if needed
+  cgrad_storage_f32_cpu a_contig;
+  const cgrad_storage_f32_cpu* a_used = a;
+  int is_a_regular = cgrad_storage_layout_is_regular(&a->layout);
+  
+  if (!is_a_regular) {
+    int init_err = cgrad_storage_f32_cpu_init(&a_contig, a->layout.shape, TENSOR_DIM);
+    if (init_err != CGRAD_SUCCESS) return init_err;
+    
+    int contig_err = cgrad_storage_f32_cpu_contiguous(a, &a_contig);
     if (contig_err != CGRAD_SUCCESS) {
-      if (!is_a_regular) cgrad_storage_f32_cpu_free(&a_contig);
+      cgrad_storage_f32_cpu_free(&a_contig);
       return contig_err;
     }
-    b_used = &b_contig;
+    a_used = &a_contig;
   }
 
-  int contig_err = cgrad_storage_f32_cpu_contiguous(b_used, c);
-  if (contig_err != CGRAD_SUCCESS) {
-    if (!is_a_regular) cgrad_storage_f32_cpu_free(&a_contig);
-    if (!is_b_regular) cgrad_storage_f32_cpu_free(&b_contig);
-    return contig_err;
-  }
-
+  // Use cblas_saxpy to compute b = alpha * a + b
+  // Use strides from both a and b layouts
   cblas_saxpy(
-    c->layout.size,
+    b->layout.size,
     alpha,
     a_used->data, a_used->layout.strides[TENSOR_DIM-1],
-    c->data, 1
+    b->data, b->layout.strides[TENSOR_DIM-1]
   );
 
-  if (!is_a_regular) cgrad_storage_f32_cpu_free(&a_contig);
-  if (!is_b_regular) cgrad_storage_f32_cpu_free(&b_contig);
+  if (!is_a_regular) {
+    cgrad_storage_f32_cpu_free(&a_contig);
+  }
+  
   return CGRAD_SUCCESS;
 }
 
@@ -322,21 +322,24 @@ static int backend_cgrad_storage_f32_cpu_tensor_add(float alpha, void* a, void* 
     return cgrad_storage_f32_cpu_add(
         alpha,
         (const cgrad_storage_f32_cpu*)a,
-        (const cgrad_storage_f32_cpu*)b,
-        (cgrad_storage_f32_cpu*)c
+        (cgrad_storage_f32_cpu*)b
     );
 }
 
 /**
  * @brief Perform batched matrix multiplication (GEMM) on two tensors.
+ * @param alpha Scaling factor for the matrix product (c = alpha * a * b + beta * c).
  * @param a First input tensor.
  * @param b Second input tensor.
+ * @param beta Scaling factor for the output tensor.
  * @param c Output tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
 int cgrad_storage_f32_cpu_gemm(
+  float alpha,
   const cgrad_storage_f32_cpu* a,
   const cgrad_storage_f32_cpu* b,
+  float beta,
   cgrad_storage_f32_cpu* c
 ) {
   if (!a || !b || !c) return CGRAD_ERR_NULL_POINTER;
@@ -389,8 +392,6 @@ int cgrad_storage_f32_cpu_gemm(
 
   CBLAS_TRANSPOSE transA = CblasNoTrans;
   CBLAS_TRANSPOSE transB = CblasNoTrans;
-  float alpha = 1.0f;
-  float beta = 0.0f;
   
   int lda = a->layout.strides[TENSOR_DIM-2];
   int ldb = b->layout.strides[TENSOR_DIM-2];
@@ -420,8 +421,8 @@ int cgrad_storage_f32_cpu_gemm(
   return CGRAD_SUCCESS;
 }
 
-static int backend_cgrad_storage_f32_cpu_tensor_gemm(void* a, void* b, void* c) {
-    return cgrad_storage_f32_cpu_gemm((cgrad_storage_f32_cpu*)a, (cgrad_storage_f32_cpu*)b, (cgrad_storage_f32_cpu*)c);
+static int backend_cgrad_storage_f32_cpu_tensor_gemm(float alpha, void* a, void* b, float beta, void* c) {
+    return cgrad_storage_f32_cpu_gemm(alpha, (cgrad_storage_f32_cpu*)a, (cgrad_storage_f32_cpu*)b, beta, (cgrad_storage_f32_cpu*)c);
 }
 
 /**

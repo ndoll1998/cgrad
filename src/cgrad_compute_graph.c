@@ -770,51 +770,21 @@ static int execute_node(cgrad_compute_graph* graph, cgrad_graph_node* node) {
         return CGRAD_GRAPH_ERR_ALLOC_FAILED;
     }
 
-    // Execute operation based on type
-    switch (node->op_info.type) {
-        case CGRAD_OP_ADD:
-            ret = cgrad_storage_add(input_storages[0], input_storages[1], out_storage);
-            break;
-
-        case CGRAD_OP_SUB:
-            ret = cgrad_storage_sub(input_storages[0], input_storages[1], out_storage);
-            break;
-
-        case CGRAD_OP_GEMM:
-            ret = cgrad_storage_gemm(input_storages[0], input_storages[1], out_storage);
-            break;
-
-        case CGRAD_OP_TRANSPOSE:
-            ret = cgrad_storage_transpose(
-                input_storages[0],
-                out_storage,
-                node->op_info.metadata.transpose.perm,
-                node->op_info.metadata.transpose.ndim
-            );
-            break;
-
-        case CGRAD_OP_RESHAPE: {
-            ret = cgrad_storage_reshape(
-                input_storages[0], out_storage,
-                node->op_info.metadata.reshape.new_shape,
-                node->op_info.metadata.reshape.ndim
-            );
-            break;
-        }
-
-        case CGRAD_OP_REDUCE_SUM:
-            ret = cgrad_storage_sum(
-                input_storages[0],
-                node->op_info.metadata.reduce_sum.mask,
-                node->op_info.metadata.reduce_sum.ndim,
-                out_storage
-            );
-            break;
-
-        default:
-            free(out_storage);
-            return CGRAD_GRAPH_ERR_INVALID_OPERATION;
+    // Get operation descriptor
+    const cgrad_op_descriptor* op_desc = cgrad_get_op_descriptor(node->op_info.type);
+    if (op_desc == NULL || op_desc->forward == NULL) {
+        free(out_storage);
+        return CGRAD_GRAPH_ERR_INVALID_OPERATION;
     }
+
+    // Call forward function
+    ret = op_desc->forward(
+        input_storages,
+        num_inputs,
+        &node->op_info.metadata,
+        out_storage,
+        &node->ctx
+    );
 
     if (ret != CGRAD_SUCCESS) {
         cgrad_storage_free(out_storage);

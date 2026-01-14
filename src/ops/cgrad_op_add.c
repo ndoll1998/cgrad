@@ -22,7 +22,7 @@ static int add_forward(
     // Addition doesn't need to cache anything for backward pass
     *ctx = NULL;
     
-    return cgrad_storage_add(inputs[0], inputs[1], output);
+    return cgrad_storage_add(1.0f, inputs[0], inputs[1], output);
 }
 
 /**

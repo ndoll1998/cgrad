@@ -97,7 +97,7 @@ static void test_cgrad_tensor_f32_gemm_simple(void **state) {
     uint32_t shapeC[] = {1, 1, 2, 2};
     cgrad_storage_f32_cpu_init(&c, shapeC, 4);
 
-    int err = cgrad_storage_f32_cpu_gemm(&a, &b, &c);
+    int err = cgrad_storage_f32_cpu_gemm(1.0f, &a, &b, 0.0f, &c);
     assert_int_equal(err, 0);
 
     for (int i = 0; i < 4; i++) {
@@ -130,7 +130,7 @@ static void test_cgrad_tensor_f32_gemm_batched(void **state) {
     uint32_t shapeC[] = {1, 2, 2, 2};
     cgrad_storage_f32_cpu_init(&c, shapeC, 4);
 
-    int err = cgrad_storage_f32_cpu_gemm(&a, &b, &c);
+    int err = cgrad_storage_f32_cpu_gemm(1.0f, &a, &b, 0.0f, &c);
     assert_int_equal(err, 0);
 
     cgrad_storage_f32_cpu_free(&a);
@@ -163,7 +163,7 @@ static void test_cgrad_tensor_f32_gemm_with_transpose(void **state) {
     uint32_t shapeC[] = {1, 1, 3, 3};
     cgrad_storage_f32_cpu_init(&c, shapeC, 4);
 
-    cgrad_storage_f32_cpu_gemm(&a, &b, &c);
+    cgrad_storage_f32_cpu_gemm(1.0f, &a, &b, 0.0f, &c);
 
     for (int i = 0; i < 9; i++) {
         assert_true(fabsf(c.data[i] - expected[i]) <= EPSILON);
@@ -193,25 +193,24 @@ static void test_cgrad_tensor_f32_tensor_add(void **state) {
         c.data[i] = 0.0f;
     }
 
-    int err = cgrad_storage_f32_cpu_add(1.0f, &a, &b, &c);
+    // b = a + b (in-place)
+    int err = cgrad_storage_f32_cpu_add(1.0f, &a, &b);
     assert_int_equal(err, 0);
 
-    // Check c = a + b
-    for (int i = 0; i < c.layout.size; i++) {
-        assert_true(fabsf(c.data[i] - (a.data[i] + b.data[i])) < EPSILON);
+    // Check b = a + b
+    for (int i = 0; i < b.layout.size; i++) {
+        assert_true(fabsf(b.data[i] - (a.data[i] + (float)(1000 + i))) < EPSILON);
     }
 
     cgrad_storage_f32_cpu_free(&a);
     cgrad_storage_f32_cpu_free(&b);
-    cgrad_storage_f32_cpu_free(&c);
 }
 
 static void test_cgrad_tensor_f32_add_with_transposed_inputs(void **state) {
     (void)state;
-    cgrad_storage_f32_cpu a, b, c;
+    cgrad_storage_f32_cpu a, b;
     cgrad_storage_f32_cpu_init(&a, (uint32_t[]){2, 3, 4, 1}, 4);
     cgrad_storage_f32_cpu_init(&b, (uint32_t[]){2, 3, 4, 1}, 4);
-    cgrad_storage_f32_cpu_init(&c, (uint32_t[]){3, 2, 4, 1}, 4);
 
     // Fill a and b with known values
     for (int i = 0; i < a.layout.size; i++) {
@@ -219,33 +218,24 @@ static void test_cgrad_tensor_f32_add_with_transposed_inputs(void **state) {
         b.data[i] = (float)(1000 + i);
     }
 
-    // Zero c before add
-    for (int i = 0; i < c.layout.size; i++) {
-        c.data[i] = 0.0f;
-    }
-
     // Make a non-contiguous by transposing memory layout but keep shape the same
     assert_int_equal(cgrad_storage_layout_transpose(&a.layout, (uint32_t[]){1, 0, 2, 3}, 4), CGRAD_SUCCESS);
-    assert_int_equal(cgrad_storage_layout_transpose(&b.layout, (uint32_t[]){1, 0, 2, 3}, 4), CGRAD_SUCCESS);
 
-    // c = a_t + b
-    int err = cgrad_storage_f32_cpu_add(1.0f, &a, &b, &c);
+    // b = a + b (in-place)
+    int err = cgrad_storage_f32_cpu_add(1.0f, &a, &b);
     assert_int_equal(err, 0);
 
-    // Check c = a.t + b.t
-    for (int i = 0; i < c.layout.size; i++) {
-
-        float x = 0.0f, y = 0.0f, z = 0.0f;
+    // Check b = a + b
+    for (int i = 0; i < b.layout.size; i++) {
+        float x = 0.0f, y = 0.0f;
         assert_int_equal(cgrad_storage_f32_cpu_get(&a, (uint32_t[]){i / (2*4), (i / 4) % 2, (i % 4), 0}, 4, &x), CGRAD_SUCCESS);
         assert_int_equal(cgrad_storage_f32_cpu_get(&b, (uint32_t[]){i / (2*4), (i / 4) % 2, (i % 4), 0}, 4, &y), CGRAD_SUCCESS);
-        assert_int_equal(cgrad_storage_f32_cpu_get(&c, (uint32_t[]){i / (2*4), (i / 4) % 2, (i % 4), 0}, 4, &z), CGRAD_SUCCESS);
 
-        assert_true(fabsf(z - (x + y)) < EPSILON);
+        assert_true(fabsf(y - (x + (float)(1000 + i))) < EPSILON);
     }
 
     cgrad_storage_f32_cpu_free(&a);
     cgrad_storage_f32_cpu_free(&b);
-    cgrad_storage_f32_cpu_free(&c);
 }
 
 static void test_cgrad_tensor_f32_gemm_with_transposed_inputs(void **state) {
@@ -275,7 +265,7 @@ static void test_cgrad_tensor_f32_gemm_with_transposed_inputs(void **state) {
     uint32_t shapeC[] = {1, 1, 3, 3};
     cgrad_storage_f32_cpu_init(&c, shapeC, 4);
 
-    int err = cgrad_storage_f32_cpu_gemm(&a, &b, &c);
+    int err = cgrad_storage_f32_cpu_gemm(1.0f, &a, &b, 0.0f, &c);
     assert_int_equal(err, 0);
 
     // Check result

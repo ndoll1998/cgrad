@@ -230,14 +230,19 @@ int cgrad_storage_fill_rand(cgrad_storage* t) {
 
 /**
  * @brief Perform batched matrix multiplication (GEMM) on two tensors.
+ *        Computes r = alpha * a * b + beta * r.
+ * @param alpha Scaling factor for the matrix product.
  * @param a First input tensor.
  * @param b Second input tensor.
+ * @param beta Scaling factor for the output tensor.
  * @param r Output tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
 int cgrad_storage_gemm(
+    float alpha,
     const cgrad_storage* a,
     const cgrad_storage* b,
+    float beta,
     cgrad_storage* r
 ) {
     // validate tensors
@@ -293,13 +298,31 @@ int cgrad_storage_gemm(
             return err;
         }
     } else {
-        // TODO: Allow writing to existing tensor if shape matches and r is contiguous
-        cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
-        return CGRAD_ERR_NOT_IMPLEMENTED;
+        // Check if result tensor shape matches expected shape
+        const cgrad_storage_layout* r_layout = r->backend->storage_get_layout(r->data);
+        int shape_matches = 1;
+        for (int i = 0; i < TENSOR_DIM; ++i) {
+            if (r_layout->shape[i] != r_shape[i]) {
+                shape_matches = 0;
+                break;
+            }
+        }
+        
+        if (!shape_matches) {
+            cgrad_storage_stop_recording(storage_record);
+            cgrad_storage_free_all_from_record(storage_record);
+            return CGRAD_STORAGE_ERR_SHAPE_MISMATCH;
+        }
+        
+        // Check if tensor is contiguous
+        if (!cgrad_storage_layout_is_contiguous(r_layout)) {
+            cgrad_storage_stop_recording(storage_record);
+            cgrad_storage_free_all_from_record(storage_record);
+            return CGRAD_ERR_NOT_IMPLEMENTED;
+        }
     }
 
-    err = a->backend->storage_gemm(a->data, b->data, r->data);
+    err = a->backend->storage_gemm(alpha, a->data, b->data, beta, r->data);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
         cgrad_storage_free_all_from_record(storage_record);
@@ -314,12 +337,15 @@ int cgrad_storage_gemm(
 
 /**
  * @brief Add two tensors elementwise and store the result in a third tensor.
+ *        Computes r = alpha * a + r.
+ * @param alpha Scaling factor for a.
  * @param a First input tensor.
- * @param b Second input tensor.
+ * @param b Second input tensor (used to initialize r if r is uninitialized).
  * @param r Output tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
 int cgrad_storage_add(
+    float alpha,
     cgrad_storage* a,
     cgrad_storage* b,
     cgrad_storage* r
@@ -371,108 +397,43 @@ int cgrad_storage_add(
             return err;
         }
     } else {
-        // TODO: support writing to existing tensor with matching shape
-        cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
-        return CGRAD_ERR_NOT_IMPLEMENTED;
+        // Check if result tensor shape matches expected shape
+        const cgrad_storage_layout* r_layout = r->backend->storage_get_layout(r->data);
+        int shape_matches = 1;
+        for (int i = 0; i < TENSOR_DIM; ++i) {
+            if (r_layout->shape[i] != a_bcast.backend->storage_get_layout(a_bcast.data)->shape[i]) {
+                shape_matches = 0;
+                break;
+            }
+        }
+        
+        if (!shape_matches) {
+            cgrad_storage_stop_recording(storage_record);
+            cgrad_storage_free_all_from_record(storage_record);
+            return CGRAD_STORAGE_ERR_SHAPE_MISMATCH;
+        }
+        
+        // Check if r is contiguous
+        // TODO: we can use is_regular instead of contiguous once we implemented
+        //       storage_copy as a less strict version of storage_contiguous
+        if (!cgrad_storage_layout_is_contiguous(r_layout)) {
+            cgrad_storage_stop_recording(storage_record);
+            cgrad_storage_free_all_from_record(storage_record);
+            return CGRAD_ERR_NOT_IMPLEMENTED;
+        }
     }
     
-    err = a->backend->storage_add(1.0f, a->data, b->data, r->data);
-    if (err != CGRAD_SUCCESS) {
-        cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
-        return err;
-    }
-
-    // cleanup and do not free output storage
-    cgrad_storage_registry_record_remove(storage_record, r);
-    cgrad_storage_stop_recording(storage_record);
-    return cgrad_storage_free_all_from_record(storage_record);
-}
-
-/**
- * @brief Subtract two tensors elementwise and store the result in a third tensor.
- *        Computes r = a - b.
- * @param a First input tensor.
- * @param b Second input tensor.
- * @param r Output tensor.
- * @return CGRAD_SUCCESS on success, error code otherwise.
- */
-int cgrad_storage_sub(
-    cgrad_storage* a,
-    cgrad_storage* b,
-    cgrad_storage* r
-) {
-    // validate tensors
-    if (!a || !b || !r) return CGRAD_ERR_NULL_POINTER;
-    if (!a->backend || !b->backend) return CGRAD_ERR_NULL_POINTER;
-    if (a->backend != b->backend) return CGRAD_STORAGE_ERR_BACKEND_MISMATCH;
-    
-    // record all storages created here
-    cgrad_storage_registry_record* storage_record = cgrad_storage_start_recording();
-
-    // create shallow copies of a and b
-    cgrad_storage a_bcast;
-    int err = cgrad_storage_shallow_copy(a, &a_bcast);
-    if (err != CGRAD_SUCCESS) {
-        cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
-        return err;
-    }
-    cgrad_storage b_bcast;
-    err = cgrad_storage_shallow_copy(b, &b_bcast);
-    if (err != CGRAD_SUCCESS) {
-        cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
-        return err;
-    }
-
-    // broadcast layouts
-    err = cgrad_storage_layout_broadcast(
-        a_bcast.backend->storage_get_layout(a_bcast.data),
-        b_bcast.backend->storage_get_layout(b_bcast.data),
-        0,
-        TENSOR_DIM
-    );
-    if (err != CGRAD_SUCCESS) {
-        cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
-        return err;
-    }
-
-    // check if r is initialized, if not initialize it
-    if (!r->data) {
-        const uint32_t* shape = a_bcast.backend->storage_get_layout(a_bcast.data)->shape;
-        err = cgrad_storage_init(r, shape, TENSOR_DIM, a->backend->type);
+    if (uuid_compare(b_bcast.uuid, r->uuid) != 0) {
+        // b and r are different tensors, copy b to r
+        err = b_bcast.backend->storage_contiguous(b_bcast.data, r->data);
         if (err != CGRAD_SUCCESS) {
             cgrad_storage_stop_recording(storage_record);
             cgrad_storage_free_all_from_record(storage_record);
             return err;
         }
-    } else {
-        // TODO: support writing to existing tensor with matching shape
-        cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
-        return CGRAD_ERR_NOT_IMPLEMENTED;
     }
     
-    // r = a - b
-    // Use storage_add with alpha=1 for a, then alpha=-1 for b
-    // First: r = 0 + a (copy a to r)
-    err = cgrad_storage_fill(r, 0.0f);
-    if (err != CGRAD_SUCCESS) {
-        cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
-        return err;
-    }
-    err = a->backend->storage_add(1.0f, a->data, r->data, r->data);
-    if (err != CGRAD_SUCCESS) {
-        cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
-        return err;
-    }
-    // Then: r = r + (-1)*b = a - b
-    err = a->backend->storage_add(-1.0f, b->data, r->data, r->data);
+    err = a->backend->storage_add(alpha, a->data, r->data, NULL);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
         cgrad_storage_free_all_from_record(storage_record);
@@ -484,6 +445,7 @@ int cgrad_storage_sub(
     cgrad_storage_stop_recording(storage_record);
     return cgrad_storage_free_all_from_record(storage_record);
 }
+
 
 /**
  * @brief Print the tensor's shape and contents.
@@ -733,7 +695,7 @@ int cgrad_storage_sum(
     
     // Compute sum via GEMM
     cgrad_storage r_mat = {0};
-    err = cgrad_storage_gemm(&a_reshaped, &ones, &r_mat);
+    err = cgrad_storage_gemm(1.0f, &a_reshaped, &ones, 0.0f, &r_mat);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
         cgrad_storage_free_all_from_record(storage_record);
