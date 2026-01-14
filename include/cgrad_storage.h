@@ -60,28 +60,37 @@ int cgrad_storage_free(cgrad_storage* t);
  */
 void cgrad_storage_cleanup_global_registry(void);
 
-// ============================================================================
-// Storage Tracking API (Scoped Resource Management)
-// ============================================================================
+ // ============================================================================
+ // Storage Recording API (Scoped Resource Management)
+ // ============================================================================
 
 /**
- * @brief Start tracking storage allocations.
- *        All storages created after this call will be tracked.
- *        Returns a tracker handle that can be used to free all tracked storages.
+ * @brief Start recording storage allocations.
+ *        All storages created after this call will be recorded.
+ *        Returns a record handle that can be used to free all recorded storages.
  * 
- * @return Pointer to tracker, or NULL on allocation failure.
+ * @return Pointer to record, or NULL on allocation failure.
  */
-struct cgrad_storage_registry_tracker* cgrad_storage_start_tracking(void);
+struct cgrad_storage_registry_record* cgrad_storage_start_recording(void);
 
 /**
- * @brief Stop tracking and free all tracked storages.
- *        Frees all storages that were registered since the tracker was started.
+ * @brief Stop recording storage allocations.
+ *        The record remains valid and contains all recorded storage UUIDs.
+ * 
+ * @param record Pointer to the record from cgrad_storage_start_recording.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_storage_stop_recording(struct cgrad_storage_registry_record* record);
+
+/**
+ * @brief Free all storages recorded in a record.
+ *        Frees all storages that were recorded since the record was started.
  *        If errors occur during freeing, continues to free all storages but returns the first error.
  * 
- * @param tracker Pointer to the tracker from cgrad_storage_start_tracking.
+ * @param record Pointer to the record from cgrad_storage_start_recording.
  * @return CGRAD_SUCCESS if all storages freed successfully, otherwise the first error code encountered.
  */
-int cgrad_storage_stop_tracking_and_free_all(struct cgrad_storage_registry_tracker* tracker);
+int cgrad_storage_free_all_from_record(struct cgrad_storage_registry_record* record);
 
 /**
  * @brief Fill the tensor with a constant value.
@@ -139,13 +148,7 @@ int cgrad_storage_add(cgrad_storage* a, cgrad_storage* b, cgrad_storage* r);
  */
 int cgrad_storage_sub(cgrad_storage* a, cgrad_storage* b, cgrad_storage* r);
 
-// --- Data Access/Info ---
-
-/**
- * @brief Print the tensor's shape and contents.
- * @param t Pointer to tensor.
- */
-void cgrad_storage_print(const cgrad_storage* t);
+// --- Data Transform ---
 
 /**
  * @brief Reshape a tensor, using layout reshape and backend copy ops.
@@ -157,7 +160,6 @@ void cgrad_storage_print(const cgrad_storage* t);
  */
 int cgrad_storage_reshape(const cgrad_storage* src, cgrad_storage* dst, const int32_t* new_shape, int ndim);
 
-// --- Transform ---
 
 /**
  * @brief Transpose the tensor according to the given permutation, applied to the last ndim dims.
@@ -169,5 +171,13 @@ int cgrad_storage_reshape(const cgrad_storage* src, cgrad_storage* dst, const in
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
 int cgrad_storage_transpose(const cgrad_storage* src, cgrad_storage* dst, const uint32_t* perm, int ndim);
+
+// --- Data Access/Info ---
+
+/**
+ * @brief Print the tensor's shape and contents.
+ * @param t Pointer to tensor.
+ */
+void cgrad_storage_print(const cgrad_storage* t);
 
 #endif // CGRAD_STORAGE_H

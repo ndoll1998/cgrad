@@ -5,6 +5,7 @@
 #include "cgrad_compute_graph.h"
 #include "cgrad_storage_layout.h"
 #include "cgrad_storage_backend.h"
+#include "cgrad_storage_registry.h"
 
 /**
  * @file cgrad_tensor.h
