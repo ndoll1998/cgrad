@@ -10,9 +10,9 @@
  * @brief High-level storage object supporting multiple backends.
  */
 typedef struct cgrad_storage {
-    uuid_t uuid;             /**< Unique identifier for this storage */
-    cgrad_storage_backend* backend;  /**< Pointer to backend ops */
-    void* data;              /**< Backend-specific storage object (e.g., cgrad_tensor_f32*) */
+    uuid_t uuid;                        /**< Unique identifier for this storage */
+    cgrad_storage_backend* backend;     /**< Pointer to backend ops */
+    void* data;                         /**< Backend-specific storage object (e.g., cgrad_tensor_f32*) */
 } cgrad_storage;
 
 // --- Initialization/Allocation ---
@@ -59,6 +59,29 @@ int cgrad_storage_free(cgrad_storage* t);
  * This should be called at program shutdown to free all registry resources.
  */
 void cgrad_storage_cleanup_global_registry(void);
+
+// ============================================================================
+// Storage Tracking API (Scoped Resource Management)
+// ============================================================================
+
+/**
+ * @brief Start tracking storage allocations.
+ *        All storages created after this call will be tracked.
+ *        Returns a tracker handle that can be used to free all tracked storages.
+ * 
+ * @return Pointer to tracker, or NULL on allocation failure.
+ */
+struct cgrad_storage_registry_tracker* cgrad_storage_start_tracking(void);
+
+/**
+ * @brief Stop tracking and free all tracked storages.
+ *        Frees all storages that were registered since the tracker was started.
+ *        If errors occur during freeing, continues to free all storages but returns the first error.
+ * 
+ * @param tracker Pointer to the tracker from cgrad_storage_start_tracking.
+ * @return CGRAD_SUCCESS if all storages freed successfully, otherwise the first error code encountered.
+ */
+int cgrad_storage_stop_tracking_and_free_all(struct cgrad_storage_registry_tracker* tracker);
 
 /**
  * @brief Fill the tensor with a constant value.

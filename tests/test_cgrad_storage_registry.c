@@ -27,7 +27,7 @@ static void test_cgrad_storage_register_root_and_find(void **state) {
     assert_ptr_equal(bucket->root.data, tensor->data);
 
     // Check tensor is in bucket's tensor_map
-    cgrad_storage_registry_entry_tensor* entry = NULL;
+    cgrad_storage_entry* entry = NULL;
     HASH_FIND(hh, bucket->storage_map, tensor->uuid, sizeof(uuid_t), entry);
     assert_non_null(entry);
     assert_ptr_equal(entry->storage, tensor);
@@ -77,7 +77,7 @@ static void test_cgrad_storage_register_child_and_bucket_sharing(void **state) {
     assert_ptr_equal(root_bucket->root.data, root->data);
 
     // Both tensors should be in the bucket's tensor_map
-    cgrad_storage_registry_entry_tensor* entry = NULL;
+    cgrad_storage_entry* entry = NULL;
     HASH_FIND(hh, root_bucket->storage_map, root->uuid, sizeof(uuid_t), entry);
     assert_non_null(entry);
     HASH_FIND(hh, root_bucket->storage_map, child->uuid, sizeof(uuid_t), entry);
@@ -188,6 +188,128 @@ static void test_cgrad_storage_register_idempotency(void **state) {
     cgrad_storage_cleanup_global_registry();
 }
 
+static void test_cgrad_storage_registry_tracker_basic(void **state) {
+    (void)state;
+    cgrad_storage_registry* registry = get_global_registry();
+    assert_non_null(registry);
+    
+    // Start tracking
+    cgrad_storage_registry_tracker* tracker = cgrad_storage_registry_start_tracking(registry);
+    assert_non_null(tracker);
+    assert_int_equal(cgrad_storage_registry_tracker_count(tracker), 0);
+    
+    // Register some storages
+    cgrad_storage s1 = {0}, s2 = {0}, s3 = {0};
+    uuid_generate(s1.uuid);
+    uuid_generate(s2.uuid);
+    uuid_generate(s3.uuid);
+    
+    cgrad_storage_registry_register(registry, &s1, NULL);
+    cgrad_storage_registry_register(registry, &s2, NULL);
+    cgrad_storage_registry_register(registry, &s3, NULL);
+    
+    // Check tracker captured them
+    assert_int_equal(cgrad_storage_registry_tracker_count(tracker), 3);
+    
+    // Verify storages are in tracker's hashmap
+    cgrad_storage_entry* entry = NULL;
+    HASH_FIND(hh, tracker->storage_map, s1.uuid, sizeof(uuid_t), entry);
+    assert_non_null(entry);
+    HASH_FIND(hh, tracker->storage_map, s2.uuid, sizeof(uuid_t), entry);
+    assert_non_null(entry);
+    HASH_FIND(hh, tracker->storage_map, s3.uuid, sizeof(uuid_t), entry);
+    assert_non_null(entry);
+    
+    // Deregister s1 while tracker is active - should be removed from tracker
+    cgrad_storage_registry_deregister(registry, &s1);
+    assert_int_equal(cgrad_storage_registry_tracker_count(tracker), 2); // Now 2
+    
+    // Stop tracking
+    assert_int_equal(cgrad_storage_registry_stop_tracking(registry, tracker), CGRAD_SUCCESS);
+    
+    // Register another storage - should not be tracked
+    cgrad_storage s4 = {0};
+    uuid_generate(s4.uuid);
+    cgrad_storage_registry_register(registry, &s4, NULL);
+    assert_int_equal(cgrad_storage_registry_tracker_count(tracker), 2); // Still 2
+    
+    // Deregister after stopping - should NOT be removed from tracker (tracker is stopped)
+    cgrad_storage_registry_deregister(registry, &s2);
+    cgrad_storage_registry_deregister(registry, &s3);
+    cgrad_storage_registry_deregister(registry, &s4);
+    
+    // Tracker should still have s2 and s3 (stopped trackers keep their snapshot)
+    assert_int_equal(cgrad_storage_registry_tracker_count(tracker), 2);
+    
+    // Cleanup
+    cgrad_storage_registry_tracker_free(tracker);
+    cgrad_storage_cleanup_global_registry();
+}
+
+static void test_cgrad_storage_registry_tracker_nested(void **state) {
+    (void)state;
+    cgrad_storage_registry* registry = get_global_registry();
+    assert_non_null(registry);
+    
+    // Start first tracker
+    cgrad_storage_registry_tracker* tracker1 = cgrad_storage_registry_start_tracking(registry);
+    assert_non_null(tracker1);
+    
+    // Register some storages
+    cgrad_storage s1 = {0}, s2 = {0};
+    uuid_generate(s1.uuid);
+    uuid_generate(s2.uuid);
+    cgrad_storage_registry_register(registry, &s1, NULL);
+    cgrad_storage_registry_register(registry, &s2, NULL);
+    
+    // Start nested tracker
+    cgrad_storage_registry_tracker* tracker2 = cgrad_storage_registry_start_tracking(registry);
+    assert_non_null(tracker2);
+    
+    // Register more storages
+    cgrad_storage s3 = {0}, s4 = {0};
+    uuid_generate(s3.uuid);
+    uuid_generate(s4.uuid);
+    cgrad_storage_registry_register(registry, &s3, NULL);
+    cgrad_storage_registry_register(registry, &s4, NULL);
+    
+    // Check tracker1 has all 4
+    assert_int_equal(cgrad_storage_registry_tracker_count(tracker1), 4);
+    
+    // Check tracker2 has only 2
+    assert_int_equal(cgrad_storage_registry_tracker_count(tracker2), 2);
+    
+    // Verify tracker2 has s3 and s4
+    cgrad_storage_entry* entry = NULL;
+    HASH_FIND(hh, tracker2->storage_map, s3.uuid, sizeof(uuid_t), entry);
+    assert_non_null(entry);
+    HASH_FIND(hh, tracker2->storage_map, s4.uuid, sizeof(uuid_t), entry);
+    assert_non_null(entry);
+    
+    // Deregister s1 while both trackers are active - should be removed from tracker1
+    cgrad_storage_registry_deregister(registry, &s1);
+    assert_int_equal(cgrad_storage_registry_tracker_count(tracker1), 3); // Now has s2, s3, s4
+    assert_int_equal(cgrad_storage_registry_tracker_count(tracker2), 2); // Still has s3, s4
+    
+    // Stop both trackers
+    assert_int_equal(cgrad_storage_registry_stop_tracking(registry, tracker2), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_registry_stop_tracking(registry, tracker1), CGRAD_SUCCESS);
+    
+    // Deregister after stopping - trackers keep their snapshots
+    cgrad_storage_registry_deregister(registry, &s2);
+    cgrad_storage_registry_deregister(registry, &s3);
+    cgrad_storage_registry_deregister(registry, &s4);
+    
+    // Trackers maintain their snapshots after stopping
+    assert_int_equal(cgrad_storage_registry_tracker_count(tracker1), 3); // s2, s3, s4
+    assert_int_equal(cgrad_storage_registry_tracker_count(tracker2), 2); // s3, s4
+    
+    // Cleanup
+    cgrad_storage_registry_tracker_free(tracker1);
+    cgrad_storage_registry_tracker_free(tracker2);
+    cgrad_storage_cleanup_global_registry();
+}
+
 int run_cgrad_storage_registry_tests(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_cgrad_storage_register_root_and_find),
@@ -195,6 +317,8 @@ int run_cgrad_storage_registry_tests(void) {
         cmocka_unit_test(test_cgrad_storage_register_with_unregistered_parent),
         cmocka_unit_test(test_cgrad_storage_register_count),
         cmocka_unit_test(test_cgrad_storage_register_idempotency),
+        cmocka_unit_test(test_cgrad_storage_registry_tracker_basic),
+        cmocka_unit_test(test_cgrad_storage_registry_tracker_nested),
     };
     return _cmocka_run_group_tests("cgrad_storage_registry", tests, sizeof(tests)/sizeof(tests[0]), NULL, NULL);
 }

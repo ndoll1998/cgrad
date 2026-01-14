@@ -21,7 +21,7 @@ static cgrad_storage_registry_bucket* create_new_bucket(cgrad_storage_registry* 
 
 /* Add a tensor to a bucket's tensor_map. Returns 0 on success, nonzero on failure. */
 static int add_to_bucket(cgrad_storage_registry_bucket* bucket, cgrad_storage* t) {
-    cgrad_storage_registry_entry_tensor* entry = (cgrad_storage_registry_entry_tensor*)malloc(sizeof(cgrad_storage_registry_entry_tensor));
+    cgrad_storage_entry* entry = (cgrad_storage_entry*)malloc(sizeof(cgrad_storage_entry));
     if (!entry) return -1;
     memcpy(entry->uuid, t->uuid, sizeof(uuid_t));
     entry->storage = t;
@@ -31,7 +31,7 @@ static int add_to_bucket(cgrad_storage_registry_bucket* bucket, cgrad_storage* t
 
 /* Remove a tensor from a bucket's tensor_map. Returns 0 on success, -1 if not found. */
 static int remove_from_bucket(cgrad_storage_registry_bucket* bucket, const cgrad_storage* t) {
-    cgrad_storage_registry_entry_tensor* entry = NULL;
+    cgrad_storage_entry* entry = NULL;
     HASH_FIND(hh, bucket->storage_map, t->uuid, sizeof(uuid_t), entry);
     if (!entry) return -1;
     HASH_DEL(bucket->storage_map, entry);
@@ -43,13 +43,14 @@ static int remove_from_bucket(cgrad_storage_registry_bucket* bucket, const cgrad
 static void delete_bucket(cgrad_storage_registry* registry, cgrad_storage_registry_bucket* bucket) {
     // Remove from bucket_map
     HASH_DEL(registry->bucket_map, bucket);
-    cgrad_storage_registry_entry_tensor *entry, *tmp;
+    cgrad_storage_entry *entry, *tmp;
     HASH_ITER(hh, bucket->storage_map, entry, tmp) {
         HASH_DEL(bucket->storage_map, entry);
         free(entry);
     }
     free(bucket);
 }
+
 
 /* --- Public API --- */
 
@@ -60,6 +61,7 @@ int cgrad_storage_registry_init(cgrad_storage_registry* registry) {
     if (!registry) return CGRAD_ERR_NULL_POINTER;
     registry->storage_map = NULL;
     registry->bucket_map = NULL;
+    registry->active_trackers = NULL;
     return CGRAD_SUCCESS;
 }
 
@@ -75,7 +77,7 @@ void cgrad_storage_registry_free(cgrad_storage_registry* registry) {
         HASH_DEL(registry->bucket_map, bucket);
         
         // Free all entries in the bucket
-        cgrad_storage_registry_entry_tensor *entry, *tmp_entry;
+        cgrad_storage_entry *entry, *tmp_entry;
         HASH_ITER(hh, bucket->storage_map, entry, tmp_entry) {
             HASH_DEL(bucket->storage_map, entry);
             free(entry);
@@ -90,8 +92,16 @@ void cgrad_storage_registry_free(cgrad_storage_registry* registry) {
         free(reg_entry);
     }
     
+    // Free all active trackers
+    cgrad_storage_registry_tracker_entry *tracker_entry, *tmp_tracker;
+    HASH_ITER(hh, registry->active_trackers, tracker_entry, tmp_tracker) {
+        HASH_DEL(registry->active_trackers, tracker_entry);
+        free(tracker_entry);
+    }
+    
     registry->storage_map = NULL;
     registry->bucket_map = NULL;
+    registry->active_trackers = NULL;
 }
 
 /**
@@ -142,7 +152,7 @@ int cgrad_storage_registry_register(cgrad_storage_registry* registry, cgrad_stor
     if (!reg_entry) {
         // Clean up: remove t from bucket if just added
         if (bucket) {
-            cgrad_storage_registry_entry_tensor* entry = NULL;
+            cgrad_storage_entry* entry = NULL;
             HASH_FIND(hh, bucket->storage_map, t->uuid, sizeof(uuid_t), entry);
             if (entry) {
                 HASH_DEL(bucket->storage_map, entry);
@@ -159,6 +169,21 @@ int cgrad_storage_registry_register(cgrad_storage_registry* registry, cgrad_stor
     reg_entry->storage = t;
     reg_entry->bucket = bucket;
     HASH_ADD_KEYPTR(hh, registry->storage_map, reg_entry->uuid, sizeof(uuid_t), reg_entry);
+
+    // Notify all active trackers
+    cgrad_storage_registry_tracker_entry *tracker_entry, *tmp_tracker;
+    HASH_ITER(hh, registry->active_trackers, tracker_entry, tmp_tracker) {
+        cgrad_storage_registry_tracker* tracker = tracker_entry->tracker;
+        
+        // Add storage to tracker's hashmap
+        cgrad_storage_entry* storage_entry = (cgrad_storage_entry*)malloc(sizeof(cgrad_storage_entry));
+        if (storage_entry) {
+            uuid_copy(storage_entry->uuid, t->uuid);
+            storage_entry->storage = t;
+            HASH_ADD_KEYPTR(hh, tracker->storage_map, storage_entry->uuid, sizeof(uuid_t), storage_entry);
+        }
+        // Note: If malloc fails, we silently skip adding to this tracker
+    }
 
     return CGRAD_SUCCESS;
 }
@@ -180,6 +205,12 @@ int cgrad_storage_registry_deregister(cgrad_storage_registry* registry, cgrad_st
 
     // Remove t from bucket's tensor_map
     remove_from_bucket(bucket, t);
+
+    // Remove t from all active trackers
+    cgrad_storage_registry_tracker_entry *tracker_entry, *tmp_tracker;
+    HASH_ITER(hh, registry->active_trackers, tracker_entry, tmp_tracker) {
+        cgrad_storage_registry_tracker_remove(tracker_entry->tracker, t);
+    }
 
     // Remove t from registry
     HASH_DEL(registry->storage_map, reg_entry);
@@ -290,7 +321,7 @@ void cgrad_storage_registry_print(cgrad_storage_registry* registry) {
         printf("  [bucket size: %zu]\n", (size_t)HASH_COUNT(bucket->storage_map));
 
         // Print all members (excluding root)
-        cgrad_storage_registry_entry_tensor* tentry, *ttmp;
+        cgrad_storage_entry* tentry, *ttmp;
         HASH_ITER(hh, bucket->storage_map, tentry, ttmp) {
             uuid_unparse(tentry->uuid, uuid_str);
             printf("  - %s  Shape: ", uuid_str);
@@ -301,5 +332,94 @@ void cgrad_storage_registry_print(cgrad_storage_registry* registry) {
                 printf("(null)\n");
             }
         }
+    }
+}
+
+// ============================================================================
+// Storage Tracking API
+// ============================================================================
+
+/**
+ * @brief Start tracking storage registrations.
+ */
+cgrad_storage_registry_tracker* cgrad_storage_registry_start_tracking(cgrad_storage_registry* registry) {
+    if (!registry) return NULL;
+    
+    // Allocate tracker
+    cgrad_storage_registry_tracker* tracker = (cgrad_storage_registry_tracker*)malloc(sizeof(cgrad_storage_registry_tracker));
+    if (!tracker) return NULL;
+    
+    // Initialize tracker
+    uuid_generate(tracker->tracker_id);
+    tracker->storage_map = NULL;  // Empty hashmap
+    
+    // Add to active trackers
+    cgrad_storage_registry_tracker_entry* entry = (cgrad_storage_registry_tracker_entry*)malloc(sizeof(cgrad_storage_registry_tracker_entry));
+    if (!entry) {
+        free(tracker);
+        return NULL;
+    }
+    
+    uuid_copy(entry->tracker_id, tracker->tracker_id);
+    entry->tracker = tracker;
+    HASH_ADD_KEYPTR(hh, registry->active_trackers, entry->tracker_id, sizeof(uuid_t), entry);
+    
+    return tracker;
+}
+
+/**
+ * @brief Stop tracking and deactivate the tracker.
+ */
+int cgrad_storage_registry_stop_tracking(cgrad_storage_registry* registry, cgrad_storage_registry_tracker* tracker) {
+    if (!registry || !tracker) return CGRAD_ERR_NULL_POINTER;
+    
+    // Find and remove from active trackers
+    cgrad_storage_registry_tracker_entry* entry = NULL;
+    HASH_FIND(hh, registry->active_trackers, tracker->tracker_id, sizeof(uuid_t), entry);
+    if (!entry) {
+        return CGRAD_STORAGE_REGISTRY_PARENT_NOT_REGISTERED; // Tracker not active
+    }
+    
+    HASH_DEL(registry->active_trackers, entry);
+    free(entry);
+    
+    return CGRAD_SUCCESS;
+}
+
+/**
+ * @brief Free a storage tracker and its resources.
+ */
+void cgrad_storage_registry_tracker_free(cgrad_storage_registry_tracker* tracker) {
+    if (!tracker) return;
+    
+    // Free all entries in the tracker's hashmap
+    cgrad_storage_entry *entry, *tmp;
+    HASH_ITER(hh, tracker->storage_map, entry, tmp) {
+        HASH_DEL(tracker->storage_map, entry);
+        free(entry);
+    }
+    
+    free(tracker);
+}
+
+/**
+ * @brief Get the number of storages tracked by a tracker.
+ */
+size_t cgrad_storage_registry_tracker_count(const cgrad_storage_registry_tracker* tracker) {
+    if (!tracker) return 0;
+    return (size_t)HASH_COUNT(tracker->storage_map);
+}
+
+/**
+ * @brief Remove a storage from a tracker.
+ */
+void cgrad_storage_registry_tracker_remove(cgrad_storage_registry_tracker* tracker, const cgrad_storage* t) {
+    if (!tracker || !t) return;
+    
+    cgrad_storage_entry* storage_entry = NULL;
+    HASH_FIND(hh, tracker->storage_map, t->uuid, sizeof(uuid_t), storage_entry);
+    if (storage_entry) {
+        HASH_DEL(tracker->storage_map, storage_entry);
+        free(storage_entry);
     }
 }
