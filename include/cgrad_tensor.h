@@ -261,4 +261,65 @@ cgrad_storage* cgrad_tensor_get_storage(const cgrad_tensor* tensor);
  */
 void cgrad_tensor_print(const cgrad_tensor* tensor);
 
+// ============================================================================
+// Gradient Functions
+// ============================================================================
+
+/**
+ * @brief Set whether a tensor requires gradient computation.
+ * 
+ * This should be called on leaf tensors (inputs) before building the computation graph.
+ * Operation tensors automatically inherit requires_grad from their inputs.
+ * 
+ * @param tensor Tensor to configure.
+ * @param requires_grad 1 to enable gradient computation, 0 to disable.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_tensor_set_requires_grad(cgrad_tensor* tensor, int requires_grad);
+
+/**
+ * @brief Check if a tensor requires gradient computation.
+ * 
+ * @param tensor Tensor to query.
+ * @param out_requires_grad Pointer to output flag.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_tensor_get_requires_grad(const cgrad_tensor* tensor, int* out_requires_grad);
+
+/**
+ * @brief Get the gradient storage of a tensor after backward pass.
+ * 
+ * Returns NULL if backward has not been called or if the tensor doesn't require gradients.
+ * 
+ * @param tensor Tensor to get gradient from.
+ * @return Pointer to gradient storage, or NULL if not available.
+ */
+cgrad_storage* cgrad_tensor_get_grad(const cgrad_tensor* tensor);
+
+/**
+ * @brief Zero out all gradients in the computation graph.
+ * 
+ * This should be called before each backward pass in training loops.
+ * 
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_tensor_zero_grad(void);
+
+/**
+ * @brief Compute gradients by backpropagation through the computation graph.
+ * 
+ * This function:
+ * 1. Initializes the gradient of the target tensor to 1.0 (or provided grad_output)
+ * 2. Traverses the graph in reverse topological order
+ * 3. For each node with requires_grad=1, computes gradients of inputs using the backward function
+ * 4. Accumulates gradients when a node is used multiple times
+ * 5. Stores gradients in each node's grad_storage field
+ * 
+ * The target tensor must have been executed (forward pass) before calling backward.
+ * 
+ * @param tensor Target tensor (typically a scalar loss).
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_tensor_backward(cgrad_tensor* tensor);
+
 #endif // CGRAD_TENSOR_H

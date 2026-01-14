@@ -595,6 +595,243 @@ static void test_refcount_complex_graph(void **state) {
 }
 
 // ============================================================================
+// Test: Backward - requires_grad default
+// ============================================================================
+
+static void test_backward_requires_grad_default(void **state) {
+    (void) state;
+    
+    cgrad_compute_graph graph;
+    cgrad_compute_graph_create(&graph);
+    
+    cgrad_storage_layout layout;
+    uint32_t shape[] = {2, 3};
+    cgrad_storage_layout_init(&layout, shape, 2);
+    
+    cgrad_storage* storage = (cgrad_storage*)malloc(sizeof(cgrad_storage));
+    cgrad_storage_init(storage, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    
+    uuid_t node_id;
+    int ret = cgrad_compute_graph_add_leaf(&graph, &layout, storage, node_id);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Default should be requires_grad = 1
+    cgrad_graph_node* node;
+    ret = cgrad_compute_graph_get_node(&graph, node_id, &node);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_int_equal(node->requires_grad, 1);
+    
+    cgrad_compute_graph_free(&graph);
+}
+
+// ============================================================================
+// Test: Backward - requires_grad set
+// ============================================================================
+
+static void test_backward_requires_grad_set(void **state) {
+    (void) state;
+    
+    cgrad_compute_graph graph;
+    cgrad_compute_graph_create(&graph);
+    
+    cgrad_storage_layout layout;
+    uint32_t shape[] = {2, 3};
+    cgrad_storage_layout_init(&layout, shape, 2);
+    
+    cgrad_storage* storage = (cgrad_storage*)malloc(sizeof(cgrad_storage));
+    cgrad_storage_init(storage, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    
+    uuid_t node_id;
+    cgrad_compute_graph_add_leaf(&graph, &layout, storage, node_id);
+    
+    // Set requires_grad to false
+    int ret = cgrad_compute_graph_set_requires_grad(&graph, node_id, 0);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    cgrad_graph_node* node;
+    ret = cgrad_compute_graph_get_node(&graph, node_id, &node);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_int_equal(node->requires_grad, 0);
+    
+    // Set back to true
+    ret = cgrad_compute_graph_set_requires_grad(&graph, node_id, 1);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_int_equal(node->requires_grad, 1);
+    
+    cgrad_compute_graph_free(&graph);
+}
+
+// ============================================================================
+// Test: Backward - requires_grad inheritance
+// ============================================================================
+
+static void test_backward_requires_grad_inheritance(void **state) {
+    (void) state;
+    
+    cgrad_compute_graph graph;
+    cgrad_compute_graph_create(&graph);
+    
+    cgrad_storage_layout layout;
+    uint32_t shape[] = {2, 3};
+    cgrad_storage_layout_init(&layout, shape, 2);
+    
+    // Create two leaf nodes
+    cgrad_storage* storage1 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
+    cgrad_storage_init(storage1, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    uuid_t leaf1_id;
+    cgrad_compute_graph_add_leaf(&graph, &layout, storage1, leaf1_id);
+    
+    cgrad_storage* storage2 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
+    cgrad_storage_init(storage2, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    uuid_t leaf2_id;
+    cgrad_compute_graph_add_leaf(&graph, &layout, storage2, leaf2_id);
+    
+    // Set leaf1 to not require grad
+    cgrad_compute_graph_set_requires_grad(&graph, leaf1_id, 0);
+    
+    // Add operation - should inherit requires_grad from leaf2
+    cgrad_op_info op_info;
+    op_info.type = CGRAD_OP_ADD;
+    uuid_t input_ids[2];
+    uuid_copy(input_ids[0], leaf1_id);
+    uuid_copy(input_ids[1], leaf2_id);
+    
+    uuid_t op_node_id;
+    int ret = cgrad_compute_graph_add_op(&graph, &op_info, &layout, input_ids, 2, op_node_id);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    cgrad_graph_node* op_node;
+    ret = cgrad_compute_graph_get_node(&graph, op_node_id, &op_node);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_int_equal(op_node->requires_grad, 1);  // Inherited from leaf2
+    
+    cgrad_compute_graph_free(&graph);
+}
+
+// ============================================================================
+// Test: Backward - requires forward execution
+// ============================================================================
+
+static void test_backward_requires_forward(void **state) {
+    (void) state;
+    
+    cgrad_compute_graph graph;
+    cgrad_compute_graph_create(&graph);
+    
+    cgrad_storage_layout layout;
+    uint32_t shape[] = {2, 2};
+    cgrad_storage_layout_init(&layout, shape, 2);
+    
+    cgrad_storage* storage1 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
+    cgrad_storage_init(storage1, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    uuid_t leaf1_id;
+    cgrad_compute_graph_add_leaf(&graph, &layout, storage1, leaf1_id);
+    
+    cgrad_storage* storage2 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
+    cgrad_storage_init(storage2, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    uuid_t leaf2_id;
+    cgrad_compute_graph_add_leaf(&graph, &layout, storage2, leaf2_id);
+    
+    cgrad_op_info op_info;
+    op_info.type = CGRAD_OP_ADD;
+    uuid_t input_ids[2];
+    uuid_copy(input_ids[0], leaf1_id);
+    uuid_copy(input_ids[1], leaf2_id);
+    
+    uuid_t op_node_id;
+    cgrad_compute_graph_add_op(&graph, &op_info, &layout, input_ids, 2, op_node_id);
+    
+    // Backward without forward should fail
+    int ret = cgrad_compute_graph_backward(&graph, op_node_id);
+    assert_int_equal(ret, CGRAD_GRAPH_ERR_FORWARD_NOT_EXECUTED);
+    
+    cgrad_compute_graph_free(&graph);
+}
+
+// ============================================================================
+// Test: Backward - grad_storage initialization
+// ============================================================================
+
+static void test_backward_grad_storage_init(void **state) {
+    (void) state;
+    
+    cgrad_compute_graph graph;
+    cgrad_compute_graph_create(&graph);
+    
+    cgrad_storage_layout layout;
+    uint32_t shape[] = {2, 2};
+    cgrad_storage_layout_init(&layout, shape, 2);
+    
+    cgrad_storage* storage = (cgrad_storage*)malloc(sizeof(cgrad_storage));
+    cgrad_storage_init(storage, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    
+    uuid_t node_id;
+    cgrad_compute_graph_add_leaf(&graph, &layout, storage, node_id);
+    
+    // Initially grad_storage should be NULL
+    cgrad_graph_node* node;
+    cgrad_compute_graph_get_node(&graph, node_id, &node);
+    assert_null(node->grad_storage);
+    
+    cgrad_compute_graph_free(&graph);
+}
+
+// ============================================================================
+// Test: Backward - zero_grad
+// ============================================================================
+
+static void test_backward_zero_grad(void **state) {
+    (void) state;
+    
+    cgrad_compute_graph graph;
+    cgrad_compute_graph_create(&graph);
+    
+    cgrad_storage_layout layout;
+    uint32_t shape[] = {2, 2};
+    cgrad_storage_layout_init(&layout, shape, 2);
+    
+    cgrad_storage* storage1 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
+    cgrad_storage_init(storage1, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    cgrad_storage_fill(storage1, 1.0f);
+    uuid_t leaf1_id;
+    cgrad_compute_graph_add_leaf(&graph, &layout, storage1, leaf1_id);
+    
+    cgrad_storage* storage2 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
+    cgrad_storage_init(storage2, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    cgrad_storage_fill(storage2, 2.0f);
+    uuid_t leaf2_id;
+    cgrad_compute_graph_add_leaf(&graph, &layout, storage2, leaf2_id);
+    
+    cgrad_op_info op_info;
+    op_info.type = CGRAD_OP_ADD;
+    uuid_t input_ids[2];
+    uuid_copy(input_ids[0], leaf1_id);
+    uuid_copy(input_ids[1], leaf2_id);
+    
+    uuid_t op_node_id;
+    cgrad_compute_graph_add_op(&graph, &op_info, &layout, input_ids, 2, op_node_id);
+    
+    // Execute forward
+    int ret = cgrad_compute_graph_execute(&graph, op_node_id);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Execute backward
+    ret = cgrad_compute_graph_backward(&graph, op_node_id);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Gradients should exist
+    cgrad_graph_node* leaf1;
+    cgrad_compute_graph_get_node(&graph, leaf1_id, &leaf1);
+    assert_non_null(leaf1->grad_storage);
+    
+    // Zero gradients
+    ret = cgrad_compute_graph_zero_grad(&graph);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    cgrad_compute_graph_free(&graph);
+}
+
+// ============================================================================
 // Test Suite
 // ============================================================================
 
@@ -613,6 +850,12 @@ int main(void) {
         cmocka_unit_test(test_refcount_operation_nodes),
         cmocka_unit_test(test_refcount_shared_subgraph),
         cmocka_unit_test(test_refcount_complex_graph),
+        cmocka_unit_test(test_backward_requires_grad_default),
+        cmocka_unit_test(test_backward_requires_grad_set),
+        cmocka_unit_test(test_backward_requires_grad_inheritance),
+        cmocka_unit_test(test_backward_requires_forward),
+        cmocka_unit_test(test_backward_grad_storage_init),
+        cmocka_unit_test(test_backward_zero_grad),
     };
     
     return cmocka_run_group_tests(tests, NULL, NULL);
@@ -632,6 +875,12 @@ int test_cgrad_compute_graph_main(void) {
         cmocka_unit_test(test_refcount_operation_nodes),
         cmocka_unit_test(test_refcount_shared_subgraph),
         cmocka_unit_test(test_refcount_complex_graph),
+        cmocka_unit_test(test_backward_requires_grad_default),
+        cmocka_unit_test(test_backward_requires_grad_set),
+        cmocka_unit_test(test_backward_requires_grad_inheritance),
+        cmocka_unit_test(test_backward_requires_forward),
+        cmocka_unit_test(test_backward_grad_storage_init),
+        cmocka_unit_test(test_backward_zero_grad),
     };
     
     return _cmocka_run_group_tests("cgrad_compute_graph", tests, sizeof(tests)/sizeof(tests[0]), NULL, NULL);

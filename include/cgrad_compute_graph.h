@@ -88,8 +88,11 @@ typedef struct cgrad_graph_node {
     cgrad_op_info op_info;             /**< Operation type and metadata (unused for leaves) */
     cgrad_storage_layout layout;       /**< Shape of the output tensor */
     cgrad_storage* storage;            /**< For leaf: materialized eager storage; for ops: NULL or cached */
+    cgrad_storage* grad_storage;       /**< Cached gradient (NULL if not computed) */
+    void* ctx;                         /**< Operation context for caching intermediate results (NULL by default) */
     cgrad_storage_backend_type backend_type;  /**< Backend type of the node */
     int ref_count;                     /**< Reference count for memory management */
+    int requires_grad;                 /**< 1 if gradients should be computed, 0 otherwise */
     UT_hash_handle hh;                 /**< Hash handle for uthash */
 } cgrad_graph_node;
 
@@ -322,6 +325,55 @@ const char* cgrad_op_type_to_string(cgrad_op_type op_type);
 int cgrad_compute_graph_execute(
     cgrad_compute_graph* graph,
     const uuid_t target_node_id
+);
+
+// ============================================================================
+// Backward Pass Functions
+// ============================================================================
+
+/**
+ * @brief Compute gradients by backpropagation through the computation graph.
+ * 
+ * This function:
+ * 1. Initializes the gradient of the target tensor to 1.0
+ * 2. Traverses the graph in reverse topological order
+ * 3. For each node with requires_grad=1, computes gradients of inputs using the backward function
+ * 4. Accumulates gradients when a node is used multiple times
+ * 5. Stores gradients in each node's grad_storage field
+ * 
+ * The target tensor must have been executed (forward pass) before calling backward.
+ * 
+ * @param graph Compute graph containing the nodes.
+ * @param target_node_id Target node (typically a scalar loss).
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_compute_graph_backward(
+    cgrad_compute_graph* graph,
+    const uuid_t target_node_id
+);
+
+/**
+ * @brief Zero out all gradients in the computation graph.
+ * 
+ * This should be called before each backward pass in training loops.
+ * 
+ * @param graph Compute graph.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_compute_graph_zero_grad(cgrad_compute_graph* graph);
+
+/**
+ * @brief Set the requires_grad flag for a node.
+ * 
+ * @param graph Compute graph.
+ * @param node_id Node identifier.
+ * @param requires_grad 1 to enable gradient computation, 0 to disable.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_compute_graph_set_requires_grad(
+    cgrad_compute_graph* graph,
+    const uuid_t node_id,
+    int requires_grad
 );
 
 #endif // CGRAD_COMPUTE_GRAPH_H

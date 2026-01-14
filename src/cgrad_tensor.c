@@ -561,3 +561,90 @@ void cgrad_tensor_print(const cgrad_tensor* tensor) {
         }
     }
 }
+
+// ============================================================================
+// Gradient Functions
+// ============================================================================
+
+int cgrad_tensor_set_requires_grad(cgrad_tensor* tensor, int requires_grad) {
+    if (tensor == NULL) {
+        return CGRAD_ERR_NULL_POINTER;
+    }
+
+    cgrad_compute_graph* graph = get_global_graph();
+    if (graph == NULL) {
+        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+    }
+
+    cgrad_graph_node* node;
+    int ret = cgrad_compute_graph_get_node(graph, tensor->node_id, &node);
+    if (ret != CGRAD_SUCCESS) {
+        return ret;
+    }
+
+    node->requires_grad = requires_grad ? 1 : 0;
+    return CGRAD_SUCCESS;
+}
+
+int cgrad_tensor_get_requires_grad(const cgrad_tensor* tensor, int* out_requires_grad) {
+    if (tensor == NULL || out_requires_grad == NULL) {
+        return CGRAD_ERR_NULL_POINTER;
+    }
+
+    cgrad_compute_graph* graph = get_global_graph();
+    if (graph == NULL) {
+        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+    }
+
+    cgrad_graph_node* node;
+    int ret = cgrad_compute_graph_get_node(graph, tensor->node_id, &node);
+    if (ret != CGRAD_SUCCESS) {
+        return ret;
+    }
+
+    *out_requires_grad = node->requires_grad;
+    return CGRAD_SUCCESS;
+}
+
+cgrad_storage* cgrad_tensor_get_grad(const cgrad_tensor* tensor) {
+    if (tensor == NULL) {
+        return NULL;
+    }
+
+    cgrad_compute_graph* graph = get_global_graph();
+    if (graph == NULL) {
+        return NULL;
+    }
+
+    cgrad_graph_node* node;
+    int ret = cgrad_compute_graph_get_node(graph, tensor->node_id, &node);
+    if (ret != CGRAD_SUCCESS) {
+        return NULL;
+    }
+
+    return node->grad_storage;
+}
+
+int cgrad_tensor_zero_grad(void) {
+    cgrad_compute_graph* graph = get_global_graph();
+    if (graph == NULL) {
+        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+    }
+
+    // Delegate to compute graph
+    return cgrad_compute_graph_zero_grad(graph);
+}
+
+int cgrad_tensor_backward(cgrad_tensor* tensor) {
+    if (tensor == NULL) {
+        return CGRAD_ERR_NULL_POINTER;
+    }
+
+    cgrad_compute_graph* graph = get_global_graph();
+    if (graph == NULL) {
+        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+    }
+
+    // Delegate to compute graph
+    return cgrad_compute_graph_backward(graph, tensor->node_id);
+}

@@ -1,4 +1,5 @@
 #include "cgrad_compute_graph.h"
+#include "cgrad_ops.h"
 #include "cgrad_errors.h"
 #include "uthash.h"
 #include <stdlib.h>
@@ -34,6 +35,195 @@ static int add_node_metadata(cgrad_compute_graph* graph, cgrad_graph_node* node)
         return CGRAD_GRAPH_ERR_INVALID_NODE;  // Node already exists
     }
     HASH_ADD(hh, graph->node_metadata_table, node_id, sizeof(uuid_t), node);
+    return CGRAD_SUCCESS;
+}
+
+// ============================================================================
+// Backward Pass
+// ============================================================================
+
+int cgrad_compute_graph_backward(
+    cgrad_compute_graph* graph,
+    const uuid_t target_node_id
+) {
+    if (graph == NULL) {
+        return CGRAD_ERR_NULL_POINTER;
+    }
+
+    // Get target node
+    cgrad_graph_node* target_node;
+    int ret = cgrad_compute_graph_get_node(graph, target_node_id, &target_node);
+    if (ret != CGRAD_SUCCESS) {
+        return ret;
+    }
+
+    // Check that forward pass has been executed
+    if (target_node->storage == NULL) {
+        return CGRAD_GRAPH_ERR_FORWARD_NOT_EXECUTED;
+    }
+
+    // Topological sort
+    uuid_t sorted_ids[MAX_GRAPH_NODES];
+    int num_nodes;
+    ret = cgrad_compute_graph_topological_sort(
+        graph, target_node_id, sorted_ids, MAX_GRAPH_NODES, &num_nodes
+    );
+    if (ret != CGRAD_SUCCESS) {
+        return ret;
+    }
+
+    // Initialize target gradient to 1.0
+    if (target_node->grad_storage == NULL) {
+        target_node->grad_storage = (cgrad_storage*)calloc(1, sizeof(cgrad_storage));
+        if (target_node->grad_storage == NULL) {
+            return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+        }
+        ret = cgrad_storage_init(
+            target_node->grad_storage,
+            target_node->layout.shape,
+            TENSOR_DIM,
+            target_node->backend_type
+        );
+        if (ret != CGRAD_SUCCESS) {
+            free(target_node->grad_storage);
+            target_node->grad_storage = NULL;
+            return ret;
+        }
+    }
+    ret = cgrad_storage_fill(target_node->grad_storage, 1.0f);
+    if (ret != CGRAD_SUCCESS) {
+        return ret;
+    }
+
+    // Backward pass in reverse topological order
+    for (int i = num_nodes - 1; i >= 0; i--) {
+        cgrad_graph_node* node;
+        ret = cgrad_compute_graph_get_node(graph, sorted_ids[i], &node);
+        if (ret != CGRAD_SUCCESS) {
+            return ret;
+        }
+
+        // Skip if doesn't require gradients
+        if (!node->requires_grad) continue;
+
+        // Skip leaf nodes (no backward to compute)
+        if (node->op_info.type == CGRAD_OP_NONE) continue;
+
+        // Get incoming gradient
+        if (node->grad_storage == NULL) {
+            continue;
+        }
+
+        // Get operation descriptor
+        const cgrad_op_descriptor* op_desc = cgrad_get_op_descriptor(node->op_info.type);
+        if (op_desc == NULL || op_desc->backward == NULL) {
+            return CGRAD_GRAPH_ERR_BACKWARD_NOT_IMPLEMENTED;
+        }
+
+        // Get input nodes and storages
+        uuid_t input_ids[MAX_NODE_INPUTS];
+        int num_inputs;
+        ret = cgrad_compute_graph_get_inputs(graph, node->node_id, input_ids, MAX_NODE_INPUTS, &num_inputs);
+        if (ret != CGRAD_SUCCESS) {
+            return ret;
+        }
+
+        cgrad_storage* input_storages[MAX_NODE_INPUTS];
+        cgrad_graph_node* input_nodes[MAX_NODE_INPUTS];
+        cgrad_storage* grad_inputs[MAX_NODE_INPUTS];
+        int input_requires_grad[MAX_NODE_INPUTS];
+
+        for (int j = 0; j < num_inputs; j++) {
+            ret = cgrad_compute_graph_get_node(graph, input_ids[j], &input_nodes[j]);
+            if (ret != CGRAD_SUCCESS) {
+                return ret;
+            }
+            input_storages[j] = input_nodes[j]->storage;
+            input_requires_grad[j] = input_nodes[j]->requires_grad;
+
+            // Allocate gradient storage for inputs if needed
+            if (input_nodes[j]->requires_grad && input_nodes[j]->grad_storage == NULL) {
+                input_nodes[j]->grad_storage = (cgrad_storage*)calloc(1, sizeof(cgrad_storage));
+                if (input_nodes[j]->grad_storage == NULL) {
+                    return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+                }
+                ret = cgrad_storage_init(
+                    input_nodes[j]->grad_storage,
+                    input_nodes[j]->layout.shape,
+                    TENSOR_DIM,
+                    input_nodes[j]->backend_type
+                );
+                if (ret != CGRAD_SUCCESS) {
+                    return ret;
+                }
+                ret = cgrad_storage_fill(input_nodes[j]->grad_storage, 0.0f);
+                if (ret != CGRAD_SUCCESS) {
+                    return ret;
+                }
+            }
+            grad_inputs[j] = input_nodes[j]->grad_storage;
+        }
+
+        // Call backward function
+        ret = op_desc->backward(
+            input_storages,
+            num_inputs,
+            node->storage,
+            node->grad_storage,
+            &node->op_info.metadata,
+            node->ctx,
+            grad_inputs,
+            input_requires_grad
+        );
+        if (ret != CGRAD_SUCCESS) {
+            return ret;
+        }
+
+        // Free context if operation has a free_ctx function
+        if (node->ctx != NULL && op_desc->free_ctx != NULL) {
+            op_desc->free_ctx(node->ctx);
+            node->ctx = NULL;
+        }
+    }
+
+    return CGRAD_SUCCESS;
+}
+
+int cgrad_compute_graph_zero_grad(cgrad_compute_graph* graph) {
+    if (graph == NULL) {
+        return CGRAD_ERR_NULL_POINTER;
+    }
+
+    // Iterate through all nodes and zero their gradients
+    cgrad_graph_node *node, *tmp;
+    HASH_ITER(hh, graph->node_metadata_table, node, tmp) {
+        if (node->grad_storage != NULL) {
+            int ret = cgrad_storage_fill(node->grad_storage, 0.0f);
+            if (ret != CGRAD_SUCCESS) {
+                return ret;
+            }
+        }
+    }
+
+    return CGRAD_SUCCESS;
+}
+
+int cgrad_compute_graph_set_requires_grad(
+    cgrad_compute_graph* graph,
+    const uuid_t node_id,
+    int requires_grad
+) {
+    if (graph == NULL) {
+        return CGRAD_ERR_NULL_POINTER;
+    }
+
+    cgrad_graph_node* node;
+    int ret = cgrad_compute_graph_get_node(graph, node_id, &node);
+    if (ret != CGRAD_SUCCESS) {
+        return ret;
+    }
+
+    node->requires_grad = requires_grad;
     return CGRAD_SUCCESS;
 }
 
@@ -315,6 +505,8 @@ int cgrad_compute_graph_add_leaf(
     node->op_info.type = CGRAD_OP_NONE;
     node->layout = *layout;
     node->storage = storage;
+    node->grad_storage = NULL;  // Initialize gradient storage
+    node->ctx = NULL;           // Initialize context
     
     // Track backend type from storage
     if (storage->backend == NULL) {
@@ -322,7 +514,8 @@ int cgrad_compute_graph_add_leaf(
         return CGRAD_ERR_NULL_POINTER;
     }
     node->backend_type = storage->backend->type;
-    node->ref_count = 1;  // Initialize reference count
+    node->ref_count = 1;        // Initialize reference count
+    node->requires_grad = 1;    // Default: leaf nodes require gradients
 
     // Add to metadata table
     int ret = add_node_metadata(graph, node);
@@ -396,9 +589,22 @@ int cgrad_compute_graph_add_op(
     uuid_generate(node->node_id);
     node->op_info = *op_info;
     node->layout = *layout;
-    node->storage = NULL;  // Not computed yet
+    node->storage = NULL;       // Not computed yet
+    node->grad_storage = NULL;  // Initialize gradient storage
+    node->ctx = NULL;           // Initialize context
     node->backend_type = backend_type;  // Inherit backend from inputs
-    node->ref_count = 1;  // Initialize reference count
+    node->ref_count = 1;        // Initialize reference count
+    
+    // Inherit requires_grad from inputs: if ANY input requires grad, so does this node
+    node->requires_grad = 0;
+    for (int i = 0; i < num_inputs; i++) {
+        cgrad_graph_node* input_node;
+        int ret = cgrad_compute_graph_get_node(graph, input_node_ids[i], &input_node);
+        if (ret == CGRAD_SUCCESS && input_node->requires_grad) {
+            node->requires_grad = 1;
+            break;
+        }
+    }
 
     // Add to metadata table
     int ret = add_node_metadata(graph, node);
@@ -728,6 +934,18 @@ int cgrad_compute_graph_free_node(cgrad_compute_graph* graph, cgrad_graph_node* 
         free(node->storage);
         node->storage = NULL;
     }
+    
+    // Free gradient storage if it exists
+    if (node->grad_storage != NULL) {
+        cgrad_storage_free(node->grad_storage);
+        free(node->grad_storage);
+        node->grad_storage = NULL;
+    }
+    
+    // Context should already be freed by backward, but check just in case
+    // Note: We can't free ctx here without knowing its type, so operations
+    // must ensure they free their own context in backward()
+    node->ctx = NULL;
 
     // Remove node from metadata table
     HASH_DEL(graph->node_metadata_table, node);

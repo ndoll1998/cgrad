@@ -456,7 +456,23 @@ int cgrad_storage_sub(
         return CGRAD_ERR_NOT_IMPLEMENTED;
     }
     
-    err = a->backend->storage_add(-1.0f, a->data, b->data, r->data);
+    // r = a - b
+    // Use storage_add with alpha=1 for a, then alpha=-1 for b
+    // First: r = 0 + a (copy a to r)
+    err = cgrad_storage_fill(r, 0.0f);
+    if (err != CGRAD_SUCCESS) {
+        cgrad_storage_stop_recording(storage_record);
+        cgrad_storage_free_all_from_record(storage_record);
+        return err;
+    }
+    err = a->backend->storage_add(1.0f, a->data, r->data, r->data);
+    if (err != CGRAD_SUCCESS) {
+        cgrad_storage_stop_recording(storage_record);
+        cgrad_storage_free_all_from_record(storage_record);
+        return err;
+    }
+    // Then: r = r + (-1)*b = a - b
+    err = a->backend->storage_add(-1.0f, b->data, r->data, r->data);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
         cgrad_storage_free_all_from_record(storage_record);
