@@ -352,6 +352,7 @@ static void test_disconnected_components(void **state) {
     assert_ptr_not_equal(storage_c1, storage_c2);
 }
 
+
 // ============================================================================
 // Test Suite
 // ============================================================================

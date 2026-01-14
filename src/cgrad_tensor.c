@@ -208,10 +208,31 @@ int cgrad_tensor_free(cgrad_tensor* tensor) {
         return CGRAD_ERR_NULL_POINTER;
     }
 
-    // Note: We don't free the global graph here
-    // Use cgrad_tensor_cleanup_global_graph() at program shutdown
-    
-    return CGRAD_SUCCESS;
+    cgrad_compute_graph* graph = get_global_graph();
+    if (graph == NULL) {
+        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+    }
+
+    // Delegate to compute graph layer for reference counting
+    return cgrad_compute_graph_decrement_ref(graph, tensor->node_id);
+}
+
+int cgrad_tensor_copy(const cgrad_tensor* src, cgrad_tensor* dst) {
+    if (src == NULL || dst == NULL) {
+        return CGRAD_ERR_NULL_POINTER;
+    }
+
+    cgrad_compute_graph* graph = get_global_graph();
+    if (graph == NULL) {
+        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+    }
+
+    // Copy tensor structure
+    uuid_copy(dst->node_id, src->node_id);
+    dst->layout = src->layout;
+
+    // Delegate to compute graph layer for reference counting
+    return cgrad_compute_graph_increment_ref(graph, src->node_id);
 }
 
 // ============================================================================

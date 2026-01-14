@@ -89,6 +89,7 @@ typedef struct cgrad_graph_node {
     cgrad_storage_layout layout;       /**< Shape of the output tensor */
     cgrad_storage* storage;            /**< For leaf: materialized eager storage; for ops: NULL or cached */
     cgrad_storage_backend_type backend_type;  /**< Backend type of the node */
+    int ref_count;                     /**< Reference count for memory management */
     UT_hash_handle hh;                 /**< Hash handle for uthash */
 } cgrad_graph_node;
 
@@ -179,6 +180,49 @@ int cgrad_compute_graph_topological_sort(
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
 int cgrad_compute_graph_free(cgrad_compute_graph* graph);
+
+/**
+ * @brief Get the number of nodes currently in the graph.
+ * @param graph Compute graph.
+ * @return Number of nodes in the graph.
+ */
+int cgrad_compute_graph_get_node_count(const cgrad_compute_graph* graph);
+
+/**
+ * @brief Free a single node and recursively free its inputs if their ref_count reaches zero.
+ * 
+ * This function is used internally by the reference counting system.
+ * 
+ * @param graph Compute graph.
+ * @param node Node to free.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_compute_graph_free_node(cgrad_compute_graph* graph, cgrad_graph_node* node);
+
+/**
+ * @brief Decrement the reference count of a node and free it if count reaches zero.
+ * 
+ * This is the main entry point for reference counting. When a tensor is freed,
+ * it should call this function to decrement the node's reference count.
+ * If the count reaches zero, the node and its inputs are freed recursively.
+ * 
+ * @param graph Compute graph.
+ * @param node_id ID of the node to decrement.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_compute_graph_decrement_ref(cgrad_compute_graph* graph, const uuid_t node_id);
+
+/**
+ * @brief Increment the reference count of a node.
+ * 
+ * This should be called when a new tensor reference to a node is created
+ * (e.g., when copying a tensor).
+ * 
+ * @param graph Compute graph.
+ * @param node_id ID of the node to increment.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_compute_graph_increment_ref(cgrad_compute_graph* graph, const uuid_t node_id);
 
 // ============================================================================
 // Node Management Functions

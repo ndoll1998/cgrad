@@ -283,6 +283,14 @@ int cgrad_compute_graph_free(cgrad_compute_graph* graph) {
     return CGRAD_SUCCESS;
 }
 
+int cgrad_compute_graph_get_node_count(const cgrad_compute_graph* graph) {
+    if (graph == NULL) {
+        return 0;
+    }
+    
+    return HASH_COUNT(graph->node_metadata_table);
+}
+
 // ============================================================================
 // Node Management Functions
 // ============================================================================
@@ -314,6 +322,7 @@ int cgrad_compute_graph_add_leaf(
         return CGRAD_ERR_NULL_POINTER;
     }
     node->backend_type = storage->backend->type;
+    node->ref_count = 1;  // Initialize reference count
 
     // Add to metadata table
     int ret = add_node_metadata(graph, node);
@@ -389,6 +398,7 @@ int cgrad_compute_graph_add_op(
     node->layout = *layout;
     node->storage = NULL;  // Not computed yet
     node->backend_type = backend_type;  // Inherit backend from inputs
+    node->ref_count = 1;  // Initialize reference count
 
     // Add to metadata table
     int ret = add_node_metadata(graph, node);
@@ -411,7 +421,7 @@ int cgrad_compute_graph_add_op(
     agsafeset(ag_node, "type", "op", "");
     agsafeset(ag_node, "op", cgrad_op_type_to_string(op_info->type), "");
 
-    // Add edges from inputs
+    // Add edges from inputs and increment their reference counts
     for (int i = 0; i < num_inputs; i++) {
         char input_name[64];
         uuid_to_string(input_node_ids[i], input_name);
@@ -429,6 +439,13 @@ int cgrad_compute_graph_add_op(
         char slot_str[16];
         snprintf(slot_str, sizeof(slot_str), "%d", i);
         agsafeset(edge, "slot", slot_str, "");
+        
+        // Increment reference count of input node
+        cgrad_graph_node* input_node_metadata;
+        ret = cgrad_compute_graph_get_node(graph, input_node_ids[i], &input_node_metadata);
+        if (ret == CGRAD_SUCCESS) {
+            input_node_metadata->ref_count++;
+        }
     }
 
     uuid_copy(out_node_id, node->node_id);
@@ -645,6 +662,90 @@ int cgrad_compute_graph_execute(
         ret = execute_node(graph, node);
         if (ret != CGRAD_SUCCESS) {
             return ret;
+        }
+    }
+
+    return CGRAD_SUCCESS;
+}
+
+// ============================================================================
+// Reference Counting Functions
+// ============================================================================
+
+int cgrad_compute_graph_increment_ref(cgrad_compute_graph* graph, const uuid_t node_id) {
+    if (graph == NULL) {
+        return CGRAD_ERR_NULL_POINTER;
+    }
+
+    cgrad_graph_node* node;
+    int ret = cgrad_compute_graph_get_node(graph, node_id, &node);
+    if (ret != CGRAD_SUCCESS) {
+        return ret;
+    }
+
+    node->ref_count++;
+    return CGRAD_SUCCESS;
+}
+
+int cgrad_compute_graph_decrement_ref(cgrad_compute_graph* graph, const uuid_t node_id) {
+    if (graph == NULL) {
+        return CGRAD_ERR_NULL_POINTER;
+    }
+
+    cgrad_graph_node* node;
+    int ret = cgrad_compute_graph_get_node(graph, node_id, &node);
+    if (ret != CGRAD_SUCCESS) {
+        return ret;
+    }
+
+    // Decrement reference count
+    node->ref_count--;
+
+    // If reference count reaches zero, free the node
+    if (node->ref_count == 0) {
+        ret = cgrad_compute_graph_free_node(graph, node);
+        if (ret != CGRAD_SUCCESS) {
+            return ret;
+        }
+    }
+
+    return CGRAD_SUCCESS;
+}
+
+int cgrad_compute_graph_free_node(cgrad_compute_graph* graph, cgrad_graph_node* node) {
+    if (graph == NULL || node == NULL) {
+        return CGRAD_ERR_NULL_POINTER;
+    }
+
+    // Get input nodes before freeing
+    uuid_t input_ids[MAX_NODE_INPUTS];
+    int num_inputs = 0;
+    int ret = cgrad_compute_graph_get_inputs(graph, node->node_id, input_ids, MAX_NODE_INPUTS, &num_inputs);
+    
+    // Free storage if it exists
+    if (node->storage != NULL) {
+        cgrad_storage_free(node->storage);
+        free(node->storage);
+        node->storage = NULL;
+    }
+
+    // Remove node from metadata table
+    HASH_DEL(graph->node_metadata_table, node);
+    
+    // Remove node from libcgraph
+    char node_name[64];
+    uuid_to_string(node->node_id, node_name);
+    Agnode_t* ag_node = agnode(graph->agraph, node_name, 0);
+    if (ag_node != NULL) {
+        agdelnode(graph->agraph, ag_node);
+    }
+
+    free(node);
+
+    // Recursively decrement ref_count of input nodes
+    if (ret == CGRAD_SUCCESS) {
+        for (int i = 0; i < num_inputs; i++) {
+            cgrad_compute_graph_decrement_ref(graph, input_ids[i]);
         }
     }
 

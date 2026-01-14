@@ -275,6 +275,326 @@ static void test_backend_consistency_same_backend(void **state) {
 // once additional backend types (e.g., GPU, CUDA) are implemented in the system.
 
 // ============================================================================
+// Test: Reference Counting - Leaf Node
+// ============================================================================
+
+static void test_refcount_leaf_node(void **state) {
+    (void) state;
+    
+    cgrad_compute_graph graph;
+    cgrad_compute_graph_create(&graph);
+    
+    // Create layout
+    cgrad_storage_layout layout;
+    uint32_t shape[] = {2, 3};
+    cgrad_storage_layout_init(&layout, shape, 2);
+    
+    // Create storage
+    cgrad_storage* storage = (cgrad_storage*)malloc(sizeof(cgrad_storage));
+    cgrad_storage_init(storage, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    
+    // Add leaf node
+    uuid_t node_id;
+    int ret = cgrad_compute_graph_add_leaf(&graph, &layout, storage, node_id);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Check node count
+    assert_int_equal(cgrad_compute_graph_get_node_count(&graph), 1);
+    
+    // Check initial ref_count
+    cgrad_graph_node* node;
+    ret = cgrad_compute_graph_get_node(&graph, node_id, &node);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_int_equal(node->ref_count, 1);
+    
+    // Decrement ref_count (simulating tensor free)
+    ret = cgrad_compute_graph_decrement_ref(&graph, node_id);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Node should be freed (can't access it anymore)
+    ret = cgrad_compute_graph_get_node(&graph, node_id, &node);
+    assert_int_equal(ret, CGRAD_GRAPH_ERR_NODE_NOT_FOUND);
+    
+    // Check node count is now 0
+    assert_int_equal(cgrad_compute_graph_get_node_count(&graph), 0);
+    
+    cgrad_compute_graph_free(&graph);
+}
+
+// ============================================================================
+// Test: Reference Counting - Increment/Decrement
+// ============================================================================
+
+static void test_refcount_increment_decrement(void **state) {
+    (void) state;
+    
+    cgrad_compute_graph graph;
+    cgrad_compute_graph_create(&graph);
+    
+    // Create layout
+    cgrad_storage_layout layout;
+    uint32_t shape[] = {2, 3};
+    cgrad_storage_layout_init(&layout, shape, 2);
+    
+    // Create storage
+    cgrad_storage* storage = (cgrad_storage*)malloc(sizeof(cgrad_storage));
+    cgrad_storage_init(storage, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    
+    // Add leaf node
+    uuid_t node_id;
+    int ret = cgrad_compute_graph_add_leaf(&graph, &layout, storage, node_id);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Get node and check initial ref_count
+    cgrad_graph_node* node;
+    ret = cgrad_compute_graph_get_node(&graph, node_id, &node);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_int_equal(node->ref_count, 1);
+    
+    // Increment ref_count (simulating tensor copy)
+    ret = cgrad_compute_graph_increment_ref(&graph, node_id);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_int_equal(node->ref_count, 2);
+    
+    // Decrement once
+    ret = cgrad_compute_graph_decrement_ref(&graph, node_id);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Node should still exist
+    ret = cgrad_compute_graph_get_node(&graph, node_id, &node);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_int_equal(node->ref_count, 1);
+    
+    // Decrement again
+    ret = cgrad_compute_graph_decrement_ref(&graph, node_id);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Node should be freed
+    ret = cgrad_compute_graph_get_node(&graph, node_id, &node);
+    assert_int_equal(ret, CGRAD_GRAPH_ERR_NODE_NOT_FOUND);
+    
+    cgrad_compute_graph_free(&graph);
+}
+
+// ============================================================================
+// Test: Reference Counting - Operation Nodes
+// ============================================================================
+
+static void test_refcount_operation_nodes(void **state) {
+    (void) state;
+    
+    cgrad_compute_graph graph;
+    cgrad_compute_graph_create(&graph);
+    
+    // Create two leaf nodes
+    cgrad_storage_layout layout;
+    uint32_t shape[] = {2, 3};
+    cgrad_storage_layout_init(&layout, shape, 2);
+    
+    cgrad_storage* storage1 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
+    cgrad_storage_init(storage1, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    uuid_t leaf1_id;
+    cgrad_compute_graph_add_leaf(&graph, &layout, storage1, leaf1_id);
+    
+    cgrad_storage* storage2 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
+    cgrad_storage_init(storage2, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    uuid_t leaf2_id;
+    cgrad_compute_graph_add_leaf(&graph, &layout, storage2, leaf2_id);
+    
+    // Check initial ref_counts
+    cgrad_graph_node* node1;
+    cgrad_graph_node* node2;
+    cgrad_compute_graph_get_node(&graph, leaf1_id, &node1);
+    cgrad_compute_graph_get_node(&graph, leaf2_id, &node2);
+    assert_int_equal(node1->ref_count, 1);
+    assert_int_equal(node2->ref_count, 1);
+    
+    // Add operation node (ADD)
+    cgrad_op_info op_info;
+    op_info.type = CGRAD_OP_ADD;
+    uuid_t input_ids[2];
+    uuid_copy(input_ids[0], leaf1_id);
+    uuid_copy(input_ids[1], leaf2_id);
+    
+    uuid_t op_node_id;
+    int ret = cgrad_compute_graph_add_op(&graph, &op_info, &layout, input_ids, 2, op_node_id);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Check ref_counts increased (inputs are referenced by operation)
+    assert_int_equal(node1->ref_count, 2);
+    assert_int_equal(node2->ref_count, 2);
+    
+    // Get operation node
+    cgrad_graph_node* op_node;
+    ret = cgrad_compute_graph_get_node(&graph, op_node_id, &op_node);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_int_equal(op_node->ref_count, 1);
+    
+    // Check node count (2 leaves + 1 op = 3)
+    assert_int_equal(cgrad_compute_graph_get_node_count(&graph), 3);
+    
+    // Free operation node
+    ret = cgrad_compute_graph_decrement_ref(&graph, op_node_id);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Check ref_counts decreased (cascading decrement)
+    assert_int_equal(node1->ref_count, 1);
+    assert_int_equal(node2->ref_count, 1);
+    
+    // Check node count (op node freed, 2 leaves remain)
+    assert_int_equal(cgrad_compute_graph_get_node_count(&graph), 2);
+    
+    cgrad_compute_graph_free(&graph);
+}
+
+// ============================================================================
+// Test: Reference Counting - Shared Subgraph
+// ============================================================================
+
+static void test_refcount_shared_subgraph(void **state) {
+    (void) state;
+    
+    cgrad_compute_graph graph;
+    cgrad_compute_graph_create(&graph);
+    
+    // Create two leaf nodes
+    cgrad_storage_layout layout;
+    uint32_t shape[] = {2, 3};
+    cgrad_storage_layout_init(&layout, shape, 2);
+    
+    cgrad_storage* storage1 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
+    cgrad_storage_init(storage1, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    uuid_t leaf1_id;
+    cgrad_compute_graph_add_leaf(&graph, &layout, storage1, leaf1_id);
+    
+    cgrad_storage* storage2 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
+    cgrad_storage_init(storage2, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    uuid_t leaf2_id;
+    cgrad_compute_graph_add_leaf(&graph, &layout, storage2, leaf2_id);
+    
+    // c = a + b
+    cgrad_op_info op_info;
+    op_info.type = CGRAD_OP_ADD;
+    uuid_t input_ids[2];
+    uuid_copy(input_ids[0], leaf1_id);
+    uuid_copy(input_ids[1], leaf2_id);
+    uuid_t c_id;
+    cgrad_compute_graph_add_op(&graph, &op_info, &layout, input_ids, 2, c_id);
+    
+    // d = c + c (c is used twice)
+    uuid_copy(input_ids[0], c_id);
+    uuid_copy(input_ids[1], c_id);
+    uuid_t d_id;
+    cgrad_compute_graph_add_op(&graph, &op_info, &layout, input_ids, 2, d_id);
+    
+    // Check c's ref_count (1 initial + 2 from d)
+    cgrad_graph_node* c_node;
+    cgrad_compute_graph_get_node(&graph, c_id, &c_node);
+    assert_int_equal(c_node->ref_count, 3);
+    
+    // Decrement c once (simulating tensor free)
+    int ret = cgrad_compute_graph_decrement_ref(&graph, c_id);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // c should still exist (ref_count = 2)
+    ret = cgrad_compute_graph_get_node(&graph, c_id, &c_node);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_int_equal(c_node->ref_count, 2);
+    
+    // Free d
+    ret = cgrad_compute_graph_decrement_ref(&graph, d_id);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Now c should be freed (cascading cleanup)
+    ret = cgrad_compute_graph_get_node(&graph, c_id, &c_node);
+    assert_int_equal(ret, CGRAD_GRAPH_ERR_NODE_NOT_FOUND);
+    
+    cgrad_compute_graph_free(&graph);
+}
+
+// ============================================================================
+// Test: Reference Counting - Complex Graph
+// ============================================================================
+
+static void test_refcount_complex_graph(void **state) {
+    (void) state;
+    
+    cgrad_compute_graph graph;
+    cgrad_compute_graph_create(&graph);
+    
+    // Create two leaf nodes
+    cgrad_storage_layout layout;
+    uint32_t shape[] = {2, 3};
+    cgrad_storage_layout_init(&layout, shape, 2);
+    
+    cgrad_storage* storage1 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
+    cgrad_storage_init(storage1, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    uuid_t a_id;
+    cgrad_compute_graph_add_leaf(&graph, &layout, storage1, a_id);
+    
+    cgrad_storage* storage2 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
+    cgrad_storage_init(storage2, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    uuid_t b_id;
+    cgrad_compute_graph_add_leaf(&graph, &layout, storage2, b_id);
+    
+    // c = a + b
+    cgrad_op_info add_op;
+    add_op.type = CGRAD_OP_ADD;
+    uuid_t input_ids[2];
+    uuid_copy(input_ids[0], a_id);
+    uuid_copy(input_ids[1], b_id);
+    uuid_t c_id;
+    cgrad_compute_graph_add_op(&graph, &add_op, &layout, input_ids, 2, c_id);
+    
+    // d = a - b
+    cgrad_op_info sub_op;
+    sub_op.type = CGRAD_OP_SUB;
+    uuid_copy(input_ids[0], a_id);
+    uuid_copy(input_ids[1], b_id);
+    uuid_t d_id;
+    cgrad_compute_graph_add_op(&graph, &sub_op, &layout, input_ids, 2, d_id);
+    
+    // e = c + d
+    uuid_copy(input_ids[0], c_id);
+    uuid_copy(input_ids[1], d_id);
+    uuid_t e_id;
+    cgrad_compute_graph_add_op(&graph, &add_op, &layout, input_ids, 2, e_id);
+    
+    // Check ref_counts
+    cgrad_graph_node *a_node, *b_node, *c_node, *d_node;
+    cgrad_compute_graph_get_node(&graph, a_id, &a_node);
+    cgrad_compute_graph_get_node(&graph, b_id, &b_node);
+    cgrad_compute_graph_get_node(&graph, c_id, &c_node);
+    cgrad_compute_graph_get_node(&graph, d_id, &d_node);
+    
+    // a and b are referenced by c and d (1 + 2 = 3)
+    assert_int_equal(a_node->ref_count, 3);
+    assert_int_equal(b_node->ref_count, 3);
+    // c and d are referenced by e (1 + 1 = 2)
+    assert_int_equal(c_node->ref_count, 2);
+    assert_int_equal(d_node->ref_count, 2);
+    
+    // Free in arbitrary order: c, e, d, a, b
+    int ret = cgrad_compute_graph_decrement_ref(&graph, c_id);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // c should still exist (ref_count = 1, referenced by e)
+    ret = cgrad_compute_graph_get_node(&graph, c_id, &c_node);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_int_equal(c_node->ref_count, 1);
+    
+    // Free e (triggers cascading cleanup of c and d)
+    ret = cgrad_compute_graph_decrement_ref(&graph, e_id);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // c should be freed (cascading cleanup from e)
+    ret = cgrad_compute_graph_get_node(&graph, c_id, &c_node);
+    assert_int_equal(ret, CGRAD_GRAPH_ERR_NODE_NOT_FOUND);
+    
+    cgrad_compute_graph_free(&graph);
+}
+
+// ============================================================================
 // Test Suite
 // ============================================================================
 
@@ -288,6 +608,11 @@ int main(void) {
         cmocka_unit_test(test_dot_export),
         cmocka_unit_test(test_backend_type_tracking),
         cmocka_unit_test(test_backend_consistency_same_backend),
+        cmocka_unit_test(test_refcount_leaf_node),
+        cmocka_unit_test(test_refcount_increment_decrement),
+        cmocka_unit_test(test_refcount_operation_nodes),
+        cmocka_unit_test(test_refcount_shared_subgraph),
+        cmocka_unit_test(test_refcount_complex_graph),
     };
     
     return cmocka_run_group_tests(tests, NULL, NULL);
@@ -302,6 +627,11 @@ int test_cgrad_compute_graph_main(void) {
         cmocka_unit_test(test_dot_export),
         cmocka_unit_test(test_backend_type_tracking),
         cmocka_unit_test(test_backend_consistency_same_backend),
+        cmocka_unit_test(test_refcount_leaf_node),
+        cmocka_unit_test(test_refcount_increment_decrement),
+        cmocka_unit_test(test_refcount_operation_nodes),
+        cmocka_unit_test(test_refcount_shared_subgraph),
+        cmocka_unit_test(test_refcount_complex_graph),
     };
     
     return _cmocka_run_group_tests("cgrad_compute_graph", tests, sizeof(tests)/sizeof(tests[0]), NULL, NULL);

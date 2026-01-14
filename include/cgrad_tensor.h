@@ -79,11 +79,28 @@ int cgrad_tensor_fill(cgrad_tensor* tensor, float value);
 int cgrad_tensor_fill_rand(cgrad_tensor* tensor);
 
 /**
- * @brief Free a tensor (does not free the underlying graph).
+ * @brief Free a tensor using reference counting.
+ * 
+ * Decrements the reference count of the node. If the reference count reaches zero,
+ * the node and its storage are freed, and input nodes have their reference counts
+ * decremented recursively.
+ * 
  * @param tensor Tensor to free.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
 int cgrad_tensor_free(cgrad_tensor* tensor);
+
+/**
+ * @brief Copy a tensor (increments reference count of the referenced node).
+ * 
+ * Creates a new tensor that references the same computation graph node.
+ * The reference count of the node is incremented.
+ * 
+ * @param src Source tensor.
+ * @param dst Destination tensor.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_tensor_copy(const cgrad_tensor* src, cgrad_tensor* dst);
 
 /**
  * @brief Cleanup the global compute graph.
