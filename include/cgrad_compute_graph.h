@@ -88,6 +88,7 @@ typedef struct cgrad_graph_node {
     cgrad_op_info op_info;             /**< Operation type and metadata (unused for leaves) */
     cgrad_storage_layout layout;       /**< Shape of the output tensor */
     cgrad_storage* storage;            /**< For leaf: materialized eager storage; for ops: NULL or cached */
+    cgrad_storage_backend_type backend_type;  /**< Backend type of the node */
     UT_hash_handle hh;                 /**< Hash handle for uthash */
 } cgrad_graph_node;
 

@@ -307,6 +307,13 @@ int cgrad_compute_graph_add_leaf(
     node->op_info.type = CGRAD_OP_NONE;
     node->layout = *layout;
     node->storage = storage;
+    
+    // Track backend type from storage
+    if (storage->backend == NULL) {
+        free(node);
+        return CGRAD_ERR_NULL_POINTER;
+    }
+    node->backend_type = storage->backend->type;
 
     // Add to metadata table
     int ret = add_node_metadata(graph, node);
@@ -349,6 +356,28 @@ int cgrad_compute_graph_add_op(
         return CGRAD_GRAPH_ERR_TOO_MANY_INPUTS;
     }
 
+    // Validate backend consistency across inputs
+    cgrad_storage_backend_type backend_type;
+    int backend_initialized = 0;
+    
+    for (int i = 0; i < num_inputs; i++) {
+        cgrad_graph_node* input_node;
+        int ret = cgrad_compute_graph_get_node(graph, input_node_ids[i], &input_node);
+        if (ret != CGRAD_SUCCESS) {
+            return ret;
+        }
+        
+        if (!backend_initialized) {
+            backend_type = input_node->backend_type;
+            backend_initialized = 1;
+        } else {
+            // Check if this input has a different backend
+            if (input_node->backend_type != backend_type) {
+                return CGRAD_GRAPH_ERR_BACKEND_MISMATCH;
+            }
+        }
+    }
+
     // Create node metadata
     cgrad_graph_node* node = (cgrad_graph_node*)malloc(sizeof(cgrad_graph_node));
     if (node == NULL) {
@@ -359,6 +388,7 @@ int cgrad_compute_graph_add_op(
     node->op_info = *op_info;
     node->layout = *layout;
     node->storage = NULL;  // Not computed yet
+    node->backend_type = backend_type;  // Inherit backend from inputs
 
     // Add to metadata table
     int ret = add_node_metadata(graph, node);
@@ -572,6 +602,11 @@ static int execute_node(cgrad_compute_graph* graph, cgrad_graph_node* node) {
         cgrad_storage_free(out_storage);
         free(out_storage);
         return ret;
+    }
+
+    // Check the backend
+    if (out_storage->backend->type != node->backend_type) {
+        return CGRAD_GRAPH_ERR_BACKEND_MISMATCH;
     }
 
     // Cache the result

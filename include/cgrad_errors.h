@@ -56,5 +56,6 @@
 #define CGRAD_GRAPH_ERR_ALLOC_FAILED                    -1506
 #define CGRAD_GRAPH_ERR_INVALID_GRAPH                   -1507
 #define CGRAD_GRAPH_ERR_TOO_MANY_INPUTS                 -1508
+#define CGRAD_GRAPH_ERR_BACKEND_MISMATCH                -1509
 
 #endif // CGRAD_ERRORS_H

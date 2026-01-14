@@ -196,6 +196,85 @@ static void test_dot_export(void **state) {
 }
 
 // ============================================================================
+// Test: Backend Type Tracking
+// ============================================================================
+
+static void test_backend_type_tracking(void **state) {
+    (void) state;
+    
+    cgrad_compute_graph graph;
+    cgrad_compute_graph_create(&graph);
+    
+    // Create layout
+    cgrad_storage_layout layout;
+    uint32_t shape[] = {2, 3};
+    cgrad_storage_layout_init(&layout, shape, 2);
+    
+    // Create leaf node with F32_CPU backend
+    cgrad_storage* storage = (cgrad_storage*)malloc(sizeof(cgrad_storage));
+    cgrad_storage_init(storage, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    uuid_t leaf_id;
+    int ret = cgrad_compute_graph_add_leaf(&graph, &layout, storage, leaf_id);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Verify backend type is tracked
+    cgrad_graph_node* node;
+    ret = cgrad_compute_graph_get_node(&graph, leaf_id, &node);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_int_equal(node->backend_type, CGRAD_STORAGE_BACKEND_F32_CPU);
+    
+    cgrad_compute_graph_free(&graph);
+}
+
+// ============================================================================
+// Test: Backend Consistency for Operations
+// ============================================================================
+
+static void test_backend_consistency_same_backend(void **state) {
+    (void) state;
+    
+    cgrad_compute_graph graph;
+    cgrad_compute_graph_create(&graph);
+    
+    // Create two leaf nodes with same backend
+    cgrad_storage_layout layout;
+    uint32_t shape[] = {2, 3};
+    cgrad_storage_layout_init(&layout, shape, 2);
+    
+    cgrad_storage* storage1 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
+    cgrad_storage_init(storage1, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    uuid_t leaf1_id;
+    cgrad_compute_graph_add_leaf(&graph, &layout, storage1, leaf1_id);
+    
+    cgrad_storage* storage2 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
+    cgrad_storage_init(storage2, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    uuid_t leaf2_id;
+    cgrad_compute_graph_add_leaf(&graph, &layout, storage2, leaf2_id);
+    
+    // Add operation node - should succeed with same backend
+    cgrad_op_info op_info;
+    op_info.type = CGRAD_OP_ADD;
+    uuid_t input_ids[2];
+    uuid_copy(input_ids[0], leaf1_id);
+    uuid_copy(input_ids[1], leaf2_id);
+    
+    uuid_t op_node_id;
+    int ret = cgrad_compute_graph_add_op(&graph, &op_info, &layout, input_ids, 2, op_node_id);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Verify operation node inherits backend type
+    cgrad_graph_node* op_node;
+    ret = cgrad_compute_graph_get_node(&graph, op_node_id, &op_node);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_int_equal(op_node->backend_type, CGRAD_STORAGE_BACKEND_F32_CPU);
+    
+    cgrad_compute_graph_free(&graph);
+}
+
+// NOTE: Test for mixed backends (CGRAD_GRAPH_ERR_BACKEND_MISMATCH) will be added
+// once additional backend types (e.g., GPU, CUDA) are implemented in the system.
+
+// ============================================================================
 // Test Suite
 // ============================================================================
 
@@ -207,6 +286,8 @@ int main(void) {
         cmocka_unit_test(test_add_op_node),
         cmocka_unit_test(test_topological_sort),
         cmocka_unit_test(test_dot_export),
+        cmocka_unit_test(test_backend_type_tracking),
+        cmocka_unit_test(test_backend_consistency_same_backend),
     };
     
     return cmocka_run_group_tests(tests, NULL, NULL);
@@ -219,6 +300,8 @@ int test_cgrad_compute_graph_main(void) {
         cmocka_unit_test(test_add_op_node),
         cmocka_unit_test(test_topological_sort),
         cmocka_unit_test(test_dot_export),
+        cmocka_unit_test(test_backend_type_tracking),
+        cmocka_unit_test(test_backend_consistency_same_backend),
     };
     
     return _cmocka_run_group_tests("cgrad_compute_graph", tests, sizeof(tests)/sizeof(tests[0]), NULL, NULL);
