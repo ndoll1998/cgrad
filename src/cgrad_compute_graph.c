@@ -561,19 +561,14 @@ static int execute_node(cgrad_compute_graph* graph, cgrad_graph_node* node) {
             ret = cgrad_storage_gemm(input_storages[0], input_storages[1], out_storage);
             break;
 
-        case CGRAD_OP_TRANSPOSE: {
-            ret = cgrad_storage_shallow_copy(input_storages[0], out_storage);
-            if (ret != CGRAD_SUCCESS) {
-                free(out_storage);
-                return ret;
-            }
+        case CGRAD_OP_TRANSPOSE:
             ret = cgrad_storage_transpose(
-                out_storage, 
+                input_storages[0],
+                out_storage,
                 node->op_info.metadata.transpose.perm,
                 node->op_info.metadata.transpose.ndim
             );
             break;
-        }
 
         case CGRAD_OP_RESHAPE: {
             ret = cgrad_storage_reshape(

@@ -369,14 +369,23 @@ int cgrad_storage_reshape(const cgrad_storage* src, cgrad_storage* dst, const in
 
 /**
  * @brief Transpose the tensor according to the given permutation, applied to the last ndim dims.
- * @param t Pointer to tensor.
+ * Creates a shallow copy of the source tensor and applies the transpose to the layout.
+ * @param src Source tensor.
+ * @param dst Destination tensor (will be initialized with shallow copy + transpose).
  * @param perm Permutation array (length ndim).
  * @param ndim Number of trailing dimensions to permute (≤ TENSOR_DIM).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_transpose(cgrad_storage* t, const uint32_t* perm, int ndim) {
-    if (!t || !t->backend || !t->data) return CGRAD_ERR_NULL_POINTER;
-    return cgrad_storage_layout_transpose(t->backend->storage_get_layout(t->data), perm, ndim);
+int cgrad_storage_transpose(const cgrad_storage* src, cgrad_storage* dst, const uint32_t* perm, int ndim) {
+    if (!src || !dst) return CGRAD_ERR_NULL_POINTER;
+    if (!src->backend || !src->data) return CGRAD_ERR_NULL_POINTER;
+    
+    // Create shallow copy of source
+    int ret = cgrad_storage_shallow_copy(src, dst);
+    if (ret != CGRAD_SUCCESS) return ret;
+    
+    // Apply transpose to the layout
+    return cgrad_storage_layout_transpose(dst->backend->storage_get_layout(dst->data), perm, ndim);
 }
 
 /**
@@ -442,8 +451,14 @@ int cgrad_storage_sum(
             if (full_mask[i]) perm[kept_count + sum_count++] = i;
         }
         
-        err = cgrad_storage_transpose(&a_perm, perm, TENSOR_DIM);
-        if (err != CGRAD_SUCCESS) return err;
+        cgrad_storage a_perm_transposed = {0};
+        err = cgrad_storage_transpose(&a_perm, &a_perm_transposed, perm, TENSOR_DIM);
+        if (err != CGRAD_SUCCESS) {
+            cgrad_storage_free(&a_perm);
+            return err;
+        }
+        cgrad_storage_free(&a_perm);
+        a_perm = a_perm_transposed;
     }
 
     // Count kept and summed dims

@@ -30,13 +30,16 @@ static void BM_MakeContiguous(benchmark::State& state) {
     }
 
     uint32_t perm[4] = {2, 1, 3, 0};
-    int err = cgrad_storage_transpose(&t, perm, 4);
+    cgrad_storage t_transposed;
+    int err = cgrad_storage_transpose(&t, &t_transposed, perm, 4);
     if (err != CGRAD_SUCCESS) {
         // skip error with error code
         state.SkipWithError("Failed to transpose tensor");
         cgrad_storage_free(&t);
         return;
     }
+    cgrad_storage_free(&t);
+    t = t_transposed;
 
     for (auto _ : state) {
         int _err = cgrad_storage_contiguous(&t, &t_contig);

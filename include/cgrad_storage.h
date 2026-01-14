@@ -131,12 +131,14 @@ int cgrad_storage_reshape(const cgrad_storage* src, cgrad_storage* dst, const in
 
 /**
  * @brief Transpose the tensor according to the given permutation, applied to the last ndim dims.
- * @param t Pointer to tensor.
+ * Creates a shallow copy of the source tensor and applies the transpose to the layout.
+ * @param src Source tensor.
+ * @param dst Destination tensor (will be initialized with shallow copy + transpose).
  * @param perm Permutation array (length ndim).
  * @param ndim Number of trailing dimensions to permute (≤ MAX_TENSOR_DIM).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_transpose(cgrad_storage* t, const uint32_t* perm, int ndim);
+int cgrad_storage_transpose(const cgrad_storage* src, cgrad_storage* dst, const uint32_t* perm, int ndim);
 
 // --- Backend Registry (for internal use) ---
 
