@@ -68,7 +68,7 @@ typedef union {
     
     struct {
         float alpha;                /**< Scalar multiplier for x in y = alpha*x + y */
-    } add;                          /**< Metadata for CGRAD_OP_ADD */
+    } axpy;                          /**< Metadata for CGRAD_OP_AXPY */
     
     float scalar;                   /**< For scalar operations */
 } cgrad_op_metadata;

@@ -23,7 +23,7 @@ static int axpy_forward(
     *ctx = NULL;
     
     // Use alpha from metadata
-    float alpha = metadata->add.alpha;
+    float alpha = metadata->axpy.alpha;
     
     return cgrad_storage_axpy(alpha, inputs[0], inputs[1], output);
 }
@@ -52,7 +52,7 @@ static int add_backward(
     int ret;
     
     // Get alpha from metadata
-    float alpha = metadata->add.alpha;
+    float alpha = metadata->axpy.alpha;
     
     // Gradient for input 0: grad_x += alpha * grad_output
     if (input_requires_grad[0] && grad_inputs[0] != NULL) {

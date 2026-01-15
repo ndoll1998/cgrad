@@ -62,7 +62,7 @@ static void test_op_axpy_forward(void **state) {
     
     // Prepare metadata for addition (alpha = 1.0)
     cgrad_op_metadata metadata = {0};
-    metadata.add.alpha = 1.0f;
+    metadata.axpy.alpha = 1.0f;
     
     // Execute forward pass
     void* ctx = NULL;
@@ -115,7 +115,7 @@ static void test_op_axpy_backward_basic(void **state) {
     
     // Prepare metadata for addition (alpha = 1.0)
     cgrad_op_metadata metadata = {0};
-    metadata.add.alpha = 1.0f;
+    metadata.axpy.alpha = 1.0f;
     
     // Execute forward pass first
     void* ctx = NULL;
@@ -174,7 +174,7 @@ static void test_op_axpy_backward_one_no_grad(void **state) {
     
     // Prepare metadata for addition (alpha = 1.0)
     cgrad_op_metadata metadata = {0};
-    metadata.add.alpha = 1.0f;
+    metadata.axpy.alpha = 1.0f;
     
     // Execute forward pass first
     void* ctx = NULL;
@@ -233,7 +233,7 @@ static void test_op_axpy_backward_accumulation(void **state) {
     
     // Prepare metadata for addition (alpha = 1.0)
     cgrad_op_metadata metadata = {0};
-    metadata.add.alpha = 1.0f;
+    metadata.axpy.alpha = 1.0f;
     
     // Execute forward pass first
     void* ctx = NULL;

@@ -456,12 +456,19 @@ int cgrad_compute_graph_free(cgrad_compute_graph* graph) {
     HASH_ITER(hh, graph->node_metadata_table, node, tmp) {
         HASH_DEL(graph->node_metadata_table, node);
         
+        
         // Free storage if it exists
         if (node->storage != NULL) {
             cgrad_storage_free(node->storage);
             free(node->storage);
         }
-        
+
+        // Free storage if it exists
+        if (node->grad_storage != NULL) {
+            cgrad_storage_free(node->grad_storage);
+            free(node->grad_storage);
+        }
+
         free(node);
     }
 
@@ -501,25 +508,42 @@ int cgrad_compute_graph_add_leaf(
         return CGRAD_GRAPH_ERR_ALLOC_FAILED;
     }
 
+    // Allocate memory for storage and create a shallow copy
+    // This ensures the graph owns the storage memory
+    cgrad_storage* node_storage = (cgrad_storage*)malloc(sizeof(cgrad_storage));
+    if (node_storage == NULL) {
+        free(node);
+        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+    }
+
+    int ret = cgrad_storage_shallow_copy(storage, node_storage);
+    if (ret != CGRAD_SUCCESS) {
+        free(node_storage);
+        free(node);
+        return ret;
+    }
+
     uuid_generate(node->node_id);
     node->op_info.type = CGRAD_OP_NONE;
     node->layout = *layout;
-    node->storage = storage;
+    node->storage = node_storage;
     node->grad_storage = NULL;  // Initialize gradient storage
     node->ctx = NULL;           // Initialize context
     
     // Track backend type from storage
-    if (storage->backend == NULL) {
+    if (node_storage->backend == NULL) {
+        free(node_storage);
         free(node);
         return CGRAD_ERR_NULL_POINTER;
     }
-    node->backend_type = storage->backend->type;
+    node->backend_type = node_storage->backend->type;
     node->ref_count = 1;        // Initialize reference count
     node->requires_grad = 1;    // Default: leaf nodes require gradients
 
     // Add to metadata table
-    int ret = add_node_metadata(graph, node);
+    ret = add_node_metadata(graph, node);
     if (ret != CGRAD_SUCCESS) {
+        free(node_storage);
         free(node);
         return ret;
     }
@@ -892,6 +916,8 @@ int cgrad_compute_graph_free_node(cgrad_compute_graph* graph, cgrad_graph_node* 
         return CGRAD_ERR_NULL_POINTER;
     }
 
+    printf("FREE A\n");
+
     // Get input nodes before freeing
     uuid_t input_ids[MAX_NODE_INPUTS];
     int num_inputs = 0;
@@ -935,6 +961,8 @@ int cgrad_compute_graph_free_node(cgrad_compute_graph* graph, cgrad_graph_node* 
             cgrad_compute_graph_decrement_ref(graph, input_ids[i]);
         }
     }
+    
+    printf("FREE B\n");
 
     return CGRAD_SUCCESS;
 }

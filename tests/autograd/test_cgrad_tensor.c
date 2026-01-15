@@ -364,13 +364,13 @@ static void test_cgrad_tensor_from_storage(void **state) {
     int ret = cgrad_tensor_init(&a, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
-    ret = cgrad_tensor_fill(&a, 5.0f);
+    ret = cgrad_tensor_fill_rand(&a);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Get its storage
     cgrad_storage* storage = cgrad_tensor_get_storage(&a);
     assert_non_null(storage);
-    
+
     // Create a new tensor from the same storage
     cgrad_tensor tensor;
     ret = cgrad_tensor_from_storage(storage, &tensor);
@@ -379,13 +379,12 @@ static void test_cgrad_tensor_from_storage(void **state) {
     // Verify the tensor has the correct shape
     assert_int_equal(tensor.layout.shape[TENSOR_DIM - 2], 2);
     assert_int_equal(tensor.layout.shape[TENSOR_DIM - 1], 3);
-    
+
     // Verify we can get the storage back
     cgrad_storage* retrieved = cgrad_tensor_get_storage(&tensor);
     assert_non_null(retrieved);
-    assert_ptr_equal(retrieved, storage);
-    
-    // Note: Both tensors reference the same storage, which will be freed by graph cleanup
+
+    // TODO: make sure the data matches
 }
 
 // ============================================================================

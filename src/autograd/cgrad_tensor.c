@@ -130,23 +130,20 @@ int cgrad_tensor_init(
         return ret;
     }
 
-    // Create storage
-    cgrad_storage* storage = (cgrad_storage*)malloc(sizeof(cgrad_storage));
-    if (storage == NULL) {
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
-    }
-
-    ret = cgrad_storage_init(storage, shape, ndim, backend_type);
+    // Create empty storage
+    cgrad_storage storage;
+    ret = cgrad_storage_init(&storage, shape, ndim, backend_type);
     if (ret != CGRAD_SUCCESS) {
-        free(storage);
         return ret;
     }
 
     // Add leaf node to global graph
-    ret = cgrad_compute_graph_add_leaf(graph, &tensor->layout, storage, tensor->node_id);
+    ret = cgrad_compute_graph_add_leaf(graph, &tensor->layout, &storage, tensor->node_id);
+    
+    // Free the stack-allocated storage
+    cgrad_storage_free(&storage);
+    
     if (ret != CGRAD_SUCCESS) {
-        cgrad_storage_free(storage);
-        free(storage);
         return ret;
     }
 
@@ -263,7 +260,7 @@ int cgrad_tensor_add(
     // Create operation node
     cgrad_op_info op_info;
     op_info.type = CGRAD_OP_AXPY;
-    op_info.metadata.add.alpha = 1.0f;
+    op_info.metadata.axpy.alpha = 1.0f;
 
     uuid_t input_ids[2];
     uuid_copy(input_ids[0], a->node_id);
@@ -306,7 +303,7 @@ int cgrad_tensor_sub(
     // This computes: out = a + (-1.0) * b = a - b
     cgrad_op_info op_info;
     op_info.type = CGRAD_OP_AXPY;
-    op_info.metadata.add.alpha = -1.0f;
+    op_info.metadata.axpy.alpha = -1.0f;
 
     uuid_t input_ids[2];
     uuid_copy(input_ids[0], a->node_id);
