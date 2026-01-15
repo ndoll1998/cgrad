@@ -7,6 +7,34 @@
 #include <stdio.h>
 
 // ============================================================================
+// Global Gradient Mode
+// ============================================================================
+
+/**
+ * @brief Global flag tracking whether gradients are enabled.
+ * 
+ * This flag is checked by tensor creation functions to determine
+ * whether newly created tensors should have requires_grad=1 or 0.
+ * 
+ * Default: 1 (enabled)
+ */
+static int g_grad_enabled = 1;
+
+int cgrad_enable_grad(void) {
+    g_grad_enabled = 1;
+    return CGRAD_SUCCESS;
+}
+
+int cgrad_disable_grad(void) {
+    g_grad_enabled = 0;
+    return CGRAD_SUCCESS;
+}
+
+int cgrad_is_grad_enabled(void) {
+    return g_grad_enabled;
+}
+
+// ============================================================================
 // Global Compute Graph
 // ============================================================================
 
@@ -145,6 +173,15 @@ int cgrad_tensor_init(
     
     if (ret != CGRAD_SUCCESS) {
         return ret;
+    }
+
+    // Check gradient mode and disable gradients if needed
+    if (!cgrad_is_grad_enabled()) {
+        // Gradient mode is disabled, so disable gradients for this tensor
+        ret = cgrad_tensor_set_requires_grad(tensor, 0);
+        if (ret != CGRAD_SUCCESS) {
+            return ret;
+        }
     }
 
     return CGRAD_SUCCESS;

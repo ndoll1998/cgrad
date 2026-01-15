@@ -600,6 +600,185 @@ static void test_cgrad_tensor_get_complex(void **state) {
 }
 
 // ============================================================================
+// Test: Gradient Mode
+// ============================================================================
+
+static void test_cgrad_gradient_mode_default(void **state) {
+    (void) state;
+    
+    // By default, gradients should be enabled
+    assert_int_equal(cgrad_is_grad_enabled(), 1);
+    
+    // Create a tensor - should have requires_grad=1 by default
+    cgrad_tensor a;
+    uint32_t shape[] = {2, 2};
+    
+    int ret = cgrad_tensor_init(&a, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    int requires_grad;
+    ret = cgrad_tensor_get_requires_grad(&a, &requires_grad);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_int_equal(requires_grad, 1);
+}
+
+static void test_cgrad_gradient_mode_disable(void **state) {
+    (void) state;
+    
+    // Disable gradients
+    int ret = cgrad_disable_grad();
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_int_equal(cgrad_is_grad_enabled(), 0);
+    
+    // Create a tensor - should have requires_grad=0
+    cgrad_tensor a;
+    uint32_t shape[] = {2, 2};
+    
+    ret = cgrad_tensor_init(&a, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    int requires_grad;
+    ret = cgrad_tensor_get_requires_grad(&a, &requires_grad);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_int_equal(requires_grad, 0);
+    
+    // Re-enable gradients for next tests
+    ret = cgrad_enable_grad();
+    assert_int_equal(ret, CGRAD_SUCCESS);
+}
+
+static void test_cgrad_gradient_mode_toggle(void **state) {
+    (void) state;
+    
+    // Start with gradients enabled (default)
+    assert_int_equal(cgrad_is_grad_enabled(), 1);
+    
+    // Create tensor with gradients enabled
+    cgrad_tensor a;
+    uint32_t shape[] = {2, 2};
+    int ret = cgrad_tensor_init(&a, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    int requires_grad;
+    ret = cgrad_tensor_get_requires_grad(&a, &requires_grad);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_int_equal(requires_grad, 1);
+    
+    // Disable gradients
+    ret = cgrad_disable_grad();
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_int_equal(cgrad_is_grad_enabled(), 0);
+    
+    // Create tensor with gradients disabled
+    cgrad_tensor b;
+    ret = cgrad_tensor_init(&b, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    ret = cgrad_tensor_get_requires_grad(&b, &requires_grad);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_int_equal(requires_grad, 0);
+    
+    // Re-enable gradients
+    ret = cgrad_enable_grad();
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_int_equal(cgrad_is_grad_enabled(), 1);
+    
+    // Create tensor with gradients re-enabled
+    cgrad_tensor c;
+    ret = cgrad_tensor_init(&c, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    ret = cgrad_tensor_get_requires_grad(&c, &requires_grad);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_int_equal(requires_grad, 1);
+}
+
+static void test_cgrad_gradient_mode_manual_override(void **state) {
+    (void) state;
+    
+    // Disable gradients globally
+    int ret = cgrad_disable_grad();
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Create tensor - should have requires_grad=0
+    cgrad_tensor a;
+    uint32_t shape[] = {2, 2};
+    ret = cgrad_tensor_init(&a, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    int requires_grad;
+    ret = cgrad_tensor_get_requires_grad(&a, &requires_grad);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_int_equal(requires_grad, 0);
+    
+    // Manually override to enable gradients for this tensor
+    ret = cgrad_tensor_set_requires_grad(&a, 1);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    ret = cgrad_tensor_get_requires_grad(&a, &requires_grad);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_int_equal(requires_grad, 1);
+    
+    // Re-enable gradients for next tests
+    ret = cgrad_enable_grad();
+    assert_int_equal(ret, CGRAD_SUCCESS);
+}
+
+static void test_cgrad_gradient_mode_inference(void **state) {
+    (void) state;
+    
+    // Simulate inference mode: disable gradients
+    int ret = cgrad_disable_grad();
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Create tensors for computation
+    cgrad_tensor a, b, c;
+    uint32_t shape[] = {2, 2};
+    
+    ret = cgrad_tensor_init(&a, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    ret = cgrad_tensor_init(&b, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    cgrad_tensor_fill(&a, 3.0f);
+    cgrad_tensor_fill(&b, 2.0f);
+    
+    // Perform computation
+    ret = cgrad_tensor_add(&a, &b, &c);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    ret = cgrad_tensor_execute(&c);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Verify all tensors have requires_grad=0
+    int requires_grad;
+    ret = cgrad_tensor_get_requires_grad(&a, &requires_grad);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_int_equal(requires_grad, 0);
+    
+    ret = cgrad_tensor_get_requires_grad(&b, &requires_grad);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_int_equal(requires_grad, 0);
+    
+    // Operation tensors inherit requires_grad from inputs
+    // Since both inputs have requires_grad=0, output should also be 0
+    ret = cgrad_tensor_get_requires_grad(&c, &requires_grad);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_int_equal(requires_grad, 0);
+    
+    // Verify computation result is correct
+    float value;
+    uint32_t indices[] = {0, 0};
+    ret = cgrad_tensor_get(&c, indices, 2, &value);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_true(fabs(value - 5.0f) < EPSILON);
+    
+    // Re-enable gradients for next tests
+    ret = cgrad_enable_grad();
+    assert_int_equal(ret, CGRAD_SUCCESS);
+}
+
+// ============================================================================
 // Test Suite
 // ============================================================================
 
@@ -622,6 +801,11 @@ int run_cgrad_tensor_tests(void) {
         cmocka_unit_test_teardown(test_cgrad_tensor_get, teardown_test),
         cmocka_unit_test_teardown(test_cgrad_tensor_get_leaf, teardown_test),
         cmocka_unit_test_teardown(test_cgrad_tensor_get_complex, teardown_test),
+        cmocka_unit_test_teardown(test_cgrad_gradient_mode_default, teardown_test),
+        cmocka_unit_test_teardown(test_cgrad_gradient_mode_disable, teardown_test),
+        cmocka_unit_test_teardown(test_cgrad_gradient_mode_toggle, teardown_test),
+        cmocka_unit_test_teardown(test_cgrad_gradient_mode_manual_override, teardown_test),
+        cmocka_unit_test_teardown(test_cgrad_gradient_mode_inference, teardown_test),
     };
     
     return cmocka_run_group_tests_name("cgrad_tensor", tests, NULL, NULL);

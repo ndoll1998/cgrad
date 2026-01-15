@@ -38,6 +38,45 @@ typedef struct {
 } cgrad_tensor;
 
 // ============================================================================
+// Gradient Mode Functions
+// ============================================================================
+
+/**
+ * @brief Enable gradient computation for subsequently created tensors.
+ * 
+ * This function sets the global gradient mode to enabled. All tensors
+ * created after this call will have requires_grad=1 by default (unless
+ * they are derived from tensors that don't require gradients).
+ * 
+ * This is the default state when the program starts.
+ * 
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_enable_grad(void);
+
+/**
+ * @brief Disable gradient computation for subsequently created tensors.
+ * 
+ * This function sets the global gradient mode to disabled. All tensors
+ * created after this call will have requires_grad=0, regardless of the
+ * default behavior.
+ * 
+ * This is useful for inference, evaluation, or any operation where
+ * gradients are not needed. Disabling gradients can improve performance
+ * and reduce memory usage.
+ * 
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_disable_grad(void);
+
+/**
+ * @brief Check if gradient computation is currently enabled.
+ * 
+ * @return 1 if gradients are enabled, 0 if disabled.
+ */
+int cgrad_is_grad_enabled(void);
+
+// ============================================================================
 // Tensor Initialization and Management
 // ============================================================================
 
