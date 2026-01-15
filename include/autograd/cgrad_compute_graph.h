@@ -30,8 +30,7 @@ typedef enum {
     CGRAD_OP_NONE = 0,            /**< No operation (used for leaf nodes) */
     
     // Element-wise binary operations (2 tensor inputs)
-    CGRAD_OP_ADD = 1,             /**< Element-wise addition: c = a + b */
-    CGRAD_OP_SUB = 2,             /**< Element-wise subtraction: c = a - b */
+    CGRAD_OP_AXPY = 1,            /**< AXPY operation: c = alpha * a + b */
     
     // Linear algebra operations (2 tensor inputs)
     CGRAD_OP_GEMM = 3,            /**< Batched matrix multiplication (GEMM) */
@@ -50,17 +49,26 @@ typedef union {
     struct {
         uint32_t perm[TENSOR_DIM];  /**< Permutation for transpose */
         int ndim;                   /**< Number of dimensions to permute */
-    } transpose;
+    } transpose;                    /**< Metadata for CGRAD_OP_TRANSPOSE */
     
     struct {
         int32_t new_shape[TENSOR_DIM];  /**< Target shape for reshape */
         int ndim;                        /**< Number of dimensions */
-    } reshape;
+    } reshape;                      /**< Metadata for CGRAD_OP_RESHAPE */
     
     struct {
         uint8_t mask[TENSOR_DIM];   /**< Reduction mask (1=reduce, 0=keep) */
         int ndim;                   /**< Number of dimensions */
-    } reduce_sum;
+    } reduce_sum;                   /**< Metadata for CGRAD_OP_REDUCE_SUM */
+    
+    struct {
+        float alpha;                /**< Scalar multiplier for A*B */
+        float beta;                 /**< Scalar multiplier for C */
+    } gemm;                         /**< Metadata for CGRAD_OP_GEMM */
+    
+    struct {
+        float alpha;                /**< Scalar multiplier for x in y = alpha*x + y */
+    } add;                          /**< Metadata for CGRAD_OP_ADD */
     
     float scalar;                   /**< For scalar operations */
 } cgrad_op_metadata;

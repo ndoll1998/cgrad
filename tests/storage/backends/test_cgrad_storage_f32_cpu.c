@@ -194,7 +194,7 @@ static void test_cgrad_storage_f32_tensor_add(void **state) {
     }
 
     // b = a + b (in-place)
-    int err = cgrad_storage_f32_cpu_add(1.0f, &a, &b);
+    int err = cgrad_storage_f32_cpu_axpy(1.0f, &a, &b);
     assert_int_equal(err, 0);
 
     // Check b = a + b
@@ -228,7 +228,7 @@ static void test_cgrad_storage_f32_add_with_transposed_inputs(void **state) {
     assert_int_equal(cgrad_storage_layout_transpose(&a.layout, (uint32_t[]){1, 0, 2, 3}, 4), CGRAD_SUCCESS);
 
     // b = a + b (in-place)
-    int err = cgrad_storage_f32_cpu_add(1.0f, &a, &b);
+    int err = cgrad_storage_f32_cpu_axpy(1.0f, &a, &b);
     assert_int_equal(err, 0);
 
     // Check b = a + b

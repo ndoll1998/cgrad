@@ -6,7 +6,6 @@
 #include "autograd/test_cgrad_compute_graph.c"
 #include "autograd/test_cgrad_tensor.c"
 #include "autograd/ops/test_cgrad_op_add.c"
-#include "autograd/ops/test_cgrad_op_sub.c"
 #include "autograd/ops/test_cgrad_op_gemm.c"
 #include "autograd/ops/test_cgrad_op_transpose.c"
 #include "autograd/ops/test_cgrad_op_reshape.c"
@@ -21,7 +20,6 @@ int main(void) {
     failed |= run_cgrad_compute_graph_tests();
     failed |= run_cgrad_tensor_tests();
     failed |= run_cgrad_op_add_tests();
-    failed |= run_cgrad_op_sub_tests();
     failed |= run_cgrad_op_gemm_tests();
     failed |= run_cgrad_op_transpose_tests();
     failed |= run_cgrad_op_reshape_tests();

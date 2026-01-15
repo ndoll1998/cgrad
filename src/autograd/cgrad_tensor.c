@@ -262,7 +262,8 @@ int cgrad_tensor_add(
 
     // Create operation node
     cgrad_op_info op_info;
-    op_info.type = CGRAD_OP_ADD;
+    op_info.type = CGRAD_OP_AXPY;
+    op_info.metadata.add.alpha = 1.0f;
 
     uuid_t input_ids[2];
     uuid_copy(input_ids[0], a->node_id);
@@ -301,9 +302,11 @@ int cgrad_tensor_sub(
         return ret;
     }
 
-    // Create operation node
+    // Create operation node using AXPY with alpha = -1.0
+    // This computes: out = a + (-1.0) * b = a - b
     cgrad_op_info op_info;
-    op_info.type = CGRAD_OP_SUB;
+    op_info.type = CGRAD_OP_AXPY;
+    op_info.metadata.add.alpha = -1.0f;
 
     uuid_t input_ids[2];
     uuid_copy(input_ids[0], a->node_id);
@@ -320,6 +323,7 @@ int cgrad_tensor_sub(
     out_tensor->layout = out_layout;
     return CGRAD_SUCCESS;
 }
+
 
 int cgrad_tensor_gemm(
     const cgrad_tensor* a,
@@ -345,6 +349,8 @@ int cgrad_tensor_gemm(
     // Create operation node
     cgrad_op_info op_info;
     op_info.type = CGRAD_OP_GEMM;
+    op_info.metadata.gemm.alpha = 1.0f;
+    op_info.metadata.gemm.beta = 0.0f;
 
     uuid_t input_ids[2];
     uuid_copy(input_ids[0], a->node_id);

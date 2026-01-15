@@ -665,8 +665,7 @@ int cgrad_compute_graph_add_op(
 const char* cgrad_op_type_to_string(cgrad_op_type op_type) {
     switch (op_type) {
         case CGRAD_OP_NONE: return "LEAF";
-        case CGRAD_OP_ADD: return "ADD";
-        case CGRAD_OP_SUB: return "SUB";
+        case CGRAD_OP_AXPY: return "AXPY";
         case CGRAD_OP_GEMM: return "GEMM";
         case CGRAD_OP_TRANSPOSE: return "TRANSPOSE";
         case CGRAD_OP_RESHAPE: return "RESHAPE";

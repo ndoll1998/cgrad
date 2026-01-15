@@ -336,38 +336,38 @@ int cgrad_storage_gemm(
 }
 
 /**
- * @brief Add two tensors elementwise and store the result in a third tensor.
- *        Computes r = alpha * a + r.
- * @param alpha Scaling factor for a.
- * @param a First input tensor.
- * @param b Second input tensor (used to initialize r if r is uninitialized).
+ * @brief Compute y = alpha * x + y (AXPY operation).
+ *        Computes r = alpha * x + r.
+ * @param alpha Scaling factor for x.
+ * @param x First input tensor.
+ * @param y Second input tensor (used to initialize r if r is uninitialized).
  * @param r Output tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_add(
+int cgrad_storage_axpy(
     float alpha,
-    cgrad_storage* a,
-    cgrad_storage* b,
+    cgrad_storage* x,
+    cgrad_storage* y,
     cgrad_storage* r
 ) {
     // validate tensors
-    if (!a || !b || !r) return CGRAD_ERR_NULL_POINTER;
-    if (!a->backend || !b->backend) return CGRAD_ERR_NULL_POINTER;
-    if (a->backend != b->backend) return CGRAD_STORAGE_ERR_BACKEND_MISMATCH;
+    if (!x || !y || !r) return CGRAD_ERR_NULL_POINTER;
+    if (!x->backend || !y->backend) return CGRAD_ERR_NULL_POINTER;
+    if (x->backend != y->backend) return CGRAD_STORAGE_ERR_BACKEND_MISMATCH;
     
     // record all storages created here
     cgrad_storage_registry_record* storage_record = cgrad_storage_start_recording();
 
-    // create shallow copies of a and b
-    cgrad_storage a_bcast;
-    int err = cgrad_storage_shallow_copy(a, &a_bcast);
+    // create shallow copies of x and y
+    cgrad_storage x_bcast;
+    int err = cgrad_storage_shallow_copy(x, &x_bcast);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
         cgrad_storage_free_all_from_record(storage_record);
         return err;
     }
-    cgrad_storage b_bcast;
-    err = cgrad_storage_shallow_copy(b, &b_bcast);
+    cgrad_storage y_bcast;
+    err = cgrad_storage_shallow_copy(y, &y_bcast);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
         cgrad_storage_free_all_from_record(storage_record);
@@ -376,8 +376,8 @@ int cgrad_storage_add(
 
     // broadcast layouts
     err = cgrad_storage_layout_broadcast(
-        a_bcast.backend->storage_get_layout(a_bcast.data),
-        b_bcast.backend->storage_get_layout(b_bcast.data),
+        x_bcast.backend->storage_get_layout(x_bcast.data),
+        y_bcast.backend->storage_get_layout(y_bcast.data),
         0,
         TENSOR_DIM
     );
@@ -389,8 +389,8 @@ int cgrad_storage_add(
 
     // check if r is initialized, if not initialize it
     if (!r->data) {
-        const uint32_t* shape = a_bcast.backend->storage_get_layout(a_bcast.data)->shape;
-        err = cgrad_storage_init(r, shape, TENSOR_DIM, a->backend->type);
+        const uint32_t* shape = x_bcast.backend->storage_get_layout(x_bcast.data)->shape;
+        err = cgrad_storage_init(r, shape, TENSOR_DIM, x->backend->type);
         if (err != CGRAD_SUCCESS) {
             cgrad_storage_stop_recording(storage_record);
             cgrad_storage_free_all_from_record(storage_record);
@@ -401,7 +401,7 @@ int cgrad_storage_add(
         const cgrad_storage_layout* r_layout = r->backend->storage_get_layout(r->data);
         int shape_matches = 1;
         for (int i = 0; i < TENSOR_DIM; ++i) {
-            if (r_layout->shape[i] != a_bcast.backend->storage_get_layout(a_bcast.data)->shape[i]) {
+            if (r_layout->shape[i] != x_bcast.backend->storage_get_layout(x_bcast.data)->shape[i]) {
                 shape_matches = 0;
                 break;
             }
@@ -423,9 +423,9 @@ int cgrad_storage_add(
         }
     }
     
-    if (uuid_compare(b_bcast.uuid, r->uuid) != 0) {
-        // b and r are different tensors, copy b to r
-        err = b_bcast.backend->storage_contiguous(b_bcast.data, r->data);
+    if (uuid_compare(y_bcast.uuid, r->uuid) != 0) {
+        // y and r are different tensors, copy y to r
+        err = y_bcast.backend->storage_contiguous(y_bcast.data, r->data);
         if (err != CGRAD_SUCCESS) {
             cgrad_storage_stop_recording(storage_record);
             cgrad_storage_free_all_from_record(storage_record);
@@ -433,7 +433,7 @@ int cgrad_storage_add(
         }
     }
     
-    err = a->backend->storage_add(alpha, a->data, r->data, NULL);
+    err = x->backend->storage_axpy(alpha, x->data, r->data, NULL);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
         cgrad_storage_free_all_from_record(storage_record);

@@ -89,17 +89,17 @@ int cgrad_storage_f32_cpu_shallow_copy(const cgrad_storage_f32_cpu* src, cgrad_s
 void cgrad_storage_f32_cpu_free(cgrad_storage_f32_cpu* t);
 
 /**
- * @brief Add two tensors elementwise, modifying b in-place.
- *        Computes b = alpha * a + b.
- * @param alpha Scaling factor for a.
- * @param a First input tensor (read-only).
- * @param b Second input tensor (modified in-place).
+ * @brief Compute y = alpha * x + y (AXPY operation).
+ *        Modifies y in-place.
+ * @param alpha Scaling factor for x.
+ * @param x First input tensor (read-only).
+ * @param y Second input tensor (modified in-place).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_f32_cpu_add(
+int cgrad_storage_f32_cpu_axpy(
   float alpha,
-  const cgrad_storage_f32_cpu* a,
-  cgrad_storage_f32_cpu* b
+  const cgrad_storage_f32_cpu* x,
+  cgrad_storage_f32_cpu* y
 );
 
 /**

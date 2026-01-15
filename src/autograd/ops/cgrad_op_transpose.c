@@ -69,7 +69,7 @@ static int transpose_backward(
     if (ret != CGRAD_SUCCESS) return ret;
     
     // Accumulate: grad_A = grad_A + grad_input
-    ret = grad_inputs[0]->backend->storage_add(
+    ret = grad_inputs[0]->backend->storage_axpy(
         1.0f,
         grad_input.data,
         grad_inputs[0]->data,

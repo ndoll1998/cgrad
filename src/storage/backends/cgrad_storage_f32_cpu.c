@@ -258,71 +258,71 @@ static void backend_cgrad_storage_f32_cpu_tensor_free(void* t) {
 }
 
 /**
- * @brief Add two tensors elementwise, modifying b in-place.
- * Computes: b = alpha * a + b
+ * @brief Compute y = alpha * x + y (AXPY operation).
+ * Modifies y in-place.
  * 
- * @param alpha Scaling factor for a.
- * @param a First input tensor (read-only).
- * @param b Second input tensor (modified in-place).
+ * @param alpha Scaling factor for x.
+ * @param x First input tensor (read-only).
+ * @param y Second input tensor (modified in-place).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_f32_cpu_add(
+int cgrad_storage_f32_cpu_axpy(
   float alpha,
-  const cgrad_storage_f32_cpu* a,
-  cgrad_storage_f32_cpu* b
+  const cgrad_storage_f32_cpu* x,
+  cgrad_storage_f32_cpu* y
 ) {
-  if (!a || !b) return CGRAD_ERR_NULL_POINTER;
+  if (!x || !y) return CGRAD_ERR_NULL_POINTER;
   
   // Check shapes match
   for (int d = 0; d < TENSOR_DIM; d++) {
-    if (a->layout.shape[d] != b->layout.shape[d]) {
+    if (x->layout.shape[d] != y->layout.shape[d]) {
       return CGRAD_STORAGE_F32_CPU_ERR_SHAPE_MISMATCH;
     }
   }
 
-  // Check if b is contiguous (required for in-place modification)
-  if (!cgrad_storage_layout_is_contiguous(&b->layout)) {
+  // Check if y is contiguous (required for in-place modification)
+  if (!cgrad_storage_layout_is_contiguous(&y->layout)) {
     return CGRAD_ERR_NOT_IMPLEMENTED;
   }
 
-  // Make a contiguous copy of a if needed
-  cgrad_storage_f32_cpu a_contig;
-  const cgrad_storage_f32_cpu* a_used = a;
-  int is_a_contiguous = cgrad_storage_layout_is_contiguous(&a->layout);
+  // Make a contiguous copy of x if needed
+  cgrad_storage_f32_cpu x_contig;
+  const cgrad_storage_f32_cpu* x_used = x;
+  int is_x_contiguous = cgrad_storage_layout_is_contiguous(&x->layout);
   
-  if (!is_a_contiguous) {
-    int init_err = cgrad_storage_f32_cpu_init(&a_contig, a->layout.shape, TENSOR_DIM);
+  if (!is_x_contiguous) {
+    int init_err = cgrad_storage_f32_cpu_init(&x_contig, x->layout.shape, TENSOR_DIM);
     if (init_err != CGRAD_SUCCESS) return init_err;
     
-    int contig_err = cgrad_storage_f32_cpu_contiguous(a, &a_contig);
+    int contig_err = cgrad_storage_f32_cpu_contiguous(x, &x_contig);
     if (contig_err != CGRAD_SUCCESS) {
-      cgrad_storage_f32_cpu_free(&a_contig);
+      cgrad_storage_f32_cpu_free(&x_contig);
       return contig_err;
     }
-    a_used = &a_contig;
+    x_used = &x_contig;
   }
 
-  // Use cblas_saxpy to compute b = alpha * a + b
+  // Use cblas_saxpy to compute y = alpha * x + y
   // Both tensors are now contiguous, so stride is 1
   cblas_saxpy(
-    b->layout.size,
+    y->layout.size,
     alpha,
-    a_used->data, 1,
-    b->data, 1
+    x_used->data, 1,
+    y->data, 1
   );
 
-  if (!is_a_contiguous) {
-    cgrad_storage_f32_cpu_free(&a_contig);
+  if (!is_x_contiguous) {
+    cgrad_storage_f32_cpu_free(&x_contig);
   }
   
   return CGRAD_SUCCESS;
 }
 
-static int backend_cgrad_storage_f32_cpu_tensor_add(float alpha, void* a, void* b, void* c) {
-    return cgrad_storage_f32_cpu_add(
+static int backend_cgrad_storage_f32_cpu_tensor_axpy(float alpha, void* x, void* y, void* c) {
+    return cgrad_storage_f32_cpu_axpy(
         alpha,
-        (const cgrad_storage_f32_cpu*)a,
-        (cgrad_storage_f32_cpu*)b
+        (const cgrad_storage_f32_cpu*)x,
+        (cgrad_storage_f32_cpu*)y
     );
 }
 
@@ -479,7 +479,7 @@ cgrad_storage_backend cgrad_storage_backend_f32_cpu = {
     .storage_shallow_copy = backend_cgrad_storage_f32_cpu_storage_shallow_copy,
     .storage_contiguous   = backend_cgrad_storage_f32_cpu_storage_contiguous,
     .storage_free      = backend_cgrad_storage_f32_cpu_tensor_free,
-    .storage_add       = backend_cgrad_storage_f32_cpu_tensor_add,
+    .storage_axpy      = backend_cgrad_storage_f32_cpu_tensor_axpy,
     .storage_gemm      = backend_cgrad_storage_f32_cpu_tensor_gemm,
     .storage_get       = backend_cgrad_storage_f32_cpu_tensor_get,
     .storage_set       = backend_cgrad_storage_f32_cpu_tensor_set,

@@ -133,6 +133,10 @@ int cgrad_tensor_add(
 
 /**
  * @brief Element-wise subtraction: out = a - b
+ * 
+ * Implemented using AXPY operation with alpha = -1.0.
+ * Performs shape broadcasting as needed.
+ * 
  * @param a First input tensor.
  * @param b Second input tensor.
  * @param out_tensor Pointer to output tensor.

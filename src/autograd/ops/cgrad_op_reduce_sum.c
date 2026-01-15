@@ -80,7 +80,7 @@ static int reduce_sum_backward(
     if (err != CGRAD_SUCCESS) return err;
     
     // Now add: grad_inputs[0] += grad_out_bcast
-    err = grad_inputs[0]->backend->storage_add(
+    err = grad_inputs[0]->backend->storage_axpy(
         1.0f,
         grad_out_bcast.data,
         grad_inputs[0]->data,

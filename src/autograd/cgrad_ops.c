@@ -8,8 +8,7 @@
 
 // Array of all operation descriptors
 static const cgrad_op_descriptor* op_descriptors[] = {
-    &cgrad_op_add_descriptor,
-    &cgrad_op_sub_descriptor,
+    &cgrad_op_axpy_descriptor,
     &cgrad_op_gemm_descriptor,
     &cgrad_op_transpose_descriptor,
     &cgrad_op_reshape_descriptor,

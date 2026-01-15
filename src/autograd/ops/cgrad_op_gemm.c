@@ -22,7 +22,11 @@ static int gemm_forward(
     
     *ctx = NULL;
     
-    return cgrad_storage_gemm(1.0f, inputs[0], inputs[1], 0.0f, output);
+    // Use alpha and beta from metadata
+    float alpha = metadata->gemm.alpha;
+    float beta = metadata->gemm.beta;
+    
+    return cgrad_storage_gemm(alpha, inputs[0], inputs[1], beta, output);
 }
 
 /**

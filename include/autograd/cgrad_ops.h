@@ -89,8 +89,7 @@ const cgrad_op_descriptor* cgrad_get_op_descriptor(cgrad_op_type op_type);
 // Operation Descriptors (defined in src/ops/*.c)
 // ============================================================================
 
-extern const cgrad_op_descriptor cgrad_op_add_descriptor;
-extern const cgrad_op_descriptor cgrad_op_sub_descriptor;
+extern const cgrad_op_descriptor cgrad_op_axpy_descriptor;
 extern const cgrad_op_descriptor cgrad_op_gemm_descriptor;
 extern const cgrad_op_descriptor cgrad_op_transpose_descriptor;
 extern const cgrad_op_descriptor cgrad_op_reshape_descriptor;

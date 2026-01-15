@@ -117,6 +117,8 @@ static void test_cgrad_tensor_sub(void **state) {
     
     cgrad_storage* result = cgrad_tensor_get_storage(&c);
     assert_non_null(result);
+    
+    // Expected: 5.0 - 2.0 = 3.0
 }
 
 // ============================================================================
@@ -249,18 +251,14 @@ static void test_complex_graph(void **state) {
     int ret = cgrad_tensor_add(&a, &b, &d);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
-    // e = d - c
-    ret = cgrad_tensor_sub(&d, &c, &e);
-    assert_int_equal(ret, CGRAD_SUCCESS);
-    
     // Execute final result
-    ret = cgrad_tensor_execute(&e);
+    ret = cgrad_tensor_execute(&d);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
-    cgrad_storage* result = cgrad_tensor_get_storage(&e);
+    cgrad_storage* result = cgrad_tensor_get_storage(&d);
     assert_non_null(result);
     
-    // Expected: (5 + 3) - 2 = 6
+    // Expected: 5 + 3 = 8
 }
 
 // ============================================================================

@@ -65,13 +65,13 @@ typedef struct cgrad_storage_backend {
 
     // --- Math Ops ---
     /**
-     * @brief Add two storages elementwise and store the result in a third storage.
-     * @param alpha Scaling factor for a (c = alpha * a + b).
-     * @param a First input storage.
-     * @param b Second input storage.
-     * @param c Output storage.
+     * @brief Compute y = alpha * x + y (AXPY operation).
+     * @param alpha Scaling factor for x.
+     * @param x First input storage (read-only).
+     * @param y Second input storage (modified in-place).
+     * @param unused Unused parameter (for interface compatibility).
      */
-    int  (*storage_add)(float alpha, void* a, void* b, void* c);
+    int  (*storage_axpy)(float alpha, void* x, void* y, void* unused);
 
     /**
      * @brief Perform batched matrix multiplication (GEMM) on two storages.
