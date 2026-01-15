@@ -16,29 +16,49 @@
 // Success
 #define CGRAD_SUCCESS 0
 
-// General tensor errors
-#define CGRAD_TENSOR_ERR_NULL_POINTER                -1001
-#define CGRAD_TENSOR_ERR_BACKEND_MISMATCH            -1002
-#define CGRAD_TENSOR_ERR_HANDLE_UNINITIALIZED        -1003
-#define CGRAD_TENSOR_ERR_SHAPE_MISMATCH              -1004
-#define CGRAD_TENSOR_ERR_NOT_IMPLEMENTED             -1005
-#define CGRAD_TENSOR_ERR_PARENT_NOT_REGISTERED       -1006
-#define CGRAD_TENSOR_ERR_BUCKET_NOT_EMPTY            -1007  // Attempted to delete a non-empty bucket
+// General errors
+#define CGRAD_ERR_NOT_IMPLEMENTED                       -1001
+#define CGRAD_ERR_NULL_POINTER                          -1002
+
+// Storage errors
+#define CGRAD_STORAGE_ERR_BACKEND_MISMATCH              -1101
+#define CGRAD_STORAGE_ERR_HANDLE_UNINITIALIZED          -1102
+#define CGRAD_STORAGE_ERR_SHAPE_MISMATCH                -1103
+
+// Storage registry errors
+#define CGRAD_STORAGE_REGISTRY_ALLOC_FAILED             -1201
+#define CGRAD_STORAGE_REGISTRY_PARENT_NOT_REGISTERED    -1202
+#define CGRAD_STORAGE_REGISTRY_BUCKET_NOT_EMPTY         -1203
 
 // Layout/broadcasting errors
-#define CGRAD_LAYOUT_ERR_BROADCAST                   -1501
-#define CGRAD_LAYOUT_ERR_NULL_POINTER                -1502
-#define CGRAD_LAYOUT_ERR_SHAPE_MISMATCH              -1503
-#define CGRAD_LAYOUT_ERR_DUPLICATE_DIM               -1504  // Duplicate dimension in permutation array
-#define CGRAD_LAYOUT_ERR_INDEX_OUT_OF_BOUNDS         -1505  // Index out of bounds in layout
-#define CGRAD_LAYOUT_ERR_RESHAPE_INVALID_SHAPE       -1506  // Invalid shape for reshape (product mismatch, >1 -1, etc)
-#define CGRAD_LAYOUT_ERR_NOT_REGULAR                 -1507  // Source layout is not regular
+#define CGRAD_STORAGE_LAYOUT_ERR_BROADCAST              -1301
+#define CGRAD_STORAGE_LAYOUT_ERR_NULL_POINTER           -1302
+#define CGRAD_STORAGE_LAYOUT_ERR_SHAPE_MISMATCH         -1303
+#define CGRAD_STORAGE_LAYOUT_ERR_DUPLICATE_DIM          -1304
+#define CGRAD_STORAGE_LAYOUT_ERR_INDEX_OUT_OF_BOUNDS    -1305
+#define CGRAD_STORAGE_LAYOUT_ERR_RESHAPE_INVALID_SHAPE  -1306
+#define CGRAD_STORAGE_LAYOUT_ERR_NOT_REGULAR            -1307
 
 // Backend: F32 CPU specific errors
-#define CGRAD_TENSOR_F32_CPU_ERR_ALLOC_FAILED        -2001
-#define CGRAD_TENSOR_F32_CPU_ERR_SHAPE_MISMATCH      -2002
-#define CGRAD_TENSOR_F32_CPU_ERR_BATCH_ALLOC_FAILED  -2003
-#define CGRAD_TENSOR_F32_CPU_ERR_CONTIGUOUS_FAILED   -2004
-#define CGRAD_TENSOR_F32_CPU_ERR_LAYOUT_NOT_CONTIGUOUS -2005
+#define CGRAD_STORAGE_F32_CPU_ERR_ALLOC_FAILED          -1401
+#define CGRAD_STORAGE_F32_CPU_ERR_SHAPE_MISMATCH        -1402
+#define CGRAD_STORAGE_F32_CPU_ERR_BATCH_ALLOC_FAILED    -1403
+#define CGRAD_STORAGE_F32_CPU_ERR_CONTIGUOUS_FAILED     -1404
+#define CGRAD_STORAGE_F32_CPU_ERR_LAYOUT_NOT_CONTIGUOUS -1405
+
+// Compute graph errors
+#define CGRAD_GRAPH_ERR_SHAPE_MISMATCH                  -1500
+#define CGRAD_GRAPH_ERR_INVALID_OPERATION               -1501
+#define CGRAD_GRAPH_ERR_TOPOLOGICAL_SORT_FAILED         -1502
+#define CGRAD_GRAPH_ERR_EXECUTION_FAILED                -1503
+#define CGRAD_GRAPH_ERR_NODE_NOT_FOUND                  -1504
+#define CGRAD_GRAPH_ERR_INVALID_NODE                    -1505
+#define CGRAD_GRAPH_ERR_ALLOC_FAILED                    -1506
+#define CGRAD_GRAPH_ERR_INVALID_GRAPH                   -1507
+#define CGRAD_GRAPH_ERR_TOO_MANY_INPUTS                 -1508
+#define CGRAD_GRAPH_ERR_BACKEND_MISMATCH                -1509
+#define CGRAD_GRAPH_ERR_BACKWARD_NOT_IMPLEMENTED        -1510
+#define CGRAD_GRAPH_ERR_GRADIENT_NOT_AVAILABLE          -1511
+#define CGRAD_GRAPH_ERR_FORWARD_NOT_EXECUTED            -1512
 
 #endif // CGRAD_ERRORS_H

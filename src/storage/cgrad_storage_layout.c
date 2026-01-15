@@ -1,4 +1,4 @@
-#include "cgrad_layout.h"
+#include "storage/cgrad_storage_layout.h"
 #include "cgrad_errors.h"
 #include <string.h>
 #include <stdio.h>
@@ -9,9 +9,9 @@
  * @param dst Destination layout.
  * @param src Source layout.
  */
-void cgrad_tensor_layout_copy(cgrad_tensor_layout* dst, const cgrad_tensor_layout* src) {
+void cgrad_storage_layout_copy(cgrad_storage_layout* dst, const cgrad_storage_layout* src) {
     if (!dst || !src) return;
-    memcpy(dst, src, sizeof(cgrad_tensor_layout));
+    memcpy(dst, src, sizeof(cgrad_storage_layout));
 }
 
 /**
@@ -19,9 +19,9 @@ void cgrad_tensor_layout_copy(cgrad_tensor_layout* dst, const cgrad_tensor_layou
  *        The user-specified shape (length ndim) is placed at the end; leading unspecified dims are set to 1.
  *        For example, shape={3,4}, ndim=2, TENSOR_DIM=4 => layout.shape={1,1,3,4}
  */
-int cgrad_tensor_layout_init(cgrad_tensor_layout* l, const uint32_t* shape, int ndim) {
-  if (!l || !shape) return CGRAD_LAYOUT_ERR_NULL_POINTER;
-  if (ndim < 0 || ndim > TENSOR_DIM) return CGRAD_LAYOUT_ERR_SHAPE_MISMATCH;
+int cgrad_storage_layout_init(cgrad_storage_layout* l, const uint32_t* shape, int ndim) {
+  if (!l || !shape) return CGRAD_STORAGE_LAYOUT_ERR_NULL_POINTER;
+  if (ndim < 0 || ndim > TENSOR_DIM) return CGRAD_STORAGE_LAYOUT_ERR_SHAPE_MISMATCH;
   memset(l, 0, sizeof(*l));
   // Fill from the end: user shape at the end, leading dims = 1
   for (int i = 0; i < TENSOR_DIM; i++) {
@@ -44,11 +44,41 @@ int cgrad_tensor_layout_init(cgrad_tensor_layout* l, const uint32_t* shape, int 
 }
 
 /**
+ * @brief Apply a reduction mask to a layout, computing the output shape.
+ */
+int cgrad_storage_layout_reduce(cgrad_storage_layout* layout, const uint8_t* mask, int ndim) {
+    if (!layout || !mask) return CGRAD_STORAGE_LAYOUT_ERR_NULL_POINTER;
+    if (ndim < 0 || ndim > TENSOR_DIM) return CGRAD_STORAGE_LAYOUT_ERR_SHAPE_MISMATCH;
+    
+    // Apply mask to last ndim dimensions
+    int mask_offset = TENSOR_DIM - ndim;
+    for (int i = 0; i < ndim; i++) {
+        if (mask[i]) {
+            layout->shape[mask_offset + i] = 1;
+        }
+    }
+    
+    // Recalculate strides based on new shape
+    layout->strides[TENSOR_DIM - 1] = 1;
+    for (int i = TENSOR_DIM - 2; i >= 0; i--) {
+        layout->strides[i] = layout->strides[i + 1] * layout->shape[i + 1];
+    }
+    
+    // Recalculate size
+    layout->size = 1;
+    for (int i = 0; i < TENSOR_DIM; i++) {
+        layout->size *= layout->shape[i];
+    }
+    
+    return CGRAD_SUCCESS;
+}
+
+/**
  * @brief Print the shape of the layout in the format (d0, d1, ..., dn).
  * @param l Pointer to layout.
  * @param ndim Number of dimensions to print (<= TENSOR_DIM).
  */
-void cgrad_tensor_layout_print_shape(const cgrad_tensor_layout* l, int ndim) {
+void cgrad_storage_layout_print_shape(const cgrad_storage_layout* l, int ndim) {
     if (!l || ndim < 0 || ndim > TENSOR_DIM) {
         printf("(invalid)\n");
         return;
@@ -65,9 +95,9 @@ void cgrad_tensor_layout_print_shape(const cgrad_tensor_layout* l, int ndim) {
  * @brief Compute the flat index in the data array for the given indices and layout.
  *        Indices of length ndim are mapped to the last ndim dims; leading indices behave as 0.
  */
-int cgrad_tensor_layout_flat_index(const cgrad_tensor_layout* layout, const uint32_t* indices, int ndim, size_t* out_flat_index) {
-  if (!layout || !indices || !out_flat_index) return CGRAD_LAYOUT_ERR_NULL_POINTER;
-  if (ndim < 0 || ndim > TENSOR_DIM) return CGRAD_LAYOUT_ERR_SHAPE_MISMATCH;
+int cgrad_storage_layout_flat_index(const cgrad_storage_layout* layout, const uint32_t* indices, int ndim, size_t* out_flat_index) {
+  if (!layout || !indices || !out_flat_index) return CGRAD_STORAGE_LAYOUT_ERR_NULL_POINTER;
+  if (ndim < 0 || ndim > TENSOR_DIM) return CGRAD_STORAGE_LAYOUT_ERR_SHAPE_MISMATCH;
   size_t idx = 0;
   for (int i = 0; i < TENSOR_DIM; i++) {
     uint32_t ind = 0;
@@ -75,7 +105,7 @@ int cgrad_tensor_layout_flat_index(const cgrad_tensor_layout* layout, const uint
       ind = indices[i - (TENSOR_DIM - ndim)];
     }
     if (ind >= layout->shape[i]) {
-      return CGRAD_LAYOUT_ERR_INDEX_OUT_OF_BOUNDS;
+      return CGRAD_STORAGE_LAYOUT_ERR_INDEX_OUT_OF_BOUNDS;
     }
     idx += ind * layout->strides[i];
   }
@@ -99,14 +129,14 @@ int cgrad_tensor_layout_flat_index(const cgrad_tensor_layout* layout, const uint
  * @param end_dim End dimension (exclusive).
  * @return 0 on success, -1 on failure.
  */
-int cgrad_tensor_layout_broadcast(
-    cgrad_tensor_layout* l1,
-    cgrad_tensor_layout* l2,
+int cgrad_storage_layout_broadcast(
+    cgrad_storage_layout* l1,
+    cgrad_storage_layout* l2,
     int start_dim,
     int end_dim
 ) {
-    if (!l1 || !l2) return CGRAD_LAYOUT_ERR_NULL_POINTER;
-    if (start_dim < 0 || end_dim > TENSOR_DIM || start_dim >= end_dim) return CGRAD_LAYOUT_ERR_SHAPE_MISMATCH;
+    if (!l1 || !l2) return CGRAD_STORAGE_LAYOUT_ERR_NULL_POINTER;
+    if (start_dim < 0 || end_dim > TENSOR_DIM || start_dim >= end_dim) return CGRAD_STORAGE_LAYOUT_ERR_SHAPE_MISMATCH;
 
     for (int i = start_dim; i < end_dim; ++i) {
         uint32_t s1 = l1->shape[i];
@@ -120,7 +150,7 @@ int cgrad_tensor_layout_broadcast(
             l2->shape[i] = s1;
             l2->strides[i] = 0;
         } else {
-            return CGRAD_LAYOUT_ERR_BROADCAST;
+            return CGRAD_STORAGE_LAYOUT_ERR_BROADCAST;
         }
     }
     return CGRAD_SUCCESS;
@@ -129,14 +159,14 @@ int cgrad_tensor_layout_broadcast(
 /**
  * @brief Transpose the layout according to the given permutation, applied to the last ndim dims.
  */
-int cgrad_tensor_layout_transpose(cgrad_tensor_layout* layout, const uint32_t* perm, int ndim) {
-  if (!layout || !perm) return CGRAD_LAYOUT_ERR_NULL_POINTER;
-  if (ndim < 0 || ndim > TENSOR_DIM) return CGRAD_LAYOUT_ERR_SHAPE_MISMATCH;
+int cgrad_storage_layout_transpose(cgrad_storage_layout* layout, const uint32_t* perm, int ndim) {
+  if (!layout || !perm) return CGRAD_STORAGE_LAYOUT_ERR_NULL_POINTER;
+  if (ndim < 0 || ndim > TENSOR_DIM) return CGRAD_STORAGE_LAYOUT_ERR_SHAPE_MISMATCH;
   // Check for duplicate dimensions in perm
   int seen[TENSOR_DIM] = {0};
   for (int i = 0; i < ndim; i++) {
-    if (perm[i] >= ndim) return CGRAD_LAYOUT_ERR_SHAPE_MISMATCH;
-    if (seen[perm[i]]) return CGRAD_LAYOUT_ERR_DUPLICATE_DIM;
+    if (perm[i] >= ndim) return CGRAD_STORAGE_LAYOUT_ERR_SHAPE_MISMATCH;
+    if (seen[perm[i]]) return CGRAD_STORAGE_LAYOUT_ERR_DUPLICATE_DIM;
     seen[perm[i]] = 1;
   }
   // Copy leading dims unchanged, permute last ndim dims
@@ -164,7 +194,7 @@ int cgrad_tensor_layout_transpose(cgrad_tensor_layout* layout, const uint32_t* p
  * @param l Pointer to layout.
  * @return 1 if regular, 0 otherwise.
  */
-int cgrad_tensor_layout_is_regular(const cgrad_tensor_layout* l) {
+int cgrad_storage_layout_is_regular(const cgrad_storage_layout* l) {
   if (!l) return 0;
   if (TENSOR_DIM == 0) return 1;
   // Find the scaling factor k (stride of last dim)
@@ -184,8 +214,8 @@ int cgrad_tensor_layout_is_regular(const cgrad_tensor_layout* l) {
  * @param l Pointer to layout.
  * @return 1 if contiguous, 0 otherwise.
  */
-int cgrad_tensor_layout_is_contiguous(const cgrad_tensor_layout* l) {
-  return cgrad_tensor_layout_is_regular(l) && (l->strides[TENSOR_DIM - 1] == 1);
+int cgrad_storage_layout_is_contiguous(const cgrad_storage_layout* l) {
+  return cgrad_storage_layout_is_regular(l) && (l->strides[TENSOR_DIM - 1] == 1);
 }
 
 /**
@@ -197,23 +227,23 @@ int cgrad_tensor_layout_is_contiguous(const cgrad_tensor_layout* l) {
  * @param new_shape Array of new dimensions (length ndim, may contain one -1).
  * @param ndim Number of dimensions in new_shape (<= TENSOR_DIM).
  * @return CGRAD_SUCCESS on success,
- *         CGRAD_LAYOUT_ERR_RESHAPE_INVALID_SHAPE if shape is invalid,
- *         CGRAD_LAYOUT_ERR_NOT_REGULAR if layout is not regular.
+ *         CGRAD_STORAGE_LAYOUT_ERR_RESHAPE_INVALID_SHAPE if shape is invalid,
+ *         CGRAD_STORAGE_LAYOUT_ERR_NOT_REGULAR if layout is not regular.
  */
-int cgrad_tensor_layout_reshape(cgrad_tensor_layout* layout, const int32_t* new_shape, int ndim) {
-  if (!layout || !new_shape) return CGRAD_LAYOUT_ERR_NULL_POINTER;
-  if (ndim < 0 || ndim > TENSOR_DIM) return CGRAD_LAYOUT_ERR_SHAPE_MISMATCH;
-  if (!cgrad_tensor_layout_is_regular(layout)) return CGRAD_LAYOUT_ERR_NOT_REGULAR;
+int cgrad_storage_layout_reshape(cgrad_storage_layout* layout, const int32_t* new_shape, int ndim) {
+  if (!layout || !new_shape) return CGRAD_STORAGE_LAYOUT_ERR_NULL_POINTER;
+  if (ndim < 0 || ndim > TENSOR_DIM) return CGRAD_STORAGE_LAYOUT_ERR_SHAPE_MISMATCH;
+  if (!cgrad_storage_layout_is_regular(layout)) return CGRAD_STORAGE_LAYOUT_ERR_NOT_REGULAR;
 
   // Validate new_shape and find -1
   int minus1_idx = -1;
   uint32_t new_size = 1;
   for (int i = 0; i < ndim; ++i) {
     if (new_shape[i] == -1) {
-      if (minus1_idx != -1) return CGRAD_LAYOUT_ERR_RESHAPE_INVALID_SHAPE; // More than one -1
+      if (minus1_idx != -1) return CGRAD_STORAGE_LAYOUT_ERR_RESHAPE_INVALID_SHAPE; // More than one -1
       minus1_idx = i;
     } else if (new_shape[i] <= 0) {
-      return CGRAD_LAYOUT_ERR_RESHAPE_INVALID_SHAPE;
+      return CGRAD_STORAGE_LAYOUT_ERR_RESHAPE_INVALID_SHAPE;
     } else {
       new_size *= (uint32_t)new_shape[i];
     }
@@ -221,11 +251,11 @@ int cgrad_tensor_layout_reshape(cgrad_tensor_layout* layout, const int32_t* new_
 
   uint32_t inferred_dim = 0;
   if (minus1_idx != -1) {
-    if (new_size == 0 || layout->size % new_size != 0) return CGRAD_LAYOUT_ERR_RESHAPE_INVALID_SHAPE;
+    if (new_size == 0 || layout->size % new_size != 0) return CGRAD_STORAGE_LAYOUT_ERR_RESHAPE_INVALID_SHAPE;
     inferred_dim = layout->size / new_size;
-    if (inferred_dim == 0) return CGRAD_LAYOUT_ERR_RESHAPE_INVALID_SHAPE;
+    if (inferred_dim == 0) return CGRAD_STORAGE_LAYOUT_ERR_RESHAPE_INVALID_SHAPE;
   } else {
-    if (new_size != layout->size) return CGRAD_LAYOUT_ERR_RESHAPE_INVALID_SHAPE;
+    if (new_size != layout->size) return CGRAD_STORAGE_LAYOUT_ERR_RESHAPE_INVALID_SHAPE;
   }
 
   // Fill new shape into layout->shape (right-aligned, leading dims set to 1)

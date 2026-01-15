@@ -1,57 +1,139 @@
-#include "cgrad_tensor.h"
-#include "cgrad_tensor_registry.h"
-#include "backends/cgrad_tensor_f32_cpu.h"
+#include "autograd/cgrad_tensor.h"
+#include "storage/cgrad_storage.h"
+#include "cgrad_errors.h"
 #include <stdio.h>
 #include <stdint.h>
 
 /**
- * @brief Example program demonstrating tensor initialization, randomization, printing,
- *        transposition, GEMM, addition, and memory management using the cgrad library.
+ * @brief Example program demonstrating autograd with matrix multiplication.
+ * 
+ * This program:
+ * 1. Initializes two random matrices A and B
+ * 2. Performs matrix multiplication: C = A @ B
+ * 3. Sums the result: loss = sum(C)
+ * 4. Computes gradients via backpropagation
+ * 5. Prints the gradient of A
  */
 int main() {
-  cgrad_tensor t1 = {0};
-  cgrad_tensor t2 = {0};
-  cgrad_tensor out = {0};
-  cgrad_tensor r = {0};
-  
-  // initialize tensors (CPU backend)
-  cgrad_tensor_init(&t1, (uint32_t[]){1, 2, 3, 3}, 4, CGRAD_BACKEND_F32_CPU);
-  cgrad_tensor_init(&t2, (uint32_t[]){1, 1, 3, 3}, 4, CGRAD_BACKEND_F32_CPU);
+    printf("========================================\n");
+    printf("Autograd Demo: Matrix Multiplication\n");
+    printf("========================================\n\n");
+    
+    // ========================================================================
+    // Initialize two random matrices A and B
+    // ========================================================================
+    printf("--- Initializing Matrices ---\n");
+    
+    cgrad_tensor A, B;
+    uint32_t shape_A[] = {3, 4};  // 3x4 matrix
+    uint32_t shape_B[] = {4, 2};  // 4x2 matrix
+    
+    // Create tensors
+    cgrad_tensor_init(&A, shape_A, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    cgrad_tensor_init(&B, shape_B, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    
+    // Fill with random values
+    cgrad_tensor_fill_rand(&A);
+    cgrad_tensor_fill_rand(&B);
+    
+    // Set gradient requirements: A requires gradients, B does not
+    cgrad_tensor_set_requires_grad(&A, 1);  // Enable gradients for A
+    cgrad_tensor_set_requires_grad(&B, 0);  // Disable gradients for B
+    
+    printf("Matrix A (3x4) - requires_grad=True:\n");
+    cgrad_tensor_execute(&A);
+    cgrad_tensor_print(&A);
+    printf("\n");
+    
+    printf("Matrix B (4x2) - requires_grad=False:\n");
+    cgrad_tensor_execute(&B);
+    cgrad_tensor_print(&B);
+    printf("\n");
+    
+    // ========================================================================
+    // Matrix Multiplication: C = A @ B
+    // ========================================================================
+    printf("--- Matrix Multiplication: C = A @ B ---\n");
+    
+    cgrad_tensor C;
+    cgrad_tensor_gemm(&A, &B, &C);
+    
+    // Execute to materialize C
+    cgrad_tensor_execute(&C);
+    
+    printf("Result C (3x2):\n");
+    cgrad_tensor_print(&C);
+    printf("\n");
+    
+    // ========================================================================
+    // Sum Reduction: loss = sum(C)
+    // ========================================================================
+    printf("--- Sum Reduction: loss = sum(C) ---\n");
+    
+    cgrad_tensor loss;
+    uint8_t reduce_mask[] = {1, 1};  // Reduce over all dimensions
+    cgrad_tensor_reduce_sum(&C, reduce_mask, 2, &loss);
+    
+    // Execute to materialize loss
+    cgrad_tensor_execute(&loss);
+    
+    printf("Loss (scalar):\n");
+    cgrad_tensor_print(&loss);
+    printf("\n");
+    
+    // ========================================================================
+    // Backward Pass: Compute Gradients
+    // ========================================================================
+    printf("--- Computing Gradients (Backward Pass) ---\n");
+    
+    int ret = cgrad_tensor_backward(&loss);
+    if (ret != 0) {
+        printf("Error: Backward pass failed with code %d\n", ret);
+        cgrad_tensor_cleanup_global_graph();
+        return 1;
+    }
+    
+    printf("Backward pass completed successfully!\n\n");
+    
+    // ========================================================================
+    // Print Gradient of A
+    // ========================================================================
+    printf("--- Gradient of A (dL/dA) ---\n");
+    
+    cgrad_tensor grad_A;
+    ret = cgrad_tensor_get_gradient(&A, &grad_A);
+    if (ret == CGRAD_SUCCESS) {
+        printf("Gradient of A (3x4):\n");
+        cgrad_tensor_execute(&grad_A);
+        cgrad_tensor_print(&grad_A);
+    } else {
+        printf("Warning: Could not get gradient of A (error code: %d)\n", ret);
+    }
+    printf("\n");
+    
+    // Verify that B has no gradient (as expected)
+    printf("--- Gradient of B (should be NULL) ---\n");
+    cgrad_tensor grad_B;
+    ret = cgrad_tensor_get_gradient(&B, &grad_B);
+    if (ret != CGRAD_SUCCESS) {
+        printf("Gradient of B: Not available (as expected, requires_grad=False)\n");
+    } else {
+        printf("Warning: Gradient of B exists (unexpected!)\n");
+        cgrad_tensor_execute(&grad_B);
+        cgrad_tensor_print(&grad_B);
+    }
+    printf("\n");
+    
+    // ========================================================================
+    // Cleanup
+    // ========================================================================
+    printf("--- Cleanup ---\n");
+    cgrad_tensor_cleanup_global_graph();
+    printf("All resources freed.\n");
 
-  // fill with random numbers
-  cgrad_tensor_fill_rand(&t1);
-  cgrad_tensor_fill_rand(&t2);
-
-  // print, transpose, print
-  cgrad_tensor_transpose(&t1, (uint32_t[]){0,1,3,2}, 4);
-
-  // GEMM
-  int e = cgrad_tensor_gemm(&t1, &t2, &out);
-  printf("GEMM error code: %d\n", e);
-  cgrad_tensor_print(&out);
-
-  // Add output to itself
-  //e = cgrad_tensor_add(&out, &out, &r);
-  //printf("Add error code: %d\n", e);
-  //cgrad_tensor_print(&r);
-
-  e = cgrad_tensor_sum(
-    &out, (const uint8_t[]){1,1,1}, 3, &r
-  );
-  printf("Sum error code: %d\n", e);
-  cgrad_tensor_print(&r);
-
-  size_t n = cgrad_tensor_registry_count();
-  printf("Number of tensors in registry: %zu\n", n);
-
-  // free
-  cgrad_tensor_free(&t1);
-  cgrad_tensor_free(&t2);
-  cgrad_tensor_free(&out);
-  cgrad_tensor_free(&r);
-
-  n = cgrad_tensor_registry_count();
-  printf("Number of tensors in registry: %zu\n", n);
-
-  return 0;
+    printf("\n========================================\n");
+    printf("Autograd Demo Complete!\n");
+    printf("========================================\n");
+    
+    return 0;
 }
