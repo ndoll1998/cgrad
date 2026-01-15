@@ -371,6 +371,18 @@ int cgrad_compute_graph_backward(
 int cgrad_compute_graph_zero_grad(cgrad_compute_graph* graph);
 
 /**
+ * @brief Zero out the gradient of a specific node.
+ * 
+ * This function sets the gradient storage of the given node to zero.
+ * If the gradient doesn't exist yet, this function does nothing and returns success.
+ * 
+ * @param graph Compute graph.
+ * @param node_id Node identifier.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_compute_graph_zero_grad_node(cgrad_compute_graph* graph, const uuid_t node_id);
+
+/**
  * @brief Set the requires_grad flag for a node.
  * 
  * @param graph Compute graph.

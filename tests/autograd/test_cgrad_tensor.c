@@ -778,6 +778,101 @@ static void test_cgrad_gradient_mode_inference(void **state) {
     assert_int_equal(ret, CGRAD_SUCCESS);
 }
 
+static void test_cgrad_tensor_zero_grad_specific(void **state) {
+    (void) state;
+    
+    // Create two tensors and compute gradients
+    cgrad_tensor a, b, c;
+    uint32_t shape[] = {2, 2};
+    
+    cgrad_tensor_init(&a, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    cgrad_tensor_init(&b, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    
+    cgrad_tensor_fill(&a, 2.0f);
+    cgrad_tensor_fill(&b, 3.0f);
+    
+    // Set requires_grad for both
+    cgrad_tensor_set_requires_grad(&a, 1);
+    cgrad_tensor_set_requires_grad(&b, 1);
+    
+    // c = a + b
+    int ret = cgrad_tensor_add(&a, &b, &c);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Execute forward pass
+    ret = cgrad_tensor_execute(&c);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Compute gradients
+    ret = cgrad_tensor_backward(&c);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Get gradients - both should exist
+    cgrad_tensor grad_a, grad_b;
+    ret = cgrad_tensor_get_gradient(&a, &grad_a);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    ret = cgrad_tensor_get_gradient(&b, &grad_b);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Execute gradients to materialize them
+    ret = cgrad_tensor_execute(&grad_a);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    ret = cgrad_tensor_execute(&grad_b);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Verify gradients are non-zero (should be 1.0)
+    float value_a, value_b;
+    uint32_t indices[] = {0, 0};
+    ret = cgrad_tensor_get(&grad_a, indices, 2, &value_a);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_true(fabs(value_a - 1.0f) < EPSILON);
+    
+    ret = cgrad_tensor_get(&grad_b, indices, 2, &value_b);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_true(fabs(value_b - 1.0f) < EPSILON);
+    
+    // Zero out gradient of 'a' only
+    ret = cgrad_tensor_zero_grad(&a);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Get gradient of 'a' again - should be zero now
+    cgrad_tensor grad_a_after;
+    ret = cgrad_tensor_get_gradient(&a, &grad_a_after);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    ret = cgrad_tensor_execute(&grad_a_after);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    ret = cgrad_tensor_get(&grad_a_after, indices, 2, &value_a);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_true(fabs(value_a - 0.0f) < EPSILON);
+    
+    // Gradient of 'b' should still be 1.0 (unchanged)
+    cgrad_tensor grad_b_after;
+    ret = cgrad_tensor_get_gradient(&b, &grad_b_after);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    ret = cgrad_tensor_execute(&grad_b_after);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    ret = cgrad_tensor_get(&grad_b_after, indices, 2, &value_b);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_true(fabs(value_b - 1.0f) < EPSILON);
+}
+
+static void test_cgrad_tensor_zero_grad_no_gradient(void **state) {
+    (void) state;
+    
+    // Create a tensor without computing gradients
+    cgrad_tensor a;
+    uint32_t shape[] = {2, 2};
+    
+    cgrad_tensor_init(&a, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    cgrad_tensor_fill(&a, 5.0f);
+    
+    // Try to zero gradient when it doesn't exist - should succeed (no-op)
+    int ret = cgrad_tensor_zero_grad(&a);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+}
+
 // ============================================================================
 // Test Suite
 // ============================================================================
@@ -806,6 +901,8 @@ int run_cgrad_tensor_tests(void) {
         cmocka_unit_test_teardown(test_cgrad_gradient_mode_toggle, teardown_test),
         cmocka_unit_test_teardown(test_cgrad_gradient_mode_manual_override, teardown_test),
         cmocka_unit_test_teardown(test_cgrad_gradient_mode_inference, teardown_test),
+        cmocka_unit_test_teardown(test_cgrad_tensor_zero_grad_specific, teardown_test),
+        cmocka_unit_test_teardown(test_cgrad_tensor_zero_grad_no_gradient, teardown_test),
     };
     
     return cmocka_run_group_tests_name("cgrad_tensor", tests, NULL, NULL);

@@ -735,14 +735,18 @@ int cgrad_tensor_get_gradient(const cgrad_tensor* t, cgrad_tensor* grad) {
     return cgrad_tensor_from_storage(node->grad_storage, grad);
 }
 
-int cgrad_tensor_zero_grad(void) {
+int cgrad_tensor_zero_grad(cgrad_tensor* tensor) {
+    if (tensor == NULL) {
+        return CGRAD_ERR_NULL_POINTER;
+    }
+
     cgrad_compute_graph* graph = get_global_graph();
     if (graph == NULL) {
         return CGRAD_GRAPH_ERR_ALLOC_FAILED;
     }
 
     // Delegate to compute graph
-    return cgrad_compute_graph_zero_grad(graph);
+    return cgrad_compute_graph_zero_grad_node(graph, tensor->node_id);
 }
 
 int cgrad_tensor_backward(cgrad_tensor* tensor) {

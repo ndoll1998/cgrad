@@ -197,15 +197,33 @@ int cgrad_compute_graph_zero_grad(cgrad_compute_graph* graph) {
     // Iterate through all nodes and zero their gradients
     cgrad_graph_node *node, *tmp;
     HASH_ITER(hh, graph->node_metadata_table, node, tmp) {
-        if (node->grad_storage != NULL) {
-            int ret = cgrad_storage_fill(node->grad_storage, 0.0f);
-            if (ret != CGRAD_SUCCESS) {
-                return ret;
-            }
+        int ret = cgrad_compute_graph_zero_grad_node(graph, node->node_id);
+        if (ret != CGRAD_SUCCESS) {
+            return ret;
         }
     }
 
     return CGRAD_SUCCESS;
+}
+
+int cgrad_compute_graph_zero_grad_node(cgrad_compute_graph* graph, const uuid_t node_id) {
+    if (graph == NULL) {
+        return CGRAD_ERR_NULL_POINTER;
+    }
+
+    cgrad_graph_node* node;
+    int ret = cgrad_compute_graph_get_node(graph, node_id, &node);
+    if (ret != CGRAD_SUCCESS) {
+        return ret;
+    }
+
+    // If gradient doesn't exist, do nothing and return success
+    if (node->grad_storage == NULL) {
+        return CGRAD_SUCCESS;
+    }
+
+    // Zero out the gradient
+    return cgrad_storage_fill(node->grad_storage, 0.0f);
 }
 
 int cgrad_compute_graph_set_requires_grad(

@@ -362,13 +362,16 @@ int cgrad_tensor_get_requires_grad(const cgrad_tensor* tensor, int* out_requires
 int cgrad_tensor_get_gradient(const cgrad_tensor* t, cgrad_tensor* grad);
 
 /**
- * @brief Zero out all gradients in the computation graph.
+ * @brief Zero out the gradient of a specific tensor.
  * 
+ * This function sets the gradient storage of the given tensor to zero.
+ * If the gradient doesn't exist yet, this function does nothing and returns success.
  * This should be called before each backward pass in training loops.
  * 
+ * @param tensor Tensor whose gradient should be zeroed.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_zero_grad(void);
+int cgrad_tensor_zero_grad(cgrad_tensor* tensor);
 
 /**
  * @brief Compute gradients by backpropagation through the computation graph.
