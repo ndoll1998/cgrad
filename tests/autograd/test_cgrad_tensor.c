@@ -88,9 +88,12 @@ static void test_cgrad_tensor_add(void **state) {
     ret = cgrad_tensor_execute(&c);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
-    // Get result storage
-    cgrad_storage* result = cgrad_tensor_get_storage(&c);
-    assert_non_null(result);
+    // Verify result values using cgrad_tensor_get
+    float value;
+    uint32_t indices[] = {0, 0};
+    ret = cgrad_tensor_get(&c, indices, 2, &value);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_true(fabs(value - 3.0f) < EPSILON);  // 1.0 + 2.0 = 3.0
 }
 
 // ============================================================================
@@ -115,10 +118,12 @@ static void test_cgrad_tensor_sub(void **state) {
     ret = cgrad_tensor_execute(&c);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
-    cgrad_storage* result = cgrad_tensor_get_storage(&c);
-    assert_non_null(result);
-    
-    // Expected: 5.0 - 2.0 = 3.0
+    // Verify result values using cgrad_tensor_get
+    float value;
+    uint32_t indices[] = {0, 0};
+    ret = cgrad_tensor_get(&c, indices, 2, &value);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_true(fabs(value - 3.0f) < EPSILON);  // 5.0 - 2.0 = 3.0
 }
 
 // ============================================================================
@@ -148,8 +153,14 @@ static void test_cgrad_tensor_gemm(void **state) {
     ret = cgrad_tensor_execute(&c);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
-    cgrad_storage* result = cgrad_tensor_get_storage(&c);
-    assert_non_null(result);
+    // Verify result values using cgrad_tensor_get
+    // Matrix multiplication: (2x3) @ (3x2) = (2x2)
+    // Each element should be 1*2 + 1*2 + 1*2 = 6
+    float value;
+    uint32_t indices[] = {0, 0};
+    ret = cgrad_tensor_get(&c, indices, 2, &value);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    assert_true(fabs(value - 6.0f) < EPSILON);
 }
 
 // ============================================================================
