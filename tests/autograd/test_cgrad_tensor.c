@@ -352,6 +352,154 @@ static void test_disconnected_components(void **state) {
 
 
 // ============================================================================
+// Test: Tensor From Storage
+// ============================================================================
+
+static void test_cgrad_tensor_from_storage(void **state) {
+    (void) state;
+    
+    cgrad_tensor a;
+    uint32_t shape[] = {2, 3};
+    
+    int ret = cgrad_tensor_init(&a, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    ret = cgrad_tensor_fill(&a, 5.0f);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Get its storage
+    cgrad_storage* storage = cgrad_tensor_get_storage(&a);
+    assert_non_null(storage);
+    
+    // Create a new tensor from the same storage
+    cgrad_tensor tensor;
+    ret = cgrad_tensor_from_storage(storage, &tensor);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Verify the tensor has the correct shape
+    assert_int_equal(tensor.layout.shape[TENSOR_DIM - 2], 2);
+    assert_int_equal(tensor.layout.shape[TENSOR_DIM - 1], 3);
+    
+    // Verify we can get the storage back
+    cgrad_storage* retrieved = cgrad_tensor_get_storage(&tensor);
+    assert_non_null(retrieved);
+    assert_ptr_equal(retrieved, storage);
+    
+    // Note: Both tensors reference the same storage, which will be freed by graph cleanup
+}
+
+// ============================================================================
+// Test: Tensor Get Gradient
+// ============================================================================
+
+static void test_cgrad_tensor_get_gradient(void **state) {
+    (void) state;
+    
+    // Create two tensors for a simple computation
+    cgrad_tensor a, b, c;
+    uint32_t shape[] = {2, 2};
+    
+    cgrad_tensor_init(&a, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    cgrad_tensor_init(&b, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    
+    cgrad_tensor_fill(&a, 2.0f);
+    cgrad_tensor_fill(&b, 3.0f);
+    
+    // Set requires_grad for a
+    cgrad_tensor_set_requires_grad(&a, 1);
+    cgrad_tensor_set_requires_grad(&b, 0);
+    
+    // c = a + b
+    int ret = cgrad_tensor_add(&a, &b, &c);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Execute forward pass
+    ret = cgrad_tensor_execute(&c);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Compute gradients
+    ret = cgrad_tensor_backward(&c);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Get gradient of a (should succeed)
+    cgrad_tensor grad_a;
+    ret = cgrad_tensor_get_gradient(&a, &grad_a);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Verify gradient tensor has correct shape
+    assert_int_equal(grad_a.layout.shape[TENSOR_DIM - 2], 2);
+    assert_int_equal(grad_a.layout.shape[TENSOR_DIM - 1], 2);
+    
+    // Execute gradient tensor to materialize it
+    ret = cgrad_tensor_execute(&grad_a);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    cgrad_storage* grad_storage = cgrad_tensor_get_storage(&grad_a);
+    assert_non_null(grad_storage);
+    
+    // Try to get gradient of b (should fail - requires_grad=False)
+    cgrad_tensor grad_b;
+    ret = cgrad_tensor_get_gradient(&b, &grad_b);
+    assert_int_equal(ret, CGRAD_GRAPH_ERR_GRADIENT_NOT_AVAILABLE);
+}
+
+// ============================================================================
+// Test: Gradient with GEMM
+// ============================================================================
+
+static void test_cgrad_tensor_gradient_gemm(void **state) {
+    (void) state;
+    
+    // Create matrices for matrix multiplication
+    cgrad_tensor a, b, c, loss;
+    uint32_t shape_a[] = {2, 3};
+    uint32_t shape_b[] = {3, 2};
+    
+    cgrad_tensor_init(&a, shape_a, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    cgrad_tensor_init(&b, shape_b, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    
+    cgrad_tensor_fill(&a, 1.0f);
+    cgrad_tensor_fill(&b, 2.0f);
+    
+    // Set requires_grad for a only
+    cgrad_tensor_set_requires_grad(&a, 1);
+    cgrad_tensor_set_requires_grad(&b, 0);
+    
+    // c = a @ b
+    int ret = cgrad_tensor_gemm(&a, &b, &c);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // loss = sum(c)
+    uint8_t mask[] = {1, 1};
+    ret = cgrad_tensor_reduce_sum(&c, mask, 2, &loss);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Execute forward pass
+    ret = cgrad_tensor_execute(&loss);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Compute gradients
+    ret = cgrad_tensor_backward(&loss);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Get gradient of a
+    cgrad_tensor grad_a;
+    ret = cgrad_tensor_get_gradient(&a, &grad_a);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    // Verify gradient shape matches input shape
+    assert_int_equal(grad_a.layout.shape[TENSOR_DIM - 2], 2);
+    assert_int_equal(grad_a.layout.shape[TENSOR_DIM - 1], 3);
+    
+    // Execute and verify gradient is materialized
+    ret = cgrad_tensor_execute(&grad_a);
+    assert_int_equal(ret, CGRAD_SUCCESS);
+    
+    cgrad_storage* grad_storage = cgrad_tensor_get_storage(&grad_a);
+    assert_non_null(grad_storage);
+}
+
+// ============================================================================
 // Test Suite
 // ============================================================================
 
@@ -368,6 +516,9 @@ int run_cgrad_tensor_tests(void) {
         cmocka_unit_test_teardown(test_complex_graph, teardown_test),
         cmocka_unit_test_teardown(test_execution_caching, teardown_test),
         cmocka_unit_test_teardown(test_disconnected_components, teardown_test),
+        cmocka_unit_test_teardown(test_cgrad_tensor_from_storage, teardown_test),
+        cmocka_unit_test_teardown(test_cgrad_tensor_get_gradient, teardown_test),
+        cmocka_unit_test_teardown(test_cgrad_tensor_gradient_gemm, teardown_test),
     };
     
     return cmocka_run_group_tests_name("cgrad_tensor", tests, NULL, NULL);

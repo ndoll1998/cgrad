@@ -612,23 +612,65 @@ int cgrad_tensor_get_requires_grad(const cgrad_tensor* tensor, int* out_requires
     return CGRAD_SUCCESS;
 }
 
-cgrad_storage* cgrad_tensor_get_grad(const cgrad_tensor* tensor) {
-    if (tensor == NULL) {
-        return NULL;
+int cgrad_tensor_from_storage(
+    cgrad_storage* storage,
+    cgrad_tensor* tensor
+) {
+    if (storage == NULL || tensor == NULL) {
+        return CGRAD_ERR_NULL_POINTER;
     }
 
     cgrad_compute_graph* graph = get_global_graph();
     if (graph == NULL) {
-        return NULL;
+        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+    }
+
+    // Get the layout from the storage using the backend
+    if (storage->backend == NULL || storage->backend->storage_get_layout == NULL) {
+        return CGRAD_ERR_NULL_POINTER;
+    }
+
+    cgrad_storage_layout* layout = storage->backend->storage_get_layout(storage->data);
+    if (layout == NULL) {
+        return CGRAD_ERR_NULL_POINTER;
+    }
+
+    // Copy the layout
+    tensor->layout = *layout;
+
+    // Add a leaf node to the graph with the existing storage
+    // Note: We pass the storage directly, and the graph will manage it
+    int ret = cgrad_compute_graph_add_leaf(graph, layout, storage, tensor->node_id);
+    if (ret != CGRAD_SUCCESS) {
+        return ret;
+    }
+
+    return CGRAD_SUCCESS;
+}
+
+int cgrad_tensor_get_gradient(const cgrad_tensor* t, cgrad_tensor* grad) {
+    if (t == NULL || grad == NULL) {
+        return CGRAD_ERR_NULL_POINTER;
+    }
+
+    cgrad_compute_graph* graph = get_global_graph();
+    if (graph == NULL) {
+        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
     }
 
     cgrad_graph_node* node;
-    int ret = cgrad_compute_graph_get_node(graph, tensor->node_id, &node);
+    int ret = cgrad_compute_graph_get_node(graph, t->node_id, &node);
     if (ret != CGRAD_SUCCESS) {
-        return NULL;
+        return ret;
     }
 
-    return node->grad_storage;
+    // Check if gradient is available
+    if (node->grad_storage == NULL) {
+        return CGRAD_GRAPH_ERR_GRADIENT_NOT_AVAILABLE;
+    }
+
+    // Create a tensor from the gradient storage
+    return cgrad_tensor_from_storage(node->grad_storage, grad);
 }
 
 int cgrad_tensor_zero_grad(void) {

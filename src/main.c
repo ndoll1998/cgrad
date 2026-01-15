@@ -1,142 +1,138 @@
 #include "autograd/cgrad_tensor.h"
 #include "storage/cgrad_storage.h"
+#include "cgrad_errors.h"
 #include <stdio.h>
 #include <stdint.h>
 
 /**
- * @brief Example program demonstrating the lazy compute graph framework.
+ * @brief Example program demonstrating autograd with matrix multiplication.
  * 
- * This program builds a computation graph lazily, then executes it on demand.
- * It also demonstrates graph visualization via DOT export.
+ * This program:
+ * 1. Initializes two random matrices A and B
+ * 2. Performs matrix multiplication: C = A @ B
+ * 3. Sums the result: loss = sum(C)
+ * 4. Computes gradients via backpropagation
+ * 5. Prints the gradient of A
  */
 int main() {
     printf("========================================\n");
-    printf("Lazy Compute Graph Demo for cgrad\n");
+    printf("Autograd Demo: Matrix Multiplication\n");
     printf("========================================\n\n");
     
     // ========================================================================
-    // Example 1: Simple Addition
+    // Initialize two random matrices A and B
     // ========================================================================
-    printf("--- Example 1: Simple Addition (c = a + b) ---\n");
+    printf("--- Initializing Matrices ---\n");
     
-    cgrad_tensor a, b, c;
-    uint32_t shape[] = {2, 3};
+    cgrad_tensor A, B;
+    uint32_t shape_A[] = {3, 4};  // 3x4 matrix
+    uint32_t shape_B[] = {4, 2};  // 4x2 matrix
     
-    // Create input tensors (creates separate graphs)
-    cgrad_tensor_init(&a, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
-    cgrad_tensor_init(&b, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    // Create tensors
+    cgrad_tensor_init(&A, shape_A, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    cgrad_tensor_init(&B, shape_B, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
     
-    // Fill with data
-    cgrad_tensor_fill(&a, 2.0f);
-    cgrad_tensor_fill(&b, 3.0f);
+    // Fill with random values
+    cgrad_tensor_fill_rand(&A);
+    cgrad_tensor_fill_rand(&B);
     
-    // Build computation graph (lazy - no execution yet)
-    cgrad_tensor_add(&a, &b, &c);
-    printf("Graph built (lazy): c = a + b\n");
+    // Set gradient requirements: A requires gradients, B does not
+    cgrad_tensor_set_requires_grad(&A, 1);  // Enable gradients for A
+    cgrad_tensor_set_requires_grad(&B, 0);  // Disable gradients for B
     
-    // Execute the graph
-    cgrad_tensor_execute(&c);
-    printf("Graph executed!\n");
+    printf("Matrix A (3x4) - requires_grad=True:\n");
+    cgrad_tensor_execute(&A);
+    cgrad_tensor_print(&A);
+    printf("\n");
     
-    // Print results
-    printf("\nResult (c = a + b):\n");
-    cgrad_tensor_print(&c);
-    
+    printf("Matrix B (4x2) - requires_grad=False:\n");
+    cgrad_tensor_execute(&B);
+    cgrad_tensor_print(&B);
     printf("\n");
     
     // ========================================================================
-    // Example 2: Complex Graph
+    // Matrix Multiplication: C = A @ B
     // ========================================================================
-    printf("--- Example 2: Complex Graph ((a + b) * c) ---\n");
+    printf("--- Matrix Multiplication: C = A @ B ---\n");
     
-    cgrad_tensor x, y, z, sum, result;
-    uint32_t shape2[] = {2, 2};
+    cgrad_tensor C;
+    cgrad_tensor_gemm(&A, &B, &C);
     
-    // Create inputs
-    cgrad_tensor_init(&x, shape2, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
-    cgrad_tensor_init(&y, shape2, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
-    cgrad_tensor_init(&z, shape2, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    // Execute to materialize C
+    cgrad_tensor_execute(&C);
     
-    cgrad_tensor_fill(&x, 1.0f);
-    cgrad_tensor_fill(&y, 2.0f);
-    cgrad_tensor_fill(&z, 3.0f);
-    
-    // Build graph: sum = x + y, result = sum @ z (matrix multiply as approximation)
-    cgrad_tensor_add(&x, &y, &sum);
-    cgrad_tensor_gemm(&sum, &z, &result);
-    printf("Graph built: result = (x + y) @ z\n");
-    
-    // Execute
-    cgrad_tensor_execute(&result);
-    printf("Graph executed!\n");
-    
-    printf("\nResult ((x + y) @ z):\n");
-    cgrad_tensor_print(&result);
+    printf("Result C (3x2):\n");
+    cgrad_tensor_print(&C);
     printf("\n");
     
     // ========================================================================
-    // Example 3: Transpose and Reshape
+    // Sum Reduction: loss = sum(C)
     // ========================================================================
-    printf("--- Example 3: Transpose and Reshape ---\n");
+    printf("--- Sum Reduction: loss = sum(C) ---\n");
     
-    cgrad_tensor mat, transposed, reshaped;
-    uint32_t mat_shape[] = {2, 3};
+    cgrad_tensor loss;
+    uint8_t reduce_mask[] = {1, 1};  // Reduce over all dimensions
+    cgrad_tensor_reduce_sum(&C, reduce_mask, 2, &loss);
     
-    cgrad_tensor_init(&mat, mat_shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
-    cgrad_tensor_fill_rand(&mat);
+    // Execute to materialize loss
+    cgrad_tensor_execute(&loss);
     
-    // Transpose
-    uint32_t perm[] = {1, 0};
-    cgrad_tensor_transpose(&mat, perm, 2, &transposed);
-    
-    // Reshape
-    int32_t new_shape[] = {3, 2};
-    cgrad_tensor_reshape(&transposed, new_shape, 2, &reshaped);
-    
-    printf("Graph built: reshape(transpose(mat))\n");
-    
-    // Execute
-    cgrad_tensor_execute(&reshaped);
-    printf("Graph executed!\n");
-    
-    printf("\nResult:\n");
-    cgrad_tensor_print(&reshaped);
+    printf("Loss (scalar):\n");
+    cgrad_tensor_print(&loss);
+    printf("\n");
     
     // ========================================================================
-    // Example 4: Execution Caching Demo
+    // Backward Pass: Compute Gradients
     // ========================================================================
-    printf("\n--- Example 4: Execution Caching ---\n");
+    printf("--- Computing Gradients (Backward Pass) ---\n");
     
-    cgrad_tensor p, q, cached;
-    cgrad_tensor_init(&p, (uint32_t[]){2, 2}, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
-    cgrad_tensor_init(&q, (uint32_t[]){2, 2}, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    int ret = cgrad_tensor_backward(&loss);
+    if (ret != 0) {
+        printf("Error: Backward pass failed with code %d\n", ret);
+        cgrad_tensor_cleanup_global_graph();
+        return 1;
+    }
     
-    cgrad_tensor_fill(&p, 5.0f);
-    cgrad_tensor_fill(&q, 10.0f);
+    printf("Backward pass completed successfully!\n\n");
     
-    cgrad_tensor_sub(&p, &q, &cached);
+    // ========================================================================
+    // Print Gradient of A
+    // ========================================================================
+    printf("--- Gradient of A (dL/dA) ---\n");
     
-    printf("First execution...\n");
-    cgrad_tensor_execute(&cached);
+    cgrad_tensor grad_A;
+    ret = cgrad_tensor_get_gradient(&A, &grad_A);
+    if (ret == CGRAD_SUCCESS) {
+        printf("Gradient of A (3x4):\n");
+        cgrad_tensor_execute(&grad_A);
+        cgrad_tensor_print(&grad_A);
+    } else {
+        printf("Warning: Could not get gradient of A (error code: %d)\n", ret);
+    }
+    printf("\n");
     
-    printf("Second execution (uses cached result)...\n");
-    cgrad_tensor_execute(&cached);
-    
-    printf("Result:\n");
-    cgrad_tensor_print(&cached);
+    // Verify that B has no gradient (as expected)
+    printf("--- Gradient of B (should be NULL) ---\n");
+    cgrad_tensor grad_B;
+    ret = cgrad_tensor_get_gradient(&B, &grad_B);
+    if (ret != CGRAD_SUCCESS) {
+        printf("Gradient of B: Not available (as expected, requires_grad=False)\n");
+    } else {
+        printf("Warning: Gradient of B exists (unexpected!)\n");
+        cgrad_tensor_execute(&grad_B);
+        cgrad_tensor_print(&grad_B);
+    }
+    printf("\n");
     
     // ========================================================================
     // Cleanup
     // ========================================================================
-    printf("\n--- Cleanup ---\n");
-    
-    // Cleanup the global compute graph
+    printf("--- Cleanup ---\n");
     cgrad_tensor_cleanup_global_graph();
-    
     printf("All resources freed.\n");
 
     printf("\n========================================\n");
-    printf("Lazy Compute Graph Demo Complete!\n");
+    printf("Autograd Demo Complete!\n");
     printf("========================================\n");
     
     return 0;

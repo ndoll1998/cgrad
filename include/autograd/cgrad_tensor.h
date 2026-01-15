@@ -103,6 +103,19 @@ int cgrad_tensor_free(cgrad_tensor* tensor);
 int cgrad_tensor_copy(const cgrad_tensor* src, cgrad_tensor* dst);
 
 /**
+ * @brief Create a tensor from existing storage.
+ * 
+ * This function wraps existing storage in a tensor by creating a leaf node in the graph.
+ * The layout is extracted from the storage using the backend's storage_get_layout function.
+ * The storage must already be allocated and will be managed by the compute graph.
+ * 
+ * @param storage Pointer to existing storage.
+ * @param tensor Output tensor.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_tensor_from_storage(cgrad_storage* storage, cgrad_tensor* tensor);
+
+/**
  * @brief Cleanup the global compute graph.
  * 
  * This should be called at program shutdown to free all graph resources.
@@ -291,14 +304,16 @@ int cgrad_tensor_set_requires_grad(cgrad_tensor* tensor, int requires_grad);
 int cgrad_tensor_get_requires_grad(const cgrad_tensor* tensor, int* out_requires_grad);
 
 /**
- * @brief Get the gradient storage of a tensor after backward pass.
+ * @brief Get the gradient of a tensor after backward pass.
  * 
- * Returns NULL if backward has not been called or if the tensor doesn't require gradients.
+ * Creates a new tensor that wraps the gradient storage.
+ * Returns an error if backward has not been called or if the tensor doesn't require gradients.
  * 
- * @param tensor Tensor to get gradient from.
- * @return Pointer to gradient storage, or NULL if not available.
+ * @param t Tensor to get gradient from.
+ * @param grad Pointer to output gradient tensor.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-cgrad_storage* cgrad_tensor_get_grad(const cgrad_tensor* tensor);
+int cgrad_tensor_get_gradient(const cgrad_tensor* t, cgrad_tensor* grad);
 
 /**
  * @brief Zero out all gradients in the computation graph.
