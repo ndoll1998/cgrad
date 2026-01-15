@@ -91,18 +91,6 @@ int cgrad_tensor_fill_rand(cgrad_tensor* tensor);
 int cgrad_tensor_free(cgrad_tensor* tensor);
 
 /**
- * @brief Copy a tensor (increments reference count of the referenced node).
- * 
- * Creates a new tensor that references the same computation graph node.
- * The reference count of the node is incremented.
- * 
- * @param src Source tensor.
- * @param dst Destination tensor.
- * @return CGRAD_SUCCESS on success, error code otherwise.
- */
-int cgrad_tensor_copy(const cgrad_tensor* src, cgrad_tensor* dst);
-
-/**
  * @brief Create a tensor from existing storage.
  * 
  * This function wraps existing storage in a tensor by creating a leaf node in the graph.
@@ -273,7 +261,26 @@ int cgrad_tensor_execute(cgrad_tensor* tensor);
 cgrad_storage* cgrad_tensor_get_storage(const cgrad_tensor* tensor);
 
 /**
+ * @brief Get a value from a tensor at the given indices.
+ * 
+ * This function mimics the behavior of storage_get. If the tensor has not been
+ * executed yet (storage is not available), it will automatically call execute
+ * to materialize the tensor before retrieving the value.
+ * 
+ * @param tensor Tensor to get value from.
+ * @param indices Array of indices (length ndim).
+ * @param ndim Number of dimensions in indices.
+ * @param out_value Pointer to float where the value will be written.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_tensor_get(const cgrad_tensor* tensor, const uint32_t* indices, int ndim, float* out_value);
+
+/**
  * @brief Print tensor information.
+ * 
+ * If the tensor has not been executed yet (storage is not available), this function
+ * will automatically call execute to materialize the tensor before printing.
+ * 
  * @param tensor Tensor to print.
  */
 void cgrad_tensor_print(const cgrad_tensor* tensor);

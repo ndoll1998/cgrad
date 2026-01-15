@@ -916,8 +916,6 @@ int cgrad_compute_graph_free_node(cgrad_compute_graph* graph, cgrad_graph_node* 
         return CGRAD_ERR_NULL_POINTER;
     }
 
-    printf("FREE A\n");
-
     // Get input nodes before freeing
     uuid_t input_ids[MAX_NODE_INPUTS];
     int num_inputs = 0;
@@ -961,8 +959,6 @@ int cgrad_compute_graph_free_node(cgrad_compute_graph* graph, cgrad_graph_node* 
             cgrad_compute_graph_decrement_ref(graph, input_ids[i]);
         }
     }
-    
-    printf("FREE B\n");
 
     return CGRAD_SUCCESS;
 }

@@ -214,24 +214,6 @@ int cgrad_tensor_free(cgrad_tensor* tensor) {
     return cgrad_compute_graph_decrement_ref(graph, tensor->node_id);
 }
 
-int cgrad_tensor_copy(const cgrad_tensor* src, cgrad_tensor* dst) {
-    if (src == NULL || dst == NULL) {
-        return CGRAD_ERR_NULL_POINTER;
-    }
-
-    cgrad_compute_graph* graph = get_global_graph();
-    if (graph == NULL) {
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
-    }
-
-    // Copy tensor structure
-    uuid_copy(dst->node_id, src->node_id);
-    dst->layout = src->layout;
-
-    // Delegate to compute graph layer for reference counting
-    return cgrad_compute_graph_increment_ref(graph, src->node_id);
-}
-
 // ============================================================================
 // Binary Operations
 // ============================================================================
@@ -300,14 +282,14 @@ int cgrad_tensor_sub(
     }
 
     // Create operation node using AXPY with alpha = -1.0
-    // This computes: out = a + (-1.0) * b = a - b
+    // This computes: out = (-1.0) * b + a = a - b
     cgrad_op_info op_info;
     op_info.type = CGRAD_OP_AXPY;
     op_info.metadata.axpy.alpha = -1.0f;
 
     uuid_t input_ids[2];
-    uuid_copy(input_ids[0], a->node_id);
-    uuid_copy(input_ids[1], b->node_id);
+    uuid_copy(input_ids[1], a->node_id);
+    uuid_copy(input_ids[0], b->node_id);
 
     ret = cgrad_compute_graph_add_op(
         graph, &op_info, &out_layout,
@@ -541,6 +523,43 @@ cgrad_storage* cgrad_tensor_get_storage(const cgrad_tensor* tensor) {
     return node->storage;
 }
 
+int cgrad_tensor_get(const cgrad_tensor* tensor, const uint32_t* indices, int ndim, float* out_value) {
+    if (tensor == NULL || indices == NULL || out_value == NULL) {
+        return CGRAD_ERR_NULL_POINTER;
+    }
+
+    cgrad_compute_graph* graph = get_global_graph();
+    if (graph == NULL) {
+        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+    }
+
+    cgrad_graph_node* node;
+    int ret = cgrad_compute_graph_get_node(graph, tensor->node_id, &node);
+    if (ret != CGRAD_SUCCESS) {
+        return ret;
+    }
+
+    // If storage is not available, execute the tensor first
+    if (node->storage == NULL) {
+        ret = cgrad_tensor_execute((cgrad_tensor*)tensor);
+        if (ret != CGRAD_SUCCESS) {
+            return ret;
+        }
+    }
+
+    // Now storage should be available
+    if (node->storage == NULL) {
+        return CGRAD_GRAPH_ERR_EXECUTION_FAILED;
+    }
+
+    // Use the backend's storage_get function
+    if (node->storage->backend == NULL || node->storage->backend->storage_get == NULL) {
+        return CGRAD_ERR_NOT_IMPLEMENTED;
+    }
+
+    return node->storage->backend->storage_get(node->storage->data, indices, ndim, out_value);
+}
+
 void cgrad_tensor_print(const cgrad_tensor* tensor) {
     if (tensor == NULL) {
         printf("Tensor: NULL\n");
@@ -558,6 +577,15 @@ void cgrad_tensor_print(const cgrad_tensor* tensor) {
     if (ret == CGRAD_SUCCESS) {
         printf("Op: %s\n", cgrad_op_type_to_string(node->op_info.type));
         printf("Storage: %s\n", node->storage ? "materialized" : "lazy");
+        
+        // If storage is not available, execute the tensor first
+        if (node->storage == NULL) {
+            ret = cgrad_tensor_execute((cgrad_tensor*)tensor);
+            if (ret != CGRAD_SUCCESS) {
+                printf("Error: Failed to execute tensor for printing\n");
+                return;
+            }
+        }
         
         if (node->storage) {
             cgrad_storage_print(node->storage);
