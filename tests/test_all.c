@@ -1,16 +1,16 @@
 #define TEST_ALL_MAIN
-#include "test_cgrad_storage_layout.c"
-#include "test_cgrad_storage.c"
-#include "storage_backends/test_cgrad_storage_f32_cpu.c"
-#include "test_cgrad_storage_registry.c"
-#include "test_cgrad_compute_graph.c"
-#include "test_cgrad_tensor.c"
-#include "ops/test_cgrad_op_add.c"
-#include "ops/test_cgrad_op_sub.c"
-#include "ops/test_cgrad_op_gemm.c"
-#include "ops/test_cgrad_op_transpose.c"
-#include "ops/test_cgrad_op_reshape.c"
-#include "ops/test_cgrad_op_reduce_sum.c"
+#include "storage/test_cgrad_storage_layout.c"
+#include "storage/test_cgrad_storage.c"
+#include "storage/backends/test_cgrad_storage_f32_cpu.c"
+#include "storage/test_cgrad_storage_registry.c"
+#include "autograd/test_cgrad_compute_graph.c"
+#include "autograd/test_cgrad_tensor.c"
+#include "autograd/ops/test_cgrad_op_add.c"
+#include "autograd/ops/test_cgrad_op_sub.c"
+#include "autograd/ops/test_cgrad_op_gemm.c"
+#include "autograd/ops/test_cgrad_op_transpose.c"
+#include "autograd/ops/test_cgrad_op_reshape.c"
+#include "autograd/ops/test_cgrad_op_reduce_sum.c"
 
 int main(void) {
     int failed = 0;
@@ -18,13 +18,13 @@ int main(void) {
     failed |= run_cgrad_storage_tests();
     failed |= run_cgrad_storage_f32_cpu_tests();
     failed |= run_cgrad_storage_registry_tests();
-    failed |= test_cgrad_compute_graph_main();
-    failed |= test_cgrad_tensor_main();
-    failed |= test_cgrad_op_add_main();
-    failed |= test_cgrad_op_sub_main();
-    failed |= test_cgrad_op_gemm_main();
-    failed |= test_cgrad_op_transpose_main();
-    failed |= test_cgrad_op_reshape_main();
-    failed |= test_cgrad_op_reduce_sum_main();
+    failed |= run_cgrad_compute_graph_tests();
+    failed |= run_cgrad_tensor_tests();
+    failed |= run_cgrad_op_add_tests();
+    failed |= run_cgrad_op_sub_tests();
+    failed |= run_cgrad_op_gemm_tests();
+    failed |= run_cgrad_op_transpose_tests();
+    failed |= run_cgrad_op_reshape_tests();
+    failed |= run_cgrad_op_reduce_sum_tests();
     return failed;
 }

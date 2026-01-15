@@ -137,7 +137,6 @@ BENCHMARK_CXXFLAGS := -std=c++11 -I$(BENCHMARK_PREFIX)/include -Iinclude -I$(OPE
 BENCHMARK_LDFLAGS := -L$(BENCHMARK_PREFIX)/lib -lbenchmark -lpthread -L$(OPENBLAS_PREFIX)/lib -lopenblas
 
 test: $(OBJ_NO_MAIN) $(TEST_OBJ_FILES)
-	$(MAKE) clean;
 	@FILE_VAL="$(FILE)"; \
 	if [ -z "$$FILE_VAL" ]; then \
 		FILE_VAL="tests/test_all.c"; \
