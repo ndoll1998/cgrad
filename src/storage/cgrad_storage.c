@@ -102,7 +102,7 @@ int cgrad_storage_init(cgrad_storage* t, const uint32_t* shape, int ndim, const 
 
     // Get backend
     cgrad_storage_backend* backend = cgrad_get_backend(backend_name);
-    if (!backend) return CGRAD_STORAGE_ERR_BACKEND_MISMATCH;
+    if (!backend) return CGRAD_STORAGE_ERR_INVALID_BACKEND;
 
     // Allocate tensor handle using the backend's handle size
     void* data = calloc(1, backend->storage_handle_size);

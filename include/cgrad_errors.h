@@ -24,6 +24,7 @@
 #define CGRAD_STORAGE_ERR_BACKEND_MISMATCH              -1101
 #define CGRAD_STORAGE_ERR_HANDLE_UNINITIALIZED          -1102
 #define CGRAD_STORAGE_ERR_SHAPE_MISMATCH                -1103
+#define CGRAD_STORAGE_ERR_INVALID_BACKEND               -1104
 
 // Storage registry errors
 #define CGRAD_STORAGE_REGISTRY_ALLOC_FAILED             -1201
