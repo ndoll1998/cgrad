@@ -14,8 +14,10 @@ static int transpose_forward(
     int num_inputs,
     const cgrad_op_metadata* metadata,
     cgrad_storage* output,
-    void** ctx
+    void** ctx,
+    int requires_grad
 ) {
+    (void)requires_grad;  // Unused for now
     if (num_inputs != 1) {
         return CGRAD_GRAPH_ERR_INVALID_OPERATION;
     }

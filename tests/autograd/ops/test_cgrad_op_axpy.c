@@ -66,7 +66,7 @@ static void test_op_axpy_forward(void **state) {
     
     // Execute forward pass
     void* ctx = NULL;
-    int ret = op_desc->forward(inputs, 2, &metadata, &c, &ctx);
+    int ret = op_desc->forward(inputs, 2, &metadata, &c, &ctx, 1);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // 2 + 3 = 5
@@ -119,7 +119,7 @@ static void test_op_axpy_backward_basic(void **state) {
     
     // Execute forward pass first
     void* ctx = NULL;
-    int ret = op_desc->forward(inputs, 2, &metadata, &c, &ctx);
+    int ret = op_desc->forward(inputs, 2, &metadata, &c, &ctx, 1);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Execute backward pass
@@ -178,7 +178,7 @@ static void test_op_axpy_backward_one_no_grad(void **state) {
     
     // Execute forward pass first
     void* ctx = NULL;
-    int ret = op_desc->forward(inputs, 2, &metadata, &c, &ctx);
+    int ret = op_desc->forward(inputs, 2, &metadata, &c, &ctx, 1);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Execute backward pass
@@ -237,7 +237,7 @@ static void test_op_axpy_backward_accumulation(void **state) {
     
     // Execute forward pass first
     void* ctx = NULL;
-    int ret = op_desc->forward(inputs, 2, &metadata, &c, &ctx);
+    int ret = op_desc->forward(inputs, 2, &metadata, &c, &ctx, 1);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Execute backward pass - should accumulate gradients

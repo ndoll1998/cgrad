@@ -895,7 +895,8 @@ static int forward_node(cgrad_compute_graph* graph, cgrad_graph_node* node) {
         num_inputs,
         &node->op_info.metadata,
         out_storage,
-        &node->ctx
+        &node->ctx,
+        node->requires_grad
     );
 
     if (ret != CGRAD_SUCCESS) {
