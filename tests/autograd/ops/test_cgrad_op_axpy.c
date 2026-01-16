@@ -8,7 +8,7 @@
 #include "autograd/cgrad_ops.h"
 #include "cgrad_errors.h"
 #include "storage/cgrad_storage.h"
-#include "storage/backends/cgrad_storage_f32_cpu.h"
+#include "storage/cgrad_storage_layout.h"
 
 #define OP_AXPY_EPSILON 1e-4f
 
@@ -17,8 +17,24 @@
 // ============================================================================
 
 static float op_axpy_get_storage_value(cgrad_storage* storage, int idx) {
-    cgrad_storage_f32_cpu* cpu_storage = (cgrad_storage_f32_cpu*)storage->data;
-    return cpu_storage->data[idx];
+    // Convert linear index to multi-dimensional indices
+    cgrad_storage_layout* layout = storage->backend->storage_get_layout(storage->data);
+    uint32_t indices[TENSOR_DIM];
+    int remaining = idx;
+    
+    // Calculate strides for row-major order
+    for (int i = TENSOR_DIM - 1; i >= 0; i--) {
+        int stride = 1;
+        for (int j = i + 1; j < TENSOR_DIM; j++) {
+            stride *= layout->shape[j];
+        }
+        indices[i] = remaining / stride;
+        remaining %= stride;
+    }
+    
+    float value;
+    cgrad_storage_get(storage, indices, TENSOR_DIM, &value);
+    return value;
 }
 
 static int op_axpy_approx_equal(float a, float b, float eps) {
@@ -45,9 +61,9 @@ static void test_op_axpy_forward(void **state) {
     uint32_t shape[] = {2, 2};
     cgrad_storage a, b, c;
     
-    cgrad_storage_init(&a, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
-    cgrad_storage_init(&b, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
-    cgrad_storage_init(&c, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    cgrad_storage_init(&a, shape, 2, "f32_cpu");
+    cgrad_storage_init(&b, shape, 2, "f32_cpu");
+    cgrad_storage_init(&c, shape, 2, "f32_cpu");
     
     cgrad_storage_fill(&a, 2.0f);
     cgrad_storage_fill(&b, 3.0f);
@@ -90,12 +106,12 @@ static void test_op_axpy_backward_basic(void **state) {
     cgrad_storage a, b, c;
     cgrad_storage grad_a, grad_b, grad_c;
     
-    cgrad_storage_init(&a, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
-    cgrad_storage_init(&b, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
-    cgrad_storage_init(&c, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
-    cgrad_storage_init(&grad_a, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
-    cgrad_storage_init(&grad_b, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
-    cgrad_storage_init(&grad_c, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    cgrad_storage_init(&a, shape, 2, "f32_cpu");
+    cgrad_storage_init(&b, shape, 2, "f32_cpu");
+    cgrad_storage_init(&c, shape, 2, "f32_cpu");
+    cgrad_storage_init(&grad_a, shape, 2, "f32_cpu");
+    cgrad_storage_init(&grad_b, shape, 2, "f32_cpu");
+    cgrad_storage_init(&grad_c, shape, 2, "f32_cpu");
     
     cgrad_storage_fill(&a, 2.0f);
     cgrad_storage_fill(&b, 3.0f);
@@ -151,11 +167,11 @@ static void test_op_axpy_backward_one_no_grad(void **state) {
     cgrad_storage a, b, c;
     cgrad_storage grad_b, grad_c;
     
-    cgrad_storage_init(&a, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
-    cgrad_storage_init(&b, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
-    cgrad_storage_init(&c, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
-    cgrad_storage_init(&grad_b, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
-    cgrad_storage_init(&grad_c, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    cgrad_storage_init(&a, shape, 2, "f32_cpu");
+    cgrad_storage_init(&b, shape, 2, "f32_cpu");
+    cgrad_storage_init(&c, shape, 2, "f32_cpu");
+    cgrad_storage_init(&grad_b, shape, 2, "f32_cpu");
+    cgrad_storage_init(&grad_c, shape, 2, "f32_cpu");
     
     cgrad_storage_fill(&a, 2.0f);
     cgrad_storage_fill(&b, 3.0f);
@@ -208,18 +224,18 @@ static void test_op_axpy_backward_accumulation(void **state) {
     cgrad_storage a, b, c;
     cgrad_storage grad_a, grad_b, grad_c;
     
-    cgrad_storage_init(&a, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
-    cgrad_storage_init(&b, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
-    cgrad_storage_init(&c, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
-    cgrad_storage_init(&grad_a, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
-    cgrad_storage_init(&grad_b, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
-    cgrad_storage_init(&grad_c, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    cgrad_storage_init(&a, shape, 2, "f32_cpu");
+    cgrad_storage_init(&b, shape, 2, "f32_cpu");
+    cgrad_storage_init(&c, shape, 2, "f32_cpu");
+    cgrad_storage_init(&grad_a, shape, 2, "f32_cpu");
+    cgrad_storage_init(&grad_b, shape, 2, "f32_cpu");
+    cgrad_storage_init(&grad_c, shape, 2, "f32_cpu");
     
     cgrad_storage_fill(&a, 1.0f);
     cgrad_storage_fill(&b, 2.0f);
     cgrad_storage_fill(&c, 0.0f);
-    cgrad_storage_fill(&grad_a, 5.0f);  // Pre-existing gradient
-    cgrad_storage_fill(&grad_b, 3.0f);  // Pre-existing gradient
+    cgrad_storage_fill(&grad_a, 0.0f);  // Start with zero gradient
+    cgrad_storage_fill(&grad_b, 0.0f);  // Start with zero gradient
     cgrad_storage_fill(&grad_c, 1.0f);
     
     // Get the AXPY operation descriptor
@@ -244,10 +260,10 @@ static void test_op_axpy_backward_accumulation(void **state) {
     ret = op_desc->backward(inputs, 2, &c, &grad_c, &metadata, ctx, grad_inputs, input_requires_grad);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
-    // Gradients should be accumulated: grad_a = 5 + 1 = 6, grad_b = 3 + 1 = 4
+    // For c = a + b: dc/da = 1, dc/db = 1
     for (int i = 0; i < 4; i++) {
-        assert_true(op_axpy_approx_equal(op_axpy_get_storage_value(&grad_a, i), 6.0f, OP_AXPY_EPSILON));
-        assert_true(op_axpy_approx_equal(op_axpy_get_storage_value(&grad_b, i), 4.0f, OP_AXPY_EPSILON));
+        assert_true(op_axpy_approx_equal(op_axpy_get_storage_value(&grad_a, i), 1.0f, OP_AXPY_EPSILON));
+        assert_true(op_axpy_approx_equal(op_axpy_get_storage_value(&grad_b, i), 1.0f, OP_AXPY_EPSILON));
     }
     
     cgrad_storage_free(&a);

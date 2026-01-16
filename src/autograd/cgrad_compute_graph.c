@@ -94,7 +94,7 @@ int cgrad_compute_graph_backward(
             target_node->grad_storage,
             target_node->layout.shape,
             TENSOR_DIM,
-            target_node->backend_type
+            target_node->backend_name
         );
         if (ret != CGRAD_SUCCESS) {
             free(target_node->grad_storage);
@@ -163,7 +163,7 @@ int cgrad_compute_graph_backward(
                     input_nodes[j]->grad_storage,
                     input_nodes[j]->layout.shape,
                     TENSOR_DIM,
-                    input_nodes[j]->backend_type
+                    input_nodes[j]->backend_name
                 );
                 if (ret != CGRAD_SUCCESS) {
                     return ret;
@@ -625,7 +625,7 @@ int cgrad_compute_graph_add_leaf(
         free(node);
         return CGRAD_ERR_NULL_POINTER;
     }
-    node->backend_type = node_storage->backend->type;
+    node->backend_name = node_storage->backend->name;
     node->ref_count = 1;        // Initialize reference count
     node->requires_grad = 1;    // Default: leaf nodes require gradients
 
@@ -672,7 +672,7 @@ int cgrad_compute_graph_add_op(
     }
 
     // Validate backend consistency across inputs
-    cgrad_storage_backend_type backend_type;
+    const char* backend_name = NULL;
     int backend_initialized = 0;
     
     for (int i = 0; i < num_inputs; i++) {
@@ -683,11 +683,11 @@ int cgrad_compute_graph_add_op(
         }
         
         if (!backend_initialized) {
-            backend_type = input_node->backend_type;
+            backend_name = input_node->backend_name;
             backend_initialized = 1;
         } else {
             // Check if this input has a different backend
-            if (input_node->backend_type != backend_type) {
+            if (strcmp(input_node->backend_name, backend_name) != 0) {
                 return CGRAD_GRAPH_ERR_BACKEND_MISMATCH;
             }
         }
@@ -705,7 +705,7 @@ int cgrad_compute_graph_add_op(
     node->storage = NULL;       // Not computed yet
     node->grad_storage = NULL;  // Initialize gradient storage
     node->ctx = NULL;           // Initialize context
-    node->backend_type = backend_type;  // Inherit backend from inputs
+    node->backend_name = backend_name;  // Inherit backend from inputs
     node->ref_count = 1;        // Initialize reference count
     
     // Inherit requires_grad from inputs: if ANY input requires grad, so does this node
@@ -906,7 +906,7 @@ static int forward_node(cgrad_compute_graph* graph, cgrad_graph_node* node) {
     }
 
     // Check the backend
-    if (out_storage->backend->type != node->backend_type) {
+    if (strcmp(out_storage->backend->name, node->backend_name) != 0) {
         return CGRAD_GRAPH_ERR_BACKEND_MISMATCH;
     }
 

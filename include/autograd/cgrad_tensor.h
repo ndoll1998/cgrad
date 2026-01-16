@@ -90,14 +90,14 @@ int cgrad_is_grad_enabled(void);
  * @param tensor Pointer to tensor to initialize.
  * @param shape Array of dimensions (length ndim).
  * @param ndim Number of dimensions (≤ TENSOR_DIM).
- * @param backend_type Which backend to use for storage.
+ * @param backend_name Which backend to use for storage (e.g., "f32_cpu").
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
 int cgrad_tensor_init(
     cgrad_tensor* tensor,
     const uint32_t* shape,
     int ndim,
-    cgrad_storage_backend_type backend_type
+    const char* backend_name
 );
 
 /**

@@ -140,7 +140,7 @@ int cgrad_tensor_init(
     cgrad_tensor* tensor,
     const uint32_t* shape,
     int ndim,
-    cgrad_storage_backend_type backend_type
+    const char* backend_name
 ) {
     if (tensor == NULL || shape == NULL) {
         return CGRAD_ERR_NULL_POINTER;
@@ -160,7 +160,7 @@ int cgrad_tensor_init(
 
     // Create empty storage
     cgrad_storage storage;
-    ret = cgrad_storage_init(&storage, shape, ndim, backend_type);
+    ret = cgrad_storage_init(&storage, shape, ndim, backend_name);
     if (ret != CGRAD_SUCCESS) {
         return ret;
     }

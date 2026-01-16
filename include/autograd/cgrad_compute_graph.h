@@ -98,7 +98,7 @@ typedef struct cgrad_graph_node {
     cgrad_storage* storage;            /**< For leaf: materialized eager storage; for ops: NULL or cached */
     cgrad_storage* grad_storage;       /**< Cached gradient (NULL if not computed) */
     void* ctx;                         /**< Operation context for caching intermediate results (NULL by default) */
-    cgrad_storage_backend_type backend_type;  /**< Backend type of the node */
+    const char* backend_name;          /**< Backend name of the node (e.g., "f32_cpu") */
     int ref_count;                     /**< Reference count for memory management */
     int requires_grad;                 /**< 1 if gradients should be computed, 0 otherwise */
     UT_hash_handle hh;                 /**< Hash handle for uthash */

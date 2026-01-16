@@ -18,7 +18,7 @@ typedef enum {
  * Function pointers are grouped by logical operation type for clarity and consistency.
  */
 typedef struct cgrad_storage_backend {
-    cgrad_storage_backend_type type;
+    const char* name;                /**< Backend name (e.g., "f32_cpu") */
 
     /**
      * @brief Size of the backend-specific storage handle in bytes.
@@ -116,10 +116,23 @@ typedef struct cgrad_storage_backend {
 } cgrad_storage_backend;
 
 /**
- * @brief Get the backend for a given backend type.
- * @param type Backend type.
- * @return Pointer to the backend.
+ * @brief Register a backend in the global registry.
+ * @param backend Pointer to backend to register.
+ * @return 0 on success, -1 on error.
  */
-cgrad_storage_backend* cgrad_get_backend(cgrad_storage_backend_type type);
+int cgrad_register_backend(cgrad_storage_backend* backend);
+
+/**
+ * @brief Get the backend for a given backend name.
+ * @param name Backend name (e.g., "f32_cpu").
+ * @return Pointer to the backend, or NULL if not found.
+ */
+cgrad_storage_backend* cgrad_get_backend(const char* name);
+
+/**
+ * @brief Cleanup the backend registry.
+ * Should be called at program shutdown.
+ */
+void cgrad_cleanup_backend_registry(void);
 
 #endif // CGRAD_STORAGE_BACKEND_H

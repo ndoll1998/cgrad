@@ -18,16 +18,16 @@ typedef struct cgrad_storage {
 // --- Initialization/Allocation ---
 
 /**
- * @brief Initialize a high-level tensor with the given shape, ndim, and backend type.
+ * @brief Initialize a high-level tensor with the given shape, ndim, and backend name.
  *        The user-specified shape (length ndim) is placed at the end; leading unspecified dims are set to 1.
  *        For example, shape={3,4}, ndim=2, MAX_TENSOR_DIM=4 => layout.shape={1,1,3,4}
  * @param t Pointer to tensor to initialize.
  * @param shape Array of dimensions (length ndim).
  * @param ndim Number of dimensions in shape (≤ MAX_TENSOR_DIM).
- * @param backend_type Backend type to use.
+ * @param backend_name Backend name to use (e.g., "f32_cpu").
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_init(cgrad_storage* t, const uint32_t* shape, int ndim, cgrad_storage_backend_type backend_type);
+int cgrad_storage_init(cgrad_storage* t, const uint32_t* shape, int ndim, const char* backend_name);
 
 /**
  * @brief Perform a shallow copy of a tensor (copies data pointer, not underlying data).
@@ -167,6 +167,16 @@ int cgrad_storage_reshape(const cgrad_storage* src, cgrad_storage* dst, const in
 int cgrad_storage_transpose(const cgrad_storage* src, cgrad_storage* dst, const uint32_t* perm, int ndim);
 
 // --- Data Access/Info ---
+
+/**
+ * @brief Get the value at the given indices.
+ * @param t Pointer to storage.
+ * @param indices Array of indices.
+ * @param ndim Number of dimensions in indices.
+ * @param out_value Pointer to float where the value will be written.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_storage_get(const cgrad_storage* t, const uint32_t* indices, int ndim, float* out_value);
 
 /**
  * @brief Print the tensor's shape and contents.

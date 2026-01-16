@@ -97,11 +97,11 @@ int cgrad_storage_free_all_from_record(cgrad_storage_registry_record* record) {
  * @param backend_type Backend type to use.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_init(cgrad_storage* t, const uint32_t* shape, int ndim, cgrad_storage_backend_type backend_type) {
+int cgrad_storage_init(cgrad_storage* t, const uint32_t* shape, int ndim, const char* backend_name) {
     if (!t || !shape) return CGRAD_ERR_NULL_POINTER;
 
-    // get the backend
-    cgrad_storage_backend* backend = cgrad_get_backend(backend_type);
+    // Get backend
+    cgrad_storage_backend* backend = cgrad_get_backend(backend_name);
     if (!backend) return CGRAD_STORAGE_ERR_BACKEND_MISMATCH;
 
     // Allocate tensor handle using the backend's handle size
@@ -291,7 +291,7 @@ int cgrad_storage_gemm(
 
     // check if r is initialized, if not initialize it
     if (!r->data) {
-        err = cgrad_storage_init(r, r_shape, TENSOR_DIM, a->backend->type);
+        err = cgrad_storage_init(r, r_shape, TENSOR_DIM, a->backend->name);
         if (err != CGRAD_SUCCESS) {
             cgrad_storage_stop_recording(storage_record);
             cgrad_storage_free_all_from_record(storage_record);
@@ -390,7 +390,7 @@ int cgrad_storage_axpy(
     // check if r is initialized, if not initialize it
     if (!r->data) {
         const uint32_t* shape = x_bcast.backend->storage_get_layout(x_bcast.data)->shape;
-        err = cgrad_storage_init(r, shape, TENSOR_DIM, x->backend->type);
+        err = cgrad_storage_init(r, shape, TENSOR_DIM, x->backend->name);
         if (err != CGRAD_SUCCESS) {
             cgrad_storage_stop_recording(storage_record);
             cgrad_storage_free_all_from_record(storage_record);
@@ -448,6 +448,20 @@ int cgrad_storage_axpy(
 
 
 /**
+ * @brief Get the value at the given indices.
+ * @param t Pointer to storage.
+ * @param indices Array of indices.
+ * @param ndim Number of dimensions in indices.
+ * @param out_value Pointer to float where the value will be written.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_storage_get(const cgrad_storage* t, const uint32_t* indices, int ndim, float* out_value) {
+    if (!t || !t->backend || !t->data) return CGRAD_ERR_NULL_POINTER;
+    if (!t->backend->storage_get) return CGRAD_ERR_NOT_IMPLEMENTED;
+    return t->backend->storage_get(t->data, indices, ndim, out_value);
+}
+
+/**
  * @brief Print the tensor's shape and contents.
  * @param t Pointer to tensor.
  */
@@ -482,7 +496,7 @@ int cgrad_storage_contiguous(const cgrad_storage* src, cgrad_storage* dst) {
     cgrad_storage_registry_record* storage_record = cgrad_storage_start_recording();
 
     uint32_t* src_shape = src->backend->storage_get_layout(src->data)->shape;
-    int err = cgrad_storage_init(dst, src_shape, TENSOR_DIM, src->backend->type);
+    int err = cgrad_storage_init(dst, src_shape, TENSOR_DIM, src->backend->name);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
         cgrad_storage_free_all_from_record(storage_record);
@@ -680,7 +694,7 @@ int cgrad_storage_sum(
     
     // Create ones tensor of shape (summed_size, 1)
     cgrad_storage ones = {0};
-    err = cgrad_storage_init(&ones, (const uint32_t[]){summed_size, 1}, 2, a_perm.backend->type);
+    err = cgrad_storage_init(&ones, (const uint32_t[]){summed_size, 1}, 2, a_perm.backend->name);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
         cgrad_storage_free_all_from_record(storage_record);
