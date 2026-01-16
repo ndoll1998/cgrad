@@ -596,12 +596,8 @@ int cgrad_tensor_get(const cgrad_tensor* tensor, const uint32_t* indices, int nd
         return CGRAD_GRAPH_ERR_EXECUTION_FAILED;
     }
 
-    // Use the backend's storage_get function
-    if (node->storage->backend == NULL || node->storage->backend->storage_get == NULL) {
-        return CGRAD_ERR_NOT_IMPLEMENTED;
-    }
-
-    return node->storage->backend->storage_get(node->storage->data, indices, ndim, out_value);
+    // get the value from the storage
+    return cgrad_storage_get(node->storage, indices, ndim, out_value);
 }
 
 void cgrad_tensor_print(const cgrad_tensor* tensor) {

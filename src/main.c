@@ -1,5 +1,4 @@
-#include "autograd/cgrad_tensor.h"
-#include "storage/cgrad_storage.h"
+#include "cgrad.h"
 #include "cgrad_errors.h"
 #include <stdio.h>
 #include <stdint.h>
