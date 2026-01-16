@@ -289,15 +289,26 @@ int cgrad_tensor_reduce_sum(
 int cgrad_tensor_execute(cgrad_tensor* tensor);
 
 /**
- * @brief Get the underlying storage of an executed tensor.
+ * @brief Get the underlying storage of a tensor.
  * 
  * This function returns the cached storage after execution.
  * Returns NULL if the tensor has not been executed yet.
  * 
  * @param tensor Tensor to get storage from.
- * @return Pointer to storage, or NULL if not executed.
+ * @return Const pointer to storage, or NULL if not computed.
  */
-cgrad_storage* cgrad_tensor_get_storage(const cgrad_tensor* tensor);
+const cgrad_storage* cgrad_tensor_get_storage(const cgrad_tensor* tensor);
+
+/**
+ * @brief Get the gradient storage of a tensor.
+ * 
+ * This function returns the gradient storage if it exists.
+ * Returns NULL if backward has not been called or if the tensor doesn't require gradients.
+ * 
+ * @param tensor Tensor to get gradient storage from.
+ * @return Const pointer to gradient storage, or NULL if not available.
+ */
+const cgrad_storage* cgrad_tensor_get_grad_storage(const cgrad_tensor* tensor);
 
 /**
  * @brief Get a value from a tensor at the given indices.

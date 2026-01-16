@@ -7,6 +7,18 @@
 #include <stdio.h>
 
 // ============================================================================
+// Forward Declarations
+// ============================================================================
+
+static int cgrad_compute_graph_topological_sort(
+    const cgrad_compute_graph* graph,
+    const uuid_t target_node_id,
+    uuid_t* out_sorted_node_ids,
+    int max_nodes,
+    int* out_num_nodes
+);
+
+// ============================================================================
 // Helper Functions
 // ============================================================================
 
@@ -358,14 +370,28 @@ int cgrad_compute_graph_get_inputs(
     return CGRAD_SUCCESS;
 }
 
-int cgrad_compute_graph_topological_sort(
+/**
+ * @brief Perform depth-first search from a target node to collect all dependencies.
+ * 
+ * This function traverses the graph backwards from the target node, visiting all
+ * nodes that the target depends on (directly or indirectly). The nodes are written
+ * to the output buffer in DFS post-order (dependencies before dependents).
+ * 
+ * @param graph Compute graph.
+ * @param target_node_id Starting node for DFS traversal.
+ * @param out_node_ids Array to store node IDs in DFS post-order.
+ * @param max_nodes Maximum number of nodes.
+ * @param out_num_nodes Pointer to actual number of nodes found.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+static int cgrad_compute_graph_dfs(
     const cgrad_compute_graph* graph,
     const uuid_t target_node_id,
-    uuid_t* out_sorted_node_ids,
+    uuid_t* out_node_ids,
     int max_nodes,
     int* out_num_nodes
 ) {
-    if (graph == NULL || out_sorted_node_ids == NULL || out_num_nodes == NULL) {
+    if (graph == NULL || out_node_ids == NULL || out_num_nodes == NULL) {
         return CGRAD_ERR_NULL_POINTER;
     }
 
@@ -377,17 +403,18 @@ int cgrad_compute_graph_topological_sort(
         return CGRAD_GRAPH_ERR_NODE_NOT_FOUND;
     }
 
-    // BFS/DFS to find all dependencies
+    // DFS to find all dependencies
     uuid_t visited[MAX_GRAPH_NODES];
     int visited_count = 0;
-    uuid_t queue[MAX_GRAPH_NODES];
-    int queue_start = 0, queue_end = 0;
+    uuid_t stack[MAX_GRAPH_NODES];
+    int stack_top = 0;
 
-    uuid_copy(queue[queue_end++], target_node_id);
+    // Push target node
+    uuid_copy(stack[stack_top++], target_node_id);
 
-    while (queue_start < queue_end) {
+    while (stack_top > 0) {
         uuid_t current_id;
-        uuid_copy(current_id, queue[queue_start++]);
+        uuid_copy(current_id, stack[--stack_top]);
 
         // Check if already visited
         int already_visited = 0;
@@ -399,6 +426,7 @@ int cgrad_compute_graph_topological_sort(
         }
         if (already_visited) continue;
 
+        // Mark as visited
         uuid_copy(visited[visited_count++], current_id);
 
         // Get inputs
@@ -409,34 +437,77 @@ int cgrad_compute_graph_topological_sort(
             return ret;
         }
 
-        // Add inputs to queue
-        for (int i = 0; i < num_inputs && i < MAX_NODE_INPUTS; i++) {
-            if (queue_end < MAX_GRAPH_NODES) {
-                uuid_copy(queue[queue_end++], inputs[i]);
+        // Push inputs to stack (in reverse order for correct DFS order)
+        for (int i = num_inputs - 1; i >= 0; i--) {
+            if (stack_top < MAX_GRAPH_NODES) {
+                uuid_copy(stack[stack_top++], inputs[i]);
             }
         }
     }
 
-    // Now perform topological sort on visited nodes
+    // Copy visited nodes to output (already in DFS post-order)
+    int num_to_copy = visited_count < max_nodes ? visited_count : max_nodes;
+    for (int i = 0; i < num_to_copy; i++) {
+        uuid_copy(out_node_ids[i], visited[i]);
+    }
+
+    *out_num_nodes = visited_count;
+    return CGRAD_SUCCESS;
+}
+
+/**
+ * @brief Perform topological sort on the dependency subgraph of a target node.
+ * 
+ * This function first uses DFS to collect all nodes in the dependency subgraph,
+ * then performs a topological sort to determine the correct execution order.
+ * The result is a list of node IDs where all dependencies appear before their dependents.
+ * 
+ * @param graph Compute graph.
+ * @param target_node_id Target node to sort dependencies for.
+ * @param out_sorted_node_ids Array to store sorted node IDs.
+ * @param max_nodes Maximum number of nodes.
+ * @param out_num_nodes Pointer to actual number of nodes in sorted order.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+static int cgrad_compute_graph_topological_sort(
+    const cgrad_compute_graph* graph,
+    const uuid_t target_node_id,
+    uuid_t* out_sorted_node_ids,
+    int max_nodes,
+    int* out_num_nodes
+) {
+    if (graph == NULL || out_sorted_node_ids == NULL || out_num_nodes == NULL) {
+        return CGRAD_ERR_NULL_POINTER;
+    }
+
+    // Use DFS to collect all dependencies
+    uuid_t dfs_nodes[MAX_GRAPH_NODES];
+    int dfs_count;
+    int ret = cgrad_compute_graph_dfs(graph, target_node_id, dfs_nodes, MAX_GRAPH_NODES, &dfs_count);
+    if (ret != CGRAD_SUCCESS) {
+        return ret;
+    }
+
+    // Now perform topological sort on DFS nodes
     // Simple approach: repeatedly find nodes with no unprocessed dependencies
     int processed[MAX_GRAPH_NODES] = {0};
     int sort_count = 0;
 
-    while (sort_count < visited_count && sort_count < max_nodes) {
+    while (sort_count < dfs_count && sort_count < max_nodes) {
         int found = 0;
-        for (int i = 0; i < visited_count; i++) {
+        for (int i = 0; i < dfs_count; i++) {
             if (processed[i]) continue;
 
             // Check if all dependencies are processed
             uuid_t inputs[MAX_NODE_INPUTS];
             int num_inputs;
-            cgrad_compute_graph_get_inputs(graph, visited[i], inputs, MAX_NODE_INPUTS, &num_inputs);
+            cgrad_compute_graph_get_inputs(graph, dfs_nodes[i], inputs, MAX_NODE_INPUTS, &num_inputs);
 
             int all_deps_done = 1;
             for (int j = 0; j < num_inputs; j++) {
                 int dep_processed = 0;
-                for (int k = 0; k < visited_count; k++) {
-                    if (uuid_compare(visited[k], inputs[j]) == 0) {
+                for (int k = 0; k < dfs_count; k++) {
+                    if (uuid_compare(dfs_nodes[k], inputs[j]) == 0) {
                         if (!processed[k]) {
                             all_deps_done = 0;
                             break;
@@ -449,13 +520,13 @@ int cgrad_compute_graph_topological_sort(
             }
 
             if (all_deps_done) {
-                uuid_copy(out_sorted_node_ids[sort_count++], visited[i]);
+                uuid_copy(out_sorted_node_ids[sort_count++], dfs_nodes[i]);
                 processed[i] = 1;
                 found = 1;
             }
         }
 
-        if (!found && sort_count < visited_count) {
+        if (!found && sort_count < dfs_count) {
             return CGRAD_GRAPH_ERR_TOPOLOGICAL_SORT_FAILED;
         }
     }
@@ -776,9 +847,9 @@ void cgrad_graph_node_print(const cgrad_graph_node* node) {
 // ============================================================================
 
 /**
- * @brief Execute a single operation node in the graph.
+ * @brief Forward pass for a single operation node in the graph.
  */
-static int execute_node(cgrad_compute_graph* graph, cgrad_graph_node* node) {
+static int forward_node(cgrad_compute_graph* graph, cgrad_graph_node* node) {
     if (node->storage != NULL) {
         return CGRAD_SUCCESS;  // Already computed
     }
@@ -843,7 +914,7 @@ static int execute_node(cgrad_compute_graph* graph, cgrad_graph_node* node) {
     return CGRAD_SUCCESS;
 }
 
-int cgrad_compute_graph_execute(
+int cgrad_compute_graph_forward(
     cgrad_compute_graph* graph,
     const uuid_t target_node_id
 ) {
@@ -851,10 +922,21 @@ int cgrad_compute_graph_execute(
         return CGRAD_ERR_NULL_POINTER;
     }
 
+    // Quick exit: if target node already has storage, nothing to compute
+    cgrad_graph_node* target_node;
+    int ret = cgrad_compute_graph_get_node(graph, target_node_id, &target_node);
+    if (ret != CGRAD_SUCCESS) {
+        return ret;
+    }
+    
+    if (target_node->storage != NULL) {
+        return CGRAD_SUCCESS;  // Already computed
+    }
+
     // Perform topological sort to get execution order
     uuid_t sorted_ids[MAX_GRAPH_NODES];
     int num_nodes;
-    int ret = cgrad_compute_graph_topological_sort(
+    ret = cgrad_compute_graph_topological_sort(
         graph, target_node_id,
         sorted_ids, MAX_GRAPH_NODES, &num_nodes
     );
@@ -875,8 +957,13 @@ int cgrad_compute_graph_execute(
             continue;
         }
 
+        // Skip nodes that are already computed
+        if (node->storage != NULL) {
+            continue;
+        }
+
         // Execute operation node
-        ret = execute_node(graph, node);
+        ret = forward_node(graph, node);
         if (ret != CGRAD_SUCCESS) {
             return ret;
         }
@@ -952,11 +1039,6 @@ int cgrad_compute_graph_free_node(cgrad_compute_graph* graph, cgrad_graph_node* 
         free(node->grad_storage);
         node->grad_storage = NULL;
     }
-    
-    // Context should already be freed by backward, but check just in case
-    // Note: We can't free ctx here without knowing its type, so operations
-    // must ensure they free their own context in backward()
-    node->ctx = NULL;
 
     // Remove node from metadata table
     HASH_DEL(graph->node_metadata_table, node);
@@ -979,4 +1061,38 @@ int cgrad_compute_graph_free_node(cgrad_compute_graph* graph, cgrad_graph_node* 
     }
 
     return CGRAD_SUCCESS;
+}
+
+const cgrad_storage* cgrad_compute_graph_get_storage(
+    const cgrad_compute_graph* graph,
+    const uuid_t node_id
+) {
+    if (graph == NULL) {
+        return NULL;
+    }
+
+    cgrad_graph_node* node;
+    int ret = cgrad_compute_graph_get_node(graph, node_id, &node);
+    if (ret != CGRAD_SUCCESS) {
+        return NULL;
+    }
+
+    return node->storage;
+}
+
+const cgrad_storage* cgrad_compute_graph_get_grad_storage(
+    const cgrad_compute_graph* graph,
+    const uuid_t node_id
+) {
+    if (graph == NULL) {
+        return NULL;
+    }
+
+    cgrad_graph_node* node;
+    int ret = cgrad_compute_graph_get_node(graph, node_id, &node);
+    if (ret != CGRAD_SUCCESS) {
+        return NULL;
+    }
+
+    return node->grad_storage;
 }

@@ -118,55 +118,6 @@ static void test_cgrad_compute_graph_add_op_node(void **state) {
     cgrad_compute_graph_free(&graph);
 }
 
-// ============================================================================
-// Test: Topological Sort
-// ============================================================================
-
-static void test_cgrad_compute_graph_topological_sort(void **state) {
-    (void) state;
-    
-    cgrad_compute_graph graph;
-    cgrad_compute_graph_create(&graph);
-    
-    // Create a simple chain: A -> ADD -> B
-    cgrad_storage_layout layout;
-    uint32_t shape[] = {2, 3};
-    cgrad_storage_layout_init(&layout, shape, 2);
-    
-    // Leaf A
-    cgrad_storage* storageA = (cgrad_storage*)malloc(sizeof(cgrad_storage));
-    cgrad_storage_init(storageA, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
-    uuid_t leafA_id;
-    cgrad_compute_graph_add_leaf(&graph, &layout, storageA, leafA_id);
-    
-    // Leaf B
-    cgrad_storage* storageB = (cgrad_storage*)malloc(sizeof(cgrad_storage));
-    cgrad_storage_init(storageB, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
-    uuid_t leafB_id;
-    cgrad_compute_graph_add_leaf(&graph, &layout, storageB, leafB_id);
-    
-    // ADD node
-    cgrad_op_info op_info;
-    op_info.type = CGRAD_OP_AXPY;
-    uuid_t input_ids[2];
-    uuid_copy(input_ids[0], leafA_id);
-    uuid_copy(input_ids[1], leafB_id);
-    uuid_t add_id;
-    cgrad_compute_graph_add_op(&graph, &op_info, &layout, input_ids, 2, add_id);
-    
-    // Topological sort from ADD node
-    uuid_t sorted[256];
-    int num_sorted;
-    int ret = cgrad_compute_graph_topological_sort(&graph, add_id, sorted, 256, &num_sorted);
-    
-    assert_int_equal(ret, CGRAD_SUCCESS);
-    assert_int_equal(num_sorted, 3);  // A, B, ADD
-    
-    // Last node should be the ADD node
-    assert_true(uuid_compare(sorted[num_sorted - 1], add_id) == 0);
-    
-    cgrad_compute_graph_free(&graph);
-}
 
 // ============================================================================
 // Test: DOT Export
@@ -787,7 +738,7 @@ static void test_cgrad_compute_graph_backward_zero_grad(void **state) {
     cgrad_compute_graph_add_op(&graph, &op_info, &layout, input_ids, 2, op_node_id);
     
     // Execute forward
-    int ret = cgrad_compute_graph_execute(&graph, op_node_id);
+    int ret = cgrad_compute_graph_forward(&graph, op_node_id);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Execute backward
@@ -815,7 +766,6 @@ int run_cgrad_compute_graph_tests(void) {
         cmocka_unit_test(test_cgrad_compute_graph_create),
         cmocka_unit_test(test_cgrad_compute_graph_add_leaf_node),
         cmocka_unit_test(test_cgrad_compute_graph_add_op_node),
-        cmocka_unit_test(test_cgrad_compute_graph_topological_sort),
         cmocka_unit_test(test_cgrad_compute_graph_dot_export),
         cmocka_unit_test(test_cgrad_compute_graph_backend_type_tracking),
         cmocka_unit_test(test_cgrad_compute_graph_backend_consistency_same_backend),

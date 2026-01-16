@@ -538,10 +538,10 @@ int cgrad_tensor_execute(cgrad_tensor* tensor) {
     }
 
     // Execute the subgraph for this tensor
-    return cgrad_compute_graph_execute(graph, tensor->node_id);
+    return cgrad_compute_graph_forward(graph, tensor->node_id);
 }
 
-cgrad_storage* cgrad_tensor_get_storage(const cgrad_tensor* tensor) {
+const cgrad_storage* cgrad_tensor_get_storage(const cgrad_tensor* tensor) {
     if (tensor == NULL) {
         return NULL;
     }
@@ -551,13 +551,20 @@ cgrad_storage* cgrad_tensor_get_storage(const cgrad_tensor* tensor) {
         return NULL;
     }
 
-    cgrad_graph_node* node;
-    int ret = cgrad_compute_graph_get_node(graph, tensor->node_id, &node);
-    if (ret != CGRAD_SUCCESS) {
+    return cgrad_compute_graph_get_storage(graph, tensor->node_id);
+}
+
+const cgrad_storage* cgrad_tensor_get_grad_storage(const cgrad_tensor* tensor) {
+    if (tensor == NULL) {
         return NULL;
     }
 
-    return node->storage;
+    cgrad_compute_graph* graph = get_global_graph();
+    if (graph == NULL) {
+        return NULL;
+    }
+
+    return cgrad_compute_graph_get_grad_storage(graph, tensor->node_id);
 }
 
 int cgrad_tensor_get(const cgrad_tensor* tensor, const uint32_t* indices, int ndim, float* out_value) {
@@ -757,6 +764,12 @@ int cgrad_tensor_backward(cgrad_tensor* tensor) {
     cgrad_compute_graph* graph = get_global_graph();
     if (graph == NULL) {
         return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+    }
+
+    // Execute forward pass if not already executed
+    int ret = cgrad_tensor_execute(tensor);
+    if (ret != CGRAD_SUCCESS) {
+        return ret;
     }
 
     // Delegate to compute graph
