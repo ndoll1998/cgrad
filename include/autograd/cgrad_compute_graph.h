@@ -165,27 +165,6 @@ int cgrad_compute_graph_get_inputs(
 );
 
 /**
- * @brief Perform topological sort of the computation graph starting from a node.
- * 
- * Returns node IDs in topological order suitable for execution.
- * Only includes nodes in the dependency path of the target node.
- * 
- * @param graph Compute graph.
- * @param target_node_id Starting node for dependency traversal.
- * @param out_sorted_node_ids Array to store sorted node IDs.
- * @param max_nodes Maximum number of nodes.
- * @param out_num_nodes Pointer to actual number of nodes.
- * @return CGRAD_SUCCESS on success, error code otherwise.
- */
-int cgrad_compute_graph_topological_sort(
-    const cgrad_compute_graph* graph,
-    const uuid_t target_node_id,
-    uuid_t* out_sorted_node_ids,
-    int max_nodes,
-    int* out_num_nodes
-);
-
-/**
  * @brief Free all resources associated with a computation graph.
  * @param graph Compute graph to free.
  * @return CGRAD_SUCCESS on success, error code otherwise.
@@ -316,7 +295,7 @@ const char* cgrad_op_type_to_string(cgrad_op_type op_type);
 // ============================================================================
 
 /**
- * @brief Execute a computation subgraph for a target node.
+ * @brief Execute forward pass for a computation subgraph.
  * 
  * This function:
  * 1. Performs topological sort to collect the dependency subgraph
@@ -330,7 +309,7 @@ const char* cgrad_op_type_to_string(cgrad_op_type op_type);
  * @param target_node_id The node to execute (endpoint of the subgraph).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_compute_graph_execute(
+int cgrad_compute_graph_forward(
     cgrad_compute_graph* graph,
     const uuid_t target_node_id
 );
@@ -371,6 +350,18 @@ int cgrad_compute_graph_backward(
 int cgrad_compute_graph_zero_grad(cgrad_compute_graph* graph);
 
 /**
+ * @brief Zero out the gradient of a specific node.
+ * 
+ * This function sets the gradient storage of the given node to zero.
+ * If the gradient doesn't exist yet, this function does nothing and returns success.
+ * 
+ * @param graph Compute graph.
+ * @param node_id Node identifier.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_compute_graph_zero_grad_node(cgrad_compute_graph* graph, const uuid_t node_id);
+
+/**
  * @brief Set the requires_grad flag for a node.
  * 
  * @param graph Compute graph.
@@ -382,6 +373,34 @@ int cgrad_compute_graph_set_requires_grad(
     cgrad_compute_graph* graph,
     const uuid_t node_id,
     int requires_grad
+);
+
+/**
+ * @brief Get the storage of a node.
+ * 
+ * Returns the storage if the node has been computed, NULL otherwise.
+ * 
+ * @param graph Compute graph.
+ * @param node_id Node identifier.
+ * @return Const pointer to storage, or NULL if not computed.
+ */
+const cgrad_storage* cgrad_compute_graph_get_storage(
+    const cgrad_compute_graph* graph,
+    const uuid_t node_id
+);
+
+/**
+ * @brief Get the gradient storage of a node.
+ * 
+ * Returns the gradient storage if it exists, NULL otherwise.
+ * 
+ * @param graph Compute graph.
+ * @param node_id Node identifier.
+ * @return Const pointer to gradient storage, or NULL if not available.
+ */
+const cgrad_storage* cgrad_compute_graph_get_grad_storage(
+    const cgrad_compute_graph* graph,
+    const uuid_t node_id
 );
 
 #endif // CGRAD_COMPUTE_GRAPH_H

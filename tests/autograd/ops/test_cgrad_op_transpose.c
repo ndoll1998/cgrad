@@ -65,7 +65,7 @@ static void test_op_transpose_forward(void **state) {
     // Execute forward pass - output will be initialized by transpose
     void* ctx = NULL;
     memset(&b, 0, sizeof(b));
-    int ret = op_desc->forward(inputs, 1, &metadata, &b, &ctx);
+    int ret = op_desc->forward(inputs, 1, &metadata, &b, &ctx, 1);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Get the layout to check shape
@@ -113,7 +113,7 @@ static void test_op_transpose_backward_basic(void **state) {
     // Execute forward pass
     void* ctx = NULL;
     memset(&b, 0, sizeof(b));
-    int ret = op_desc->forward(inputs, 1, &metadata, &b, &ctx);
+    int ret = op_desc->forward(inputs, 1, &metadata, &b, &ctx, 1);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Initialize gradient for output (transposed shape)
@@ -169,7 +169,7 @@ static void test_op_transpose_backward_no_grad(void **state) {
     // Execute forward pass
     void* ctx = NULL;
     memset(&b, 0, sizeof(b));
-    int ret = op_desc->forward(inputs, 1, &metadata, &b, &ctx);
+    int ret = op_desc->forward(inputs, 1, &metadata, &b, &ctx, 1);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Initialize gradient for output
@@ -218,14 +218,14 @@ static void test_op_transpose_backward_double(void **state) {
     cgrad_storage* inputs1[1] = {&a};
     void* ctx1 = NULL;
     memset(&b, 0, sizeof(b));
-    int ret = op_desc->forward(inputs1, 1, &metadata, &b, &ctx1);
+    int ret = op_desc->forward(inputs1, 1, &metadata, &b, &ctx1, 1);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Second transpose: c = transpose(b) = a (back to original shape)
     cgrad_storage* inputs2[1] = {&b};
     void* ctx2 = NULL;
     memset(&c, 0, sizeof(c));
-    ret = op_desc->forward(inputs2, 1, &metadata, &c, &ctx2);
+    ret = op_desc->forward(inputs2, 1, &metadata, &c, &ctx2, 1);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Initialize gradients

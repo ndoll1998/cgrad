@@ -22,6 +22,7 @@
  * @param metadata Operation-specific metadata.
  * @param output Output storage (allocated by caller).
  * @param ctx Pointer to context pointer. Operation can allocate and store intermediate results here.
+ * @param requires_grad Whether this operation requires gradient computation (affects context caching).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
 typedef int (*cgrad_op_forward_fn)(
@@ -29,7 +30,8 @@ typedef int (*cgrad_op_forward_fn)(
     int num_inputs,
     const cgrad_op_metadata* metadata,
     cgrad_storage* output,
-    void** ctx
+    void** ctx,
+    int requires_grad
 );
 
 /**

@@ -38,6 +38,45 @@ typedef struct {
 } cgrad_tensor;
 
 // ============================================================================
+// Gradient Mode Functions
+// ============================================================================
+
+/**
+ * @brief Enable gradient computation for subsequently created tensors.
+ * 
+ * This function sets the global gradient mode to enabled. All tensors
+ * created after this call will have requires_grad=1 by default (unless
+ * they are derived from tensors that don't require gradients).
+ * 
+ * This is the default state when the program starts.
+ * 
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_enable_grad(void);
+
+/**
+ * @brief Disable gradient computation for subsequently created tensors.
+ * 
+ * This function sets the global gradient mode to disabled. All tensors
+ * created after this call will have requires_grad=0, regardless of the
+ * default behavior.
+ * 
+ * This is useful for inference, evaluation, or any operation where
+ * gradients are not needed. Disabling gradients can improve performance
+ * and reduce memory usage.
+ * 
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_disable_grad(void);
+
+/**
+ * @brief Check if gradient computation is currently enabled.
+ * 
+ * @return 1 if gradients are enabled, 0 if disabled.
+ */
+int cgrad_is_grad_enabled(void);
+
+// ============================================================================
 // Tensor Initialization and Management
 // ============================================================================
 
@@ -250,15 +289,26 @@ int cgrad_tensor_reduce_sum(
 int cgrad_tensor_execute(cgrad_tensor* tensor);
 
 /**
- * @brief Get the underlying storage of an executed tensor.
+ * @brief Get the underlying storage of a tensor.
  * 
  * This function returns the cached storage after execution.
  * Returns NULL if the tensor has not been executed yet.
  * 
  * @param tensor Tensor to get storage from.
- * @return Pointer to storage, or NULL if not executed.
+ * @return Const pointer to storage, or NULL if not computed.
  */
-cgrad_storage* cgrad_tensor_get_storage(const cgrad_tensor* tensor);
+const cgrad_storage* cgrad_tensor_get_storage(const cgrad_tensor* tensor);
+
+/**
+ * @brief Get the gradient storage of a tensor.
+ * 
+ * This function returns the gradient storage if it exists.
+ * Returns NULL if backward has not been called or if the tensor doesn't require gradients.
+ * 
+ * @param tensor Tensor to get gradient storage from.
+ * @return Const pointer to gradient storage, or NULL if not available.
+ */
+const cgrad_storage* cgrad_tensor_get_grad_storage(const cgrad_tensor* tensor);
 
 /**
  * @brief Get a value from a tensor at the given indices.
@@ -323,13 +373,16 @@ int cgrad_tensor_get_requires_grad(const cgrad_tensor* tensor, int* out_requires
 int cgrad_tensor_get_gradient(const cgrad_tensor* t, cgrad_tensor* grad);
 
 /**
- * @brief Zero out all gradients in the computation graph.
+ * @brief Zero out the gradient of a specific tensor.
  * 
+ * This function sets the gradient storage of the given tensor to zero.
+ * If the gradient doesn't exist yet, this function does nothing and returns success.
  * This should be called before each backward pass in training loops.
  * 
+ * @param tensor Tensor whose gradient should be zeroed.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_zero_grad(void);
+int cgrad_tensor_zero_grad(cgrad_tensor* tensor);
 
 /**
  * @brief Compute gradients by backpropagation through the computation graph.

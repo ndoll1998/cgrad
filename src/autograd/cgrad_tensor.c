@@ -7,6 +7,34 @@
 #include <stdio.h>
 
 // ============================================================================
+// Global Gradient Mode
+// ============================================================================
+
+/**
+ * @brief Global flag tracking whether gradients are enabled.
+ * 
+ * This flag is checked by tensor creation functions to determine
+ * whether newly created tensors should have requires_grad=1 or 0.
+ * 
+ * Default: 1 (enabled)
+ */
+static int g_grad_enabled = 1;
+
+int cgrad_enable_grad(void) {
+    g_grad_enabled = 1;
+    return CGRAD_SUCCESS;
+}
+
+int cgrad_disable_grad(void) {
+    g_grad_enabled = 0;
+    return CGRAD_SUCCESS;
+}
+
+int cgrad_is_grad_enabled(void) {
+    return g_grad_enabled;
+}
+
+// ============================================================================
 // Global Compute Graph
 // ============================================================================
 
@@ -145,6 +173,15 @@ int cgrad_tensor_init(
     
     if (ret != CGRAD_SUCCESS) {
         return ret;
+    }
+
+    // Check gradient mode and disable gradients if needed
+    if (!cgrad_is_grad_enabled()) {
+        // Gradient mode is disabled, so disable gradients for this tensor
+        ret = cgrad_tensor_set_requires_grad(tensor, 0);
+        if (ret != CGRAD_SUCCESS) {
+            return ret;
+        }
     }
 
     return CGRAD_SUCCESS;
@@ -501,10 +538,10 @@ int cgrad_tensor_execute(cgrad_tensor* tensor) {
     }
 
     // Execute the subgraph for this tensor
-    return cgrad_compute_graph_execute(graph, tensor->node_id);
+    return cgrad_compute_graph_forward(graph, tensor->node_id);
 }
 
-cgrad_storage* cgrad_tensor_get_storage(const cgrad_tensor* tensor) {
+const cgrad_storage* cgrad_tensor_get_storage(const cgrad_tensor* tensor) {
     if (tensor == NULL) {
         return NULL;
     }
@@ -514,13 +551,20 @@ cgrad_storage* cgrad_tensor_get_storage(const cgrad_tensor* tensor) {
         return NULL;
     }
 
-    cgrad_graph_node* node;
-    int ret = cgrad_compute_graph_get_node(graph, tensor->node_id, &node);
-    if (ret != CGRAD_SUCCESS) {
+    return cgrad_compute_graph_get_storage(graph, tensor->node_id);
+}
+
+const cgrad_storage* cgrad_tensor_get_grad_storage(const cgrad_tensor* tensor) {
+    if (tensor == NULL) {
         return NULL;
     }
 
-    return node->storage;
+    cgrad_compute_graph* graph = get_global_graph();
+    if (graph == NULL) {
+        return NULL;
+    }
+
+    return cgrad_compute_graph_get_grad_storage(graph, tensor->node_id);
 }
 
 int cgrad_tensor_get(const cgrad_tensor* tensor, const uint32_t* indices, int ndim, float* out_value) {
@@ -698,14 +742,18 @@ int cgrad_tensor_get_gradient(const cgrad_tensor* t, cgrad_tensor* grad) {
     return cgrad_tensor_from_storage(node->grad_storage, grad);
 }
 
-int cgrad_tensor_zero_grad(void) {
+int cgrad_tensor_zero_grad(cgrad_tensor* tensor) {
+    if (tensor == NULL) {
+        return CGRAD_ERR_NULL_POINTER;
+    }
+
     cgrad_compute_graph* graph = get_global_graph();
     if (graph == NULL) {
         return CGRAD_GRAPH_ERR_ALLOC_FAILED;
     }
 
     // Delegate to compute graph
-    return cgrad_compute_graph_zero_grad(graph);
+    return cgrad_compute_graph_zero_grad_node(graph, tensor->node_id);
 }
 
 int cgrad_tensor_backward(cgrad_tensor* tensor) {
@@ -716,6 +764,12 @@ int cgrad_tensor_backward(cgrad_tensor* tensor) {
     cgrad_compute_graph* graph = get_global_graph();
     if (graph == NULL) {
         return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+    }
+
+    // Execute forward pass if not already executed
+    int ret = cgrad_tensor_execute(tensor);
+    if (ret != CGRAD_SUCCESS) {
+        return ret;
     }
 
     // Delegate to compute graph

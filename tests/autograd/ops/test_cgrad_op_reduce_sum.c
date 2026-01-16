@@ -65,7 +65,7 @@ static void test_op_reduce_sum_forward_all(void **state) {
     // Execute forward pass - output will be initialized by reduce_sum
     void* ctx = NULL;
     memset(&b, 0, sizeof(b));
-    int ret = op_desc->forward(inputs, 1, &metadata, &b, &ctx);
+    int ret = op_desc->forward(inputs, 1, &metadata, &b, &ctx, 1);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // 2 * 3 * 2.0 = 12.0
@@ -104,7 +104,7 @@ static void test_op_reduce_sum_forward_last_axis(void **state) {
     // Execute forward pass
     void* ctx = NULL;
     memset(&b, 0, sizeof(b));
-    int ret = op_desc->forward(inputs, 1, &metadata, &b, &ctx);
+    int ret = op_desc->forward(inputs, 1, &metadata, &b, &ctx, 1);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Each row sums to 3.0 (3 elements * 1.0)
@@ -145,7 +145,7 @@ static void test_op_reduce_sum_forward_first_axis(void **state) {
     // Execute forward pass
     void* ctx = NULL;
     memset(&b, 0, sizeof(b));
-    int ret = op_desc->forward(inputs, 1, &metadata, &b, &ctx);
+    int ret = op_desc->forward(inputs, 1, &metadata, &b, &ctx, 1);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Each column sums to 2.0 (2 elements * 1.0)
@@ -191,7 +191,7 @@ static void test_op_reduce_sum_backward_all(void **state) {
     // Execute forward pass
     void* ctx = NULL;
     memset(&b, 0, sizeof(b));
-    int ret = op_desc->forward(inputs, 1, &metadata, &b, &ctx);
+    int ret = op_desc->forward(inputs, 1, &metadata, &b, &ctx, 1);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Initialize gradient for output (scalar)
@@ -248,7 +248,7 @@ static void test_op_reduce_sum_backward_last_axis(void **state) {
     // Execute forward pass
     void* ctx = NULL;
     memset(&b, 0, sizeof(b));
-    int ret = op_desc->forward(inputs, 1, &metadata, &b, &ctx);
+    int ret = op_desc->forward(inputs, 1, &metadata, &b, &ctx, 1);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Initialize gradient for output (reduced shape)
@@ -303,7 +303,7 @@ static void test_op_reduce_sum_backward_no_grad(void **state) {
     // Execute forward pass
     void* ctx = NULL;
     memset(&b, 0, sizeof(b));
-    int ret = op_desc->forward(inputs, 1, &metadata, &b, &ctx);
+    int ret = op_desc->forward(inputs, 1, &metadata, &b, &ctx, 1);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Initialize gradient for output

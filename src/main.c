@@ -58,9 +58,6 @@ int main() {
     cgrad_tensor C;
     cgrad_tensor_gemm(&A, &B, &C);
     
-    // Execute to materialize C
-    cgrad_tensor_execute(&C);
-    
     printf("Result C (3x2):\n");
     cgrad_tensor_print(&C);
     printf("\n");
@@ -73,9 +70,6 @@ int main() {
     cgrad_tensor loss;
     uint8_t reduce_mask[] = {1, 1};  // Reduce over all dimensions
     cgrad_tensor_reduce_sum(&C, reduce_mask, 2, &loss);
-    
-    // Execute to materialize loss
-    cgrad_tensor_execute(&loss);
     
     printf("Loss (scalar):\n");
     cgrad_tensor_print(&loss);
@@ -104,7 +98,6 @@ int main() {
     ret = cgrad_tensor_get_gradient(&A, &grad_A);
     if (ret == CGRAD_SUCCESS) {
         printf("Gradient of A (3x4):\n");
-        cgrad_tensor_execute(&grad_A);
         cgrad_tensor_print(&grad_A);
     } else {
         printf("Warning: Could not get gradient of A (error code: %d)\n", ret);
@@ -119,7 +112,6 @@ int main() {
         printf("Gradient of B: Not available (as expected, requires_grad=False)\n");
     } else {
         printf("Warning: Gradient of B exists (unexpected!)\n");
-        cgrad_tensor_execute(&grad_B);
         cgrad_tensor_print(&grad_B);
     }
     printf("\n");

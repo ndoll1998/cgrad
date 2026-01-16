@@ -70,7 +70,7 @@ static void test_op_gemm_forward(void **state) {
     
     // Execute forward pass
     void* ctx = NULL;
-    int ret = op_desc->forward(inputs, 2, &metadata, &c, &ctx);
+    int ret = op_desc->forward(inputs, 2, &metadata, &c, &ctx, 1);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Each element = sum of 3 products of 1*2 = 6
@@ -127,7 +127,7 @@ static void test_op_gemm_backward_basic(void **state) {
     
     // Execute forward pass first
     void* ctx = NULL;
-    int ret = op_desc->forward(inputs, 2, &metadata, &c, &ctx);
+    int ret = op_desc->forward(inputs, 2, &metadata, &c, &ctx, 1);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Execute backward pass
@@ -196,7 +196,7 @@ static void test_op_gemm_backward_one_no_grad(void **state) {
     
     // Execute forward pass first
     void* ctx = NULL;
-    int ret = op_desc->forward(inputs, 2, &metadata, &c, &ctx);
+    int ret = op_desc->forward(inputs, 2, &metadata, &c, &ctx, 1);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Execute backward pass
@@ -256,7 +256,7 @@ static void test_op_gemm_backward_square(void **state) {
     
     // Execute forward pass first
     void* ctx = NULL;
-    int ret = op_desc->forward(inputs, 2, &metadata, &c, &ctx);
+    int ret = op_desc->forward(inputs, 2, &metadata, &c, &ctx, 1);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Execute backward pass
