@@ -150,7 +150,7 @@ cgrad_status cgrad_storage_layout_broadcast(
             l2->shape[i] = s1;
             l2->strides[i] = 0;
         } else {
-            return CGRAD_ERR_STORAGE_LAYOUT_BROADCAST;
+            return CGRAD_ERR_STORAGE_LAYOUT_BROADCAST_SHAPE_MISMATCH;
         }
     }
     return CGRAD_SUCCESS;

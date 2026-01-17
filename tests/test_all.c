@@ -10,6 +10,8 @@
 #include "autograd/ops/test_cgrad_op_transpose.c"
 #include "autograd/ops/test_cgrad_op_reshape.c"
 #include "autograd/ops/test_cgrad_op_reduce_sum.c"
+#include "optim/test_cgrad_optimizer.c"
+#include "optim/test_cgrad_sgd.c"
 
 int main(void) {
     int failed = 0;
@@ -24,5 +26,7 @@ int main(void) {
     failed |= run_cgrad_op_transpose_tests();
     failed |= run_cgrad_op_reshape_tests();
     failed |= run_cgrad_op_reduce_sum_tests();
+    failed |= run_cgrad_optimizer_tests();
+    failed |= run_cgrad_sgd_tests();
     return failed;
 }

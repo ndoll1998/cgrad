@@ -633,7 +633,7 @@ void cgrad_tensor_print(const cgrad_tensor* tensor) {
         if (node->storage == NULL) {
             ret = cgrad_tensor_execute((cgrad_tensor*)tensor);
             if (ret != CGRAD_SUCCESS) {
-                printf("Error: Failed to execute tensor for printing\n");
+                printf("Error: Failed to execute tensor for printing: %i\n", ret);
                 return;
             }
         }
@@ -641,6 +641,8 @@ void cgrad_tensor_print(const cgrad_tensor* tensor) {
         if (node->storage) {
             cgrad_storage_print(node->storage);
         }
+    } else {
+        printf("ERROR: Failed to get node: %i\n", ret);
     }
 }
 
@@ -715,7 +717,6 @@ cgrad_status cgrad_tensor_from_storage(
     tensor->layout = *layout;
 
     // Add a leaf node to the graph with the existing storage
-    // Note: We pass the storage directly, and the graph will manage it
     int ret = cgrad_compute_graph_add_leaf(graph, layout, storage, tensor->node_id);
     if (ret != CGRAD_SUCCESS) {
         return ret;

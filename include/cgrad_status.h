@@ -28,7 +28,7 @@
 #define CGRAD_ERR_STORAGE_REGISTRY_BUCKET_NOT_EMPTY         -1202
 
 // Layout/broadcasting errors
-#define CGRAD_ERR_STORAGE_LAYOUT_BROADCAST                  -1301
+#define CGRAD_ERR_STORAGE_LAYOUT_BROADCAST_SHAPE_MISMATCH   -1301
 #define CGRAD_ERR_STORAGE_LAYOUT_NULL_POINTER               -1302
 #define CGRAD_ERR_STORAGE_LAYOUT_SHAPE_MISMATCH             -1303
 #define CGRAD_ERR_STORAGE_LAYOUT_DUPLICATE_DIM              -1304
@@ -49,6 +49,12 @@
 #define CGRAD_ERR_COMPUTE_GRAPH_FORWARD_NOT_EXECUTED        -1509
 #define CGRAD_ERR_COMPUTE_GRAPH_REQUIRES_GRAD_FALSE         -1510
 
+// Optimizer errors
+#define CGRAD_ERR_INVALID_ARGUMENT                          -1601
+#define CGRAD_ERROR_OUT_OF_MEMORY                           -1602
+#define CGRAD_ERROR_NOT_IMPLEMENTED                         -1603
+#define CGRAD_ERROR_INVALID_STATE                           -1604
+
 /**
  * @typedef cgrad_status
  * @brief Represents the result of a cgrad operation.
@@ -59,4 +65,3 @@
 typedef int cgrad_status;
 
 #endif // CGRAD_ERRORS_H
-

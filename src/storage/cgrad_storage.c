@@ -451,7 +451,7 @@ cgrad_status cgrad_storage_axpy(
         }
     }
     
-    err = x->backend->storage_axpy(alpha, x->data, r->data, NULL);
+    err = x->backend->storage_axpy(alpha, x_bcast.data, r->data, NULL);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
         cgrad_storage_free_all_from_record(storage_record);
