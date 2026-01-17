@@ -1,5 +1,5 @@
 #include "cgrad.h"
-#include "cgrad_errors.h"
+#include "cgrad_status.h"
 #include <stdio.h>
 #include <stdint.h>
 

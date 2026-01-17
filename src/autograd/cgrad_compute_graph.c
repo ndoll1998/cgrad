@@ -1,6 +1,6 @@
 #include "autograd/cgrad_compute_graph.h"
 #include "autograd/cgrad_ops.h"
-#include "cgrad_errors.h"
+#include "cgrad_status.h"
 #include "uthash.h"
 #include <stdlib.h>
 #include <string.h>
@@ -10,7 +10,7 @@
 // Forward Declarations
 // ============================================================================
 
-static int cgrad_compute_graph_topological_sort(
+static cgrad_status cgrad_compute_graph_topological_sort(
     const cgrad_compute_graph* graph,
     const uuid_t target_node_id,
     uuid_t* out_sorted_node_ids,
@@ -44,7 +44,7 @@ static cgrad_graph_node* find_node_metadata(cgrad_compute_graph* graph, uuid_t n
 static int add_node_metadata(cgrad_compute_graph* graph, cgrad_graph_node* node) {
     cgrad_graph_node* existing = find_node_metadata(graph, node->node_id);
     if (existing != NULL) {
-        return CGRAD_GRAPH_ERR_INVALID_NODE;  // Node already exists
+        return CGRAD_ERR_COMPUTE_GRAPH_INVALID_NODE;  // Node already exists
     }
     HASH_ADD(hh, graph->node_metadata_table, node_id, sizeof(uuid_t), node);
     return CGRAD_SUCCESS;
@@ -54,7 +54,7 @@ static int add_node_metadata(cgrad_compute_graph* graph, cgrad_graph_node* node)
 // Backward Pass
 // ============================================================================
 
-int cgrad_compute_graph_backward(
+cgrad_status cgrad_compute_graph_backward(
     cgrad_compute_graph* graph,
     const uuid_t target_node_id
 ) {
@@ -71,7 +71,7 @@ int cgrad_compute_graph_backward(
 
     // Check that forward pass has been executed
     if (target_node->storage == NULL) {
-        return CGRAD_GRAPH_ERR_FORWARD_NOT_EXECUTED;
+        return CGRAD_ERR_COMPUTE_GRAPH_FORWARD_NOT_EXECUTED;
     }
 
     // Topological sort
@@ -88,7 +88,7 @@ int cgrad_compute_graph_backward(
     if (target_node->grad_storage == NULL) {
         target_node->grad_storage = (cgrad_storage*)calloc(1, sizeof(cgrad_storage));
         if (target_node->grad_storage == NULL) {
-            return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+            return CGRAD_ERR_ALLOC_FAILED;
         }
         ret = cgrad_storage_init(
             target_node->grad_storage,
@@ -129,7 +129,7 @@ int cgrad_compute_graph_backward(
         // Get operation descriptor
         const cgrad_op_descriptor* op_desc = cgrad_get_op_descriptor(node->op_info.type);
         if (op_desc == NULL || op_desc->backward == NULL) {
-            return CGRAD_GRAPH_ERR_BACKWARD_NOT_IMPLEMENTED;
+            return CGRAD_ERR_COMPUTE_GRAPH_BACKWARD_NOT_IMPLEMENTED;
         }
 
         // Get input nodes and storages
@@ -157,7 +157,7 @@ int cgrad_compute_graph_backward(
             if (input_nodes[j]->requires_grad && input_nodes[j]->grad_storage == NULL) {
                 input_nodes[j]->grad_storage = (cgrad_storage*)calloc(1, sizeof(cgrad_storage));
                 if (input_nodes[j]->grad_storage == NULL) {
-                    return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+                    return CGRAD_ERR_ALLOC_FAILED;
                 }
                 ret = cgrad_storage_init(
                     input_nodes[j]->grad_storage,
@@ -201,7 +201,7 @@ int cgrad_compute_graph_backward(
     return CGRAD_SUCCESS;
 }
 
-int cgrad_compute_graph_zero_grad(cgrad_compute_graph* graph) {
+cgrad_status cgrad_compute_graph_zero_grad(cgrad_compute_graph* graph) {
     if (graph == NULL) {
         return CGRAD_ERR_NULL_POINTER;
     }
@@ -218,7 +218,7 @@ int cgrad_compute_graph_zero_grad(cgrad_compute_graph* graph) {
     return CGRAD_SUCCESS;
 }
 
-int cgrad_compute_graph_zero_grad_node(cgrad_compute_graph* graph, const uuid_t node_id) {
+cgrad_status cgrad_compute_graph_zero_grad_node(cgrad_compute_graph* graph, const uuid_t node_id) {
     if (graph == NULL) {
         return CGRAD_ERR_NULL_POINTER;
     }
@@ -238,7 +238,7 @@ int cgrad_compute_graph_zero_grad_node(cgrad_compute_graph* graph, const uuid_t 
     return cgrad_storage_fill(node->grad_storage, 0.0f);
 }
 
-int cgrad_compute_graph_set_requires_grad(
+cgrad_status cgrad_compute_graph_set_requires_grad(
     cgrad_compute_graph* graph,
     const uuid_t node_id,
     int requires_grad
@@ -261,7 +261,7 @@ int cgrad_compute_graph_set_requires_grad(
 // Graph Management Functions
 // ============================================================================
 
-int cgrad_compute_graph_create(cgrad_compute_graph* graph) {
+cgrad_status cgrad_compute_graph_create(cgrad_compute_graph* graph) {
     if (graph == NULL) {
         return CGRAD_ERR_NULL_POINTER;
     }
@@ -274,7 +274,7 @@ int cgrad_compute_graph_create(cgrad_compute_graph* graph) {
     uuid_to_string(graph->graph_id, graph_name);
     graph->agraph = agopen(graph_name, Agdirected, NULL);
     if (graph->agraph == NULL) {
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
 
     // Initialize edge attributes
@@ -288,7 +288,7 @@ int cgrad_compute_graph_create(cgrad_compute_graph* graph) {
     return CGRAD_SUCCESS;
 }
 
-int cgrad_compute_graph_get_node(
+cgrad_status cgrad_compute_graph_get_node(
     const cgrad_compute_graph* graph,
     const uuid_t node_id,
     cgrad_graph_node** out_node_info
@@ -301,14 +301,14 @@ int cgrad_compute_graph_get_node(
     HASH_FIND(hh, graph->node_metadata_table, node_id, sizeof(uuid_t), node);
     
     if (node == NULL) {
-        return CGRAD_GRAPH_ERR_NODE_NOT_FOUND;
+        return CGRAD_ERR_COMPUTE_GRAPH_INVALID_NODE;
     }
 
     *out_node_info = node;
     return CGRAD_SUCCESS;
 }
 
-int cgrad_compute_graph_get_inputs(
+cgrad_status cgrad_compute_graph_get_inputs(
     const cgrad_compute_graph* graph,
     const uuid_t node_id,
     uuid_t* out_input_node_ids,
@@ -324,7 +324,7 @@ int cgrad_compute_graph_get_inputs(
     uuid_to_string(node_id, node_name);
     Agnode_t* ag_node = agnode(graph->agraph, node_name, 0);
     if (ag_node == NULL) {
-        return CGRAD_GRAPH_ERR_NODE_NOT_FOUND;
+        return CGRAD_ERR_COMPUTE_GRAPH_INVALID_NODE;
     }
 
     // Collect incoming edges with slot information
@@ -384,7 +384,7 @@ int cgrad_compute_graph_get_inputs(
  * @param out_num_nodes Pointer to actual number of nodes found.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-static int cgrad_compute_graph_dfs(
+static cgrad_status cgrad_compute_graph_dfs(
     const cgrad_compute_graph* graph,
     const uuid_t target_node_id,
     uuid_t* out_node_ids,
@@ -400,7 +400,7 @@ static int cgrad_compute_graph_dfs(
     uuid_to_string(target_node_id, target_name);
     Agnode_t* target = agnode(graph->agraph, target_name, 0);
     if (target == NULL) {
-        return CGRAD_GRAPH_ERR_NODE_NOT_FOUND;
+        return CGRAD_ERR_COMPUTE_GRAPH_INVALID_NODE;
     }
 
     // DFS to find all dependencies
@@ -433,7 +433,7 @@ static int cgrad_compute_graph_dfs(
         uuid_t inputs[MAX_NODE_INPUTS];
         int num_inputs;
         int ret = cgrad_compute_graph_get_inputs(graph, current_id, inputs, MAX_NODE_INPUTS, &num_inputs);
-        if (ret != CGRAD_SUCCESS && ret != CGRAD_GRAPH_ERR_NODE_NOT_FOUND) {
+        if (ret != CGRAD_SUCCESS && ret != CGRAD_ERR_COMPUTE_GRAPH_INVALID_NODE) {
             return ret;
         }
 
@@ -469,7 +469,7 @@ static int cgrad_compute_graph_dfs(
  * @param out_num_nodes Pointer to actual number of nodes in sorted order.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-static int cgrad_compute_graph_topological_sort(
+static cgrad_status cgrad_compute_graph_topological_sort(
     const cgrad_compute_graph* graph,
     const uuid_t target_node_id,
     uuid_t* out_sorted_node_ids,
@@ -527,7 +527,7 @@ static int cgrad_compute_graph_topological_sort(
         }
 
         if (!found && sort_count < dfs_count) {
-            return CGRAD_GRAPH_ERR_TOPOLOGICAL_SORT_FAILED;
+            return CGRAD_ERR_COMPUTE_GRAPH_TOPOLOGICAL_SORT_FAILED;
         }
     }
 
@@ -535,7 +535,7 @@ static int cgrad_compute_graph_topological_sort(
     return CGRAD_SUCCESS;
 }
 
-int cgrad_compute_graph_free(cgrad_compute_graph* graph) {
+cgrad_status cgrad_compute_graph_free(cgrad_compute_graph* graph) {
     if (graph == NULL) {
         return CGRAD_ERR_NULL_POINTER;
     }
@@ -569,7 +569,7 @@ int cgrad_compute_graph_free(cgrad_compute_graph* graph) {
     return CGRAD_SUCCESS;
 }
 
-int cgrad_compute_graph_get_node_count(const cgrad_compute_graph* graph) {
+cgrad_status cgrad_compute_graph_get_node_count(const cgrad_compute_graph* graph) {
     if (graph == NULL) {
         return 0;
     }
@@ -581,7 +581,7 @@ int cgrad_compute_graph_get_node_count(const cgrad_compute_graph* graph) {
 // Node Management Functions
 // ============================================================================
 
-int cgrad_compute_graph_add_leaf(
+cgrad_status cgrad_compute_graph_add_leaf(
     cgrad_compute_graph* graph,
     const cgrad_storage_layout* layout,
     cgrad_storage* storage,
@@ -594,7 +594,7 @@ int cgrad_compute_graph_add_leaf(
     // Create node metadata
     cgrad_graph_node* node = (cgrad_graph_node*)malloc(sizeof(cgrad_graph_node));
     if (node == NULL) {
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
 
     // Allocate memory for storage and create a shallow copy
@@ -602,7 +602,7 @@ int cgrad_compute_graph_add_leaf(
     cgrad_storage* node_storage = (cgrad_storage*)malloc(sizeof(cgrad_storage));
     if (node_storage == NULL) {
         free(node);
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
 
     int ret = cgrad_storage_shallow_copy(storage, node_storage);
@@ -644,7 +644,7 @@ int cgrad_compute_graph_add_leaf(
     if (ag_node == NULL) {
         HASH_DEL(graph->node_metadata_table, node);
         free(node);
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
 
     // Set node attributes
@@ -654,7 +654,7 @@ int cgrad_compute_graph_add_leaf(
     return CGRAD_SUCCESS;
 }
 
-int cgrad_compute_graph_add_op(
+cgrad_status cgrad_compute_graph_add_op(
     cgrad_compute_graph* graph,
     const cgrad_op_info* op_info,
     const cgrad_storage_layout* layout,
@@ -668,7 +668,7 @@ int cgrad_compute_graph_add_op(
 
     // Validate number of inputs
     if (num_inputs > MAX_NODE_INPUTS) {
-        return CGRAD_GRAPH_ERR_TOO_MANY_INPUTS;
+        return CGRAD_ERR_COMPUTE_GRAPH_TOO_MANY_INPUTS;
     }
 
     // Validate backend consistency across inputs
@@ -688,7 +688,7 @@ int cgrad_compute_graph_add_op(
         } else {
             // Check if this input has a different backend
             if (strcmp(input_node->backend_name, backend_name) != 0) {
-                return CGRAD_GRAPH_ERR_BACKEND_MISMATCH;
+                return CGRAD_ERR_COMPUTE_GRAPH_BACKEND_MISMATCH;
             }
         }
     }
@@ -696,7 +696,7 @@ int cgrad_compute_graph_add_op(
     // Create node metadata
     cgrad_graph_node* node = (cgrad_graph_node*)malloc(sizeof(cgrad_graph_node));
     if (node == NULL) {
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
 
     uuid_generate(node->node_id);
@@ -733,7 +733,7 @@ int cgrad_compute_graph_add_op(
     if (ag_node == NULL) {
         HASH_DEL(graph->node_metadata_table, node);
         free(node);
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
 
     // Set node attributes
@@ -746,12 +746,12 @@ int cgrad_compute_graph_add_op(
         uuid_to_string(input_node_ids[i], input_name);
         Agnode_t* input_node = agnode(graph->agraph, input_name, 0);
         if (input_node == NULL) {
-            return CGRAD_GRAPH_ERR_NODE_NOT_FOUND;
+            return CGRAD_ERR_COMPUTE_GRAPH_INVALID_NODE;
         }
 
         Agedge_t* edge = agedge(graph->agraph, input_node, ag_node, NULL, 1);
         if (edge == NULL) {
-            return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+            return CGRAD_ERR_ALLOC_FAILED;
         }
 
         // Set slot attribute
@@ -787,7 +787,7 @@ const char* cgrad_op_type_to_string(cgrad_op_type op_type) {
     }
 }
 
-int cgrad_compute_graph_to_dot(
+cgrad_status cgrad_compute_graph_to_dot(
     const cgrad_compute_graph* graph,
     const char* filename
 ) {
@@ -797,7 +797,7 @@ int cgrad_compute_graph_to_dot(
 
     FILE* fp = fopen(filename, "w");
     if (fp == NULL) {
-        return CGRAD_GRAPH_ERR_EXECUTION_FAILED;
+        return CGRAD_ERR_COMPUTE_GRAPH_EXECUTION_FAILED;
     }
 
     // Use libcgraph's built-in DOT writing
@@ -871,7 +871,7 @@ static int forward_node(cgrad_compute_graph* graph, cgrad_graph_node* node) {
             return ret;
         }
         if (input_node->storage == NULL) {
-            return CGRAD_GRAPH_ERR_EXECUTION_FAILED;  // Input not computed
+            return CGRAD_ERR_COMPUTE_GRAPH_EXECUTION_FAILED;  // Input not computed
         }
         input_storages[i] = input_node->storage;
     }
@@ -879,14 +879,14 @@ static int forward_node(cgrad_compute_graph* graph, cgrad_graph_node* node) {
     // Allocate output storage
     cgrad_storage* out_storage = (cgrad_storage*)calloc(1, sizeof(cgrad_storage));
     if (out_storage == NULL) {
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
 
     // Get operation descriptor
     const cgrad_op_descriptor* op_desc = cgrad_get_op_descriptor(node->op_info.type);
     if (op_desc == NULL || op_desc->forward == NULL) {
         free(out_storage);
-        return CGRAD_GRAPH_ERR_INVALID_OPERATION;
+        return CGRAD_ERR_COMPUTE_GRAPH_INVALID_OPERATION;
     }
 
     // Call forward function
@@ -907,7 +907,7 @@ static int forward_node(cgrad_compute_graph* graph, cgrad_graph_node* node) {
 
     // Check the backend
     if (strcmp(out_storage->backend->name, node->backend_name) != 0) {
-        return CGRAD_GRAPH_ERR_BACKEND_MISMATCH;
+        return CGRAD_ERR_COMPUTE_GRAPH_BACKEND_MISMATCH;
     }
 
     // Cache the result
@@ -915,7 +915,7 @@ static int forward_node(cgrad_compute_graph* graph, cgrad_graph_node* node) {
     return CGRAD_SUCCESS;
 }
 
-int cgrad_compute_graph_forward(
+cgrad_status cgrad_compute_graph_forward(
     cgrad_compute_graph* graph,
     const uuid_t target_node_id
 ) {
@@ -977,7 +977,7 @@ int cgrad_compute_graph_forward(
 // Reference Counting Functions
 // ============================================================================
 
-int cgrad_compute_graph_increment_ref(cgrad_compute_graph* graph, const uuid_t node_id) {
+cgrad_status cgrad_compute_graph_increment_ref(cgrad_compute_graph* graph, const uuid_t node_id) {
     if (graph == NULL) {
         return CGRAD_ERR_NULL_POINTER;
     }
@@ -992,7 +992,7 @@ int cgrad_compute_graph_increment_ref(cgrad_compute_graph* graph, const uuid_t n
     return CGRAD_SUCCESS;
 }
 
-int cgrad_compute_graph_decrement_ref(cgrad_compute_graph* graph, const uuid_t node_id) {
+cgrad_status cgrad_compute_graph_decrement_ref(cgrad_compute_graph* graph, const uuid_t node_id) {
     if (graph == NULL) {
         return CGRAD_ERR_NULL_POINTER;
     }
@@ -1017,7 +1017,7 @@ int cgrad_compute_graph_decrement_ref(cgrad_compute_graph* graph, const uuid_t n
     return CGRAD_SUCCESS;
 }
 
-int cgrad_compute_graph_free_node(cgrad_compute_graph* graph, cgrad_graph_node* node) {
+cgrad_status cgrad_compute_graph_free_node(cgrad_compute_graph* graph, cgrad_graph_node* node) {
     if (graph == NULL || node == NULL) {
         return CGRAD_ERR_NULL_POINTER;
     }

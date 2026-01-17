@@ -2,7 +2,7 @@
 #include "cgrad.h"
 #include "storage/cgrad_storage.h"
 #include "storage/cgrad_storage_layout.h"
-#include "cgrad_errors.h"
+#include "cgrad_status.h"
 #include "storage/cgrad_storage_registry.h"
 #include <stdint.h>
 #include <string.h>
@@ -203,7 +203,7 @@ static void test_cgrad_storage_gemm_write_to_existing_tensor(void **state) {
     uint32_t wrong_shape[TENSOR_DIM] = {1,1,1,1,1,1,3,3};  // Wrong shape
     assert_int_equal(cgrad_storage_init(&r3, wrong_shape, 8, "cpu_f32"), CGRAD_SUCCESS);
     int err = cgrad_storage_gemm(1.0f, &a, &b, 0.0f, &r3);
-    assert_int_equal(err, CGRAD_STORAGE_ERR_SHAPE_MISMATCH);
+    assert_int_equal(err, CGRAD_ERR_STORAGE_SHAPE_MISMATCH);
     cgrad_storage_free(&r3);
     
     cgrad_storage_free(&a);

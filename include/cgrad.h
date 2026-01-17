@@ -1,6 +1,7 @@
 #ifndef CGRAD_H
 #define CGRAD_H
 
+#include "cgrad_status.h"
 #include "autograd/cgrad_tensor.h"
 
 /**
@@ -35,7 +36,7 @@
  * 
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_init(void) __attribute__((constructor));
+cgrad_status cgrad_init(void) __attribute__((constructor));
 
 /**
  * @brief Cleanup the cgrad library.

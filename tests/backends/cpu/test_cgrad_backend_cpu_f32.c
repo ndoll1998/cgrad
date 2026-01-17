@@ -1,6 +1,6 @@
 #include <cmocka.h>
 #include "storage/cgrad_storage.h"
-#include "cgrad_errors.h"
+#include "cgrad_status.h"
 #include "storage/cgrad_storage_layout.h"
 #include <stdio.h>
 #include <stdint.h>

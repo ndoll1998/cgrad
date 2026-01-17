@@ -1,5 +1,5 @@
 #include "autograd/cgrad_ops.h"
-#include "cgrad_errors.h"
+#include "cgrad_status.h"
 #include "storage/cgrad_storage.h"
 #include "storage/cgrad_storage_layout.h"
 
@@ -19,7 +19,7 @@ static int reduce_sum_forward(
 ) {
     (void)requires_grad;  // Unused for now
     if (num_inputs != 1) {
-        return CGRAD_GRAPH_ERR_INVALID_OPERATION;
+        return CGRAD_ERR_COMPUTE_GRAPH_INVALID_OPERATION;
     }
     
     *ctx = NULL;
@@ -53,7 +53,7 @@ static int reduce_sum_backward(
     const int* input_requires_grad
 ) {
     if (num_inputs != 1) {
-        return CGRAD_GRAPH_ERR_INVALID_OPERATION;
+        return CGRAD_ERR_COMPUTE_GRAPH_INVALID_OPERATION;
     }
     
     if (!input_requires_grad[0] || grad_inputs[0] == NULL) {

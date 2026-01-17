@@ -16,7 +16,7 @@
  * @param backend Pointer to backend to register.
  * @return 0 on success, -1 on error.
  */
-int cgrad_register_backend(cgrad_backend* backend);
+cgrad_status cgrad_register_backend(cgrad_backend* backend);
 
 /**
  * @brief Get the backend for a given backend name.
@@ -38,7 +38,7 @@ cgrad_backend* cgrad_get_backend(const char* name);
  * 
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_backend_init_global_registry(void);
+cgrad_status cgrad_backend_init_global_registry(void);
 
 /**
  * @brief Cleanup the backend registry.

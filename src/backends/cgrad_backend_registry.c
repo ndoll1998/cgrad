@@ -1,5 +1,5 @@
 #include "backends/cgrad_backend.h"
-#include "cgrad_errors.h"
+#include "cgrad_status.h"
 #include "uthash.h"
 #include <string.h>
 #include <stdlib.h>
@@ -7,14 +7,14 @@
 // Global registry - backends are stored directly with their embedded uthash handle
 static cgrad_backend* backend_registry = NULL;
 
-int cgrad_backend_init_global_registry(void) {
+cgrad_status cgrad_backend_init_global_registry(void) {
     // Backend registry initialization - do NOT reset to NULL
     // Backends may have already registered themselves via constructor attributes
     // Just return success - the registry is ready
     return CGRAD_SUCCESS;
 }
 
-int cgrad_register_backend(cgrad_backend* backend) {
+cgrad_status cgrad_register_backend(cgrad_backend* backend) {
     if (!backend || !backend->name) return -1;
     
     // Check if already registered

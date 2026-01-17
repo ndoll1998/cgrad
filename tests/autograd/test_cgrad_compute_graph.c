@@ -6,7 +6,7 @@
 #include <stdlib.h>
 
 #include "autograd/cgrad_compute_graph.h"
-#include "cgrad_errors.h"
+#include "cgrad_status.h"
 
 // ============================================================================
 // Test: Graph Creation
@@ -239,7 +239,7 @@ static void test_cgrad_compute_graph_backend_consistency_same_backend(void **sta
     cgrad_compute_graph_free(&graph);
 }
 
-// NOTE: Test for mixed backends (CGRAD_GRAPH_ERR_BACKEND_MISMATCH) will be added
+// NOTE: Test for mixed backends (CGRAD_ERR_COMPUTE_GRAPH_BACKEND_MISMATCH) will be added
 // once additional backend types (e.g., GPU, CUDA) are implemented in the system.
 
 // ============================================================================
@@ -281,7 +281,7 @@ static void test_cgrad_compute_graph_refcount_leaf_node(void **state) {
     
     // Node should be freed (can't access it anymore)
     ret = cgrad_compute_graph_get_node(&graph, node_id, &node);
-    assert_int_equal(ret, CGRAD_GRAPH_ERR_NODE_NOT_FOUND);
+    assert_int_equal(ret, CGRAD_ERR_COMPUTE_GRAPH_INVALID_NODE);
     
     // Check node count is now 0
     assert_int_equal(cgrad_compute_graph_get_node_count(&graph), 0);
@@ -339,7 +339,7 @@ static void test_cgrad_compute_graph_refcount_increment_decrement(void **state) 
     
     // Node should be freed
     ret = cgrad_compute_graph_get_node(&graph, node_id, &node);
-    assert_int_equal(ret, CGRAD_GRAPH_ERR_NODE_NOT_FOUND);
+    assert_int_equal(ret, CGRAD_ERR_COMPUTE_GRAPH_INVALID_NODE);
     
     cgrad_compute_graph_free(&graph);
 }
@@ -475,7 +475,7 @@ static void test_cgrad_compute_graph_refcount_shared_subgraph(void **state) {
     
     // Now c should be freed (cascading cleanup)
     ret = cgrad_compute_graph_get_node(&graph, c_id, &c_node);
-    assert_int_equal(ret, CGRAD_GRAPH_ERR_NODE_NOT_FOUND);
+    assert_int_equal(ret, CGRAD_ERR_COMPUTE_GRAPH_INVALID_NODE);
     
     cgrad_compute_graph_free(&graph);
 }
@@ -532,7 +532,7 @@ static void test_cgrad_compute_graph_refcount_complex_graph(void **state) {
     
     // c should be freed (cascading cleanup)
     ret = cgrad_compute_graph_get_node(&graph, c_id, &c_node);
-    assert_int_equal(ret, CGRAD_GRAPH_ERR_NODE_NOT_FOUND);
+    assert_int_equal(ret, CGRAD_ERR_COMPUTE_GRAPH_INVALID_NODE);
     
     cgrad_compute_graph_free(&graph);
 }
@@ -686,7 +686,7 @@ static void test_cgrad_compute_graph_backward_requires_forward(void **state) {
     
     // Backward without forward should fail
     int ret = cgrad_compute_graph_backward(&graph, op_node_id);
-    assert_int_equal(ret, CGRAD_GRAPH_ERR_FORWARD_NOT_EXECUTED);
+    assert_int_equal(ret, CGRAD_ERR_COMPUTE_GRAPH_FORWARD_NOT_EXECUTED);
     
     cgrad_compute_graph_free(&graph);
 }

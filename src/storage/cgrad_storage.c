@@ -1,4 +1,4 @@
-#include "cgrad_errors.h"
+#include "cgrad_status.h"
 #include "backends/cgrad_backend_registry.h"
 #include "storage/cgrad_storage.h"
 #include "storage/cgrad_storage_layout.h"
@@ -17,7 +17,7 @@ static cgrad_storage_registry* g_global_registry = NULL;
 /**
  * @brief Initialize the global storage registry.
  */
-int cgrad_storage_init_global_registry(void) {
+cgrad_status cgrad_storage_init_global_registry(void) {
     if (g_global_registry != NULL) {
         // Already initialized
         return CGRAD_SUCCESS;
@@ -25,7 +25,7 @@ int cgrad_storage_init_global_registry(void) {
     
     g_global_registry = (cgrad_storage_registry*)malloc(sizeof(cgrad_storage_registry));
     if (g_global_registry == NULL) {
-        return CGRAD_STORAGE_REGISTRY_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
     
     int err = cgrad_storage_registry_init(g_global_registry);
@@ -81,7 +81,7 @@ cgrad_storage_registry_record* cgrad_storage_start_recording(void) {
 /**
  * @brief Stop recording storage allocations.
  */
-int cgrad_storage_stop_recording(cgrad_storage_registry_record* record) {
+cgrad_status cgrad_storage_stop_recording(cgrad_storage_registry_record* record) {
     if (!record) return CGRAD_ERR_NULL_POINTER;
     
     cgrad_storage_registry* registry = get_global_registry();
@@ -94,7 +94,7 @@ int cgrad_storage_stop_recording(cgrad_storage_registry_record* record) {
 /**
  * @brief Free all storages recorded in a record.
  */
-int cgrad_storage_free_all_from_record(cgrad_storage_registry_record* record) {
+cgrad_status cgrad_storage_free_all_from_record(cgrad_storage_registry_record* record) {
     if (!record) return CGRAD_ERR_NULL_POINTER;
 
     int first_error = CGRAD_SUCCESS;
@@ -115,16 +115,16 @@ int cgrad_storage_free_all_from_record(cgrad_storage_registry_record* record) {
  * @param backend_type Backend type to use.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_init(cgrad_storage* t, const uint32_t* shape, int ndim, const char* backend_name) {
+cgrad_status cgrad_storage_init(cgrad_storage* t, const uint32_t* shape, int ndim, const char* backend_name) {
     if (!t || !shape) return CGRAD_ERR_NULL_POINTER;
 
     // Get backend
     cgrad_backend* backend = cgrad_get_backend(backend_name);
-    if (!backend) return CGRAD_STORAGE_ERR_INVALID_BACKEND;
+    if (!backend) return CGRAD_ERR_STORAGE_INVALID_BACKEND;
 
     // Allocate tensor handle using the backend's handle size
     void* data = calloc(1, backend->storage_handle_size);
-    if (!data) return CGRAD_STORAGE_ERR_HANDLE_UNINITIALIZED;
+    if (!data) return CGRAD_ERR_STORAGE_HANDLE_UNINITIALIZED;
     
     // initialize the tensor
     int err = backend->storage_init(data, shape, ndim);
@@ -152,7 +152,7 @@ int cgrad_storage_init(cgrad_storage* t, const uint32_t* shape, int ndim, const 
  * @param src Source tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_shallow_copy(const cgrad_storage* src, cgrad_storage* dst) {
+cgrad_status cgrad_storage_shallow_copy(const cgrad_storage* src, cgrad_storage* dst) {
     if (!dst || !src || !src->backend || !src->data) {
         return CGRAD_ERR_NULL_POINTER;
     }
@@ -162,7 +162,7 @@ int cgrad_storage_shallow_copy(const cgrad_storage* src, cgrad_storage* dst) {
     // Allocate tensor handle using the backend's handle size
     void* data = calloc(1, src->backend->storage_handle_size);
     if (!data)
-        return CGRAD_STORAGE_ERR_HANDLE_UNINITIALIZED;
+        return CGRAD_ERR_STORAGE_HANDLE_UNINITIALIZED;
     
     int err = src->backend->storage_shallow_copy(src->data, data);
     if (err != CGRAD_SUCCESS) {
@@ -189,7 +189,7 @@ int cgrad_storage_shallow_copy(const cgrad_storage* src, cgrad_storage* dst) {
  * @param t Pointer to tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_free(cgrad_storage* t) {
+cgrad_status cgrad_storage_free(cgrad_storage* t) {
     if (!t || !t->backend || !t->data) return CGRAD_ERR_NULL_POINTER;
 
     cgrad_storage_registry* registry = get_global_registry();
@@ -230,7 +230,7 @@ int cgrad_storage_free(cgrad_storage* t) {
  * @param value The value to fill the tensor with.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_fill(cgrad_storage* t, float value) {
+cgrad_status cgrad_storage_fill(cgrad_storage* t, float value) {
     if (!t || !t->backend || !t->data) return CGRAD_ERR_NULL_POINTER;
     if (!t->backend->storage_fill) return CGRAD_ERR_NOT_IMPLEMENTED;
     return t->backend->storage_fill(t->data, value);
@@ -241,7 +241,7 @@ int cgrad_storage_fill(cgrad_storage* t, float value) {
  * @param t Pointer to tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_fill_rand(cgrad_storage* t) {
+cgrad_status cgrad_storage_fill_rand(cgrad_storage* t) {
     if (!t || !t->backend || !t->data) return CGRAD_ERR_NULL_POINTER;
     return t->backend->storage_fill_rand(t->data);
 }
@@ -256,7 +256,7 @@ int cgrad_storage_fill_rand(cgrad_storage* t) {
  * @param r Output tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_gemm(
+cgrad_status cgrad_storage_gemm(
     float alpha,
     const cgrad_storage* a,
     const cgrad_storage* b,
@@ -266,7 +266,7 @@ int cgrad_storage_gemm(
     // validate tensors
     if (!a || !b || !r) return CGRAD_ERR_NULL_POINTER;
     if (!a->backend || !b->backend) return CGRAD_ERR_NULL_POINTER;
-    if (a->backend != b->backend) return CGRAD_STORAGE_ERR_BACKEND_MISMATCH;
+    if (a->backend != b->backend) return CGRAD_ERR_STORAGE_BACKEND_MISMATCH;
 
     // record all storages created here
     cgrad_storage_registry_record* storage_record = cgrad_storage_start_recording();
@@ -329,7 +329,7 @@ int cgrad_storage_gemm(
         if (!shape_matches) {
             cgrad_storage_stop_recording(storage_record);
             cgrad_storage_free_all_from_record(storage_record);
-            return CGRAD_STORAGE_ERR_SHAPE_MISMATCH;
+            return CGRAD_ERR_STORAGE_SHAPE_MISMATCH;
         }
         
         // Check if tensor is contiguous
@@ -362,7 +362,7 @@ int cgrad_storage_gemm(
  * @param r Output tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_axpy(
+cgrad_status cgrad_storage_axpy(
     float alpha,
     cgrad_storage* x,
     cgrad_storage* y,
@@ -371,7 +371,7 @@ int cgrad_storage_axpy(
     // validate tensors
     if (!x || !y || !r) return CGRAD_ERR_NULL_POINTER;
     if (!x->backend || !y->backend) return CGRAD_ERR_NULL_POINTER;
-    if (x->backend != y->backend) return CGRAD_STORAGE_ERR_BACKEND_MISMATCH;
+    if (x->backend != y->backend) return CGRAD_ERR_STORAGE_BACKEND_MISMATCH;
     
     // record all storages created here
     cgrad_storage_registry_record* storage_record = cgrad_storage_start_recording();
@@ -428,7 +428,7 @@ int cgrad_storage_axpy(
         if (!shape_matches) {
             cgrad_storage_stop_recording(storage_record);
             cgrad_storage_free_all_from_record(storage_record);
-            return CGRAD_STORAGE_ERR_SHAPE_MISMATCH;
+            return CGRAD_ERR_STORAGE_SHAPE_MISMATCH;
         }
         
         // Check if r is contiguous
@@ -473,7 +473,7 @@ int cgrad_storage_axpy(
  * @param out_value Pointer to float where the value will be written.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_get(const cgrad_storage* t, const uint32_t* indices, int ndim, float* out_value) {
+cgrad_status cgrad_storage_get(const cgrad_storage* t, const uint32_t* indices, int ndim, float* out_value) {
     if (!t || !t->backend || !t->data) return CGRAD_ERR_NULL_POINTER;
     if (!t->backend->storage_get) return CGRAD_ERR_NOT_IMPLEMENTED;
     return t->backend->storage_get(t->data, indices, ndim, out_value);
@@ -497,7 +497,7 @@ void cgrad_storage_print(const cgrad_storage* t) {
  * @param dst Destination tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_contiguous(const cgrad_storage* src, cgrad_storage* dst) {
+cgrad_status cgrad_storage_contiguous(const cgrad_storage* src, cgrad_storage* dst) {
     if (!dst || !src || !src->backend || !src->data)
         return CGRAD_ERR_NULL_POINTER;
     if (!src->backend->storage_contiguous)
@@ -539,7 +539,7 @@ int cgrad_storage_contiguous(const cgrad_storage* src, cgrad_storage* dst) {
  * @param ndim Number of dimensions in new_shape (<= TENSOR_DIM).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_reshape(const cgrad_storage* src, cgrad_storage* dst, const int32_t* new_shape, int ndim) {
+cgrad_status cgrad_storage_reshape(const cgrad_storage* src, cgrad_storage* dst, const int32_t* new_shape, int ndim) {
     if (!src || !src->backend || !src->data)
         return CGRAD_ERR_NULL_POINTER;
 
@@ -588,7 +588,7 @@ int cgrad_storage_reshape(const cgrad_storage* src, cgrad_storage* dst, const in
  * @param ndim Number of trailing dimensions to permute (≤ TENSOR_DIM).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_transpose(const cgrad_storage* src, cgrad_storage* dst, const uint32_t* perm, int ndim) {
+cgrad_status cgrad_storage_transpose(const cgrad_storage* src, cgrad_storage* dst, const uint32_t* perm, int ndim) {
     if (!src || !dst) return CGRAD_ERR_NULL_POINTER;
     if (!src->backend || !src->data) return CGRAD_ERR_NULL_POINTER;
     
@@ -622,7 +622,7 @@ int cgrad_storage_transpose(const cgrad_storage* src, cgrad_storage* dst, const 
  * @param r Output tensor (initialized inside function).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_sum(
+cgrad_status cgrad_storage_sum(
     const cgrad_storage* a,
     const uint8_t* mask,
     int ndim,

@@ -59,7 +59,7 @@ typedef struct cgrad_storage_registry {
  * @param registry Pointer to registry to initialize.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_registry_init(cgrad_storage_registry* registry);
+cgrad_status cgrad_storage_registry_init(cgrad_storage_registry* registry);
 
 /**
  * @brief Free a storage registry and all its resources.
@@ -76,7 +76,7 @@ void cgrad_storage_registry_free(cgrad_storage_registry* registry);
  * @param parent Pointer to parent tensor (or NULL).
  * @return CGRAD_SUCCESS on success, CGRAD_TENSOR_ERR_PARENT_NOT_REGISTERED if parent is not in registry.
  */
-int cgrad_storage_registry_register(cgrad_storage_registry* registry, cgrad_storage* t, const cgrad_storage* parent);
+cgrad_status cgrad_storage_registry_register(cgrad_storage_registry* registry, cgrad_storage* t, const cgrad_storage* parent);
 
 /**
  * @brief Deregister a tensor from the global tensor registry.
@@ -92,7 +92,7 @@ int cgrad_storage_registry_register(cgrad_storage_registry* registry, cgrad_stor
  * @param t Pointer to tensor to deregister.
  * @return CGRAD_SUCCESS on success, CGRAD_TENSOR_ERR_PARENT_NOT_REGISTERED if tensor is not registered.
  */
-int cgrad_storage_registry_deregister(cgrad_storage_registry* registry, cgrad_storage* t);
+cgrad_status cgrad_storage_registry_deregister(cgrad_storage_registry* registry, cgrad_storage* t);
 
 /**
  * @brief Get the number of tensors currently registered in the tensor registry.
@@ -118,7 +118,7 @@ size_t cgrad_storage_registry_bucket_get_size(cgrad_storage_registry* registry, 
  * @return CGRAD_SUCCESS on success, CGRAD_TENSOR_ERR_PARENT_NOT_REGISTERED if tensor is not registered,
  *         CGRAD_TENSOR_ERR_BUCKET_NOT_EMPTY if the bucket is not empty.
  */
-int cgrad_storage_registry_deregister_and_delete_bucket(cgrad_storage_registry* registry, const cgrad_storage* t);
+cgrad_status cgrad_storage_registry_deregister_and_delete_bucket(cgrad_storage_registry* registry, const cgrad_storage* t);
 
 /**
  * @brief Get the root tensor of the bucket containing the given tensor.
@@ -128,7 +128,7 @@ int cgrad_storage_registry_deregister_and_delete_bucket(cgrad_storage_registry* 
  * @param root_out Output pointer to receive the root tensor (by value).
  * @return CGRAD_SUCCESS on success, CGRAD_TENSOR_ERR_PARENT_NOT_REGISTERED if tensor is not registered.
  */
-int cgrad_storage_registry_get_root(cgrad_storage_registry* registry, const cgrad_storage* t, cgrad_storage* root_out);
+cgrad_status cgrad_storage_registry_get_root(cgrad_storage_registry* registry, const cgrad_storage* t, cgrad_storage* root_out);
 
 /**
  * @brief Print the contents of the tensor registry to stdout.
@@ -156,7 +156,7 @@ cgrad_storage_registry_record* cgrad_storage_registry_start_recording(cgrad_stor
  * @param record Pointer to the record to stop.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_registry_stop_recording(cgrad_storage_registry* registry, cgrad_storage_registry_record* record);
+cgrad_status cgrad_storage_registry_stop_recording(cgrad_storage_registry* registry, cgrad_storage_registry_record* record);
 
 /**
  * @brief Free a storage record and its resources.
@@ -195,7 +195,7 @@ void cgrad_storage_registry_record_remove(cgrad_storage_registry_record* record,
  * 
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_init_global_registry(void);
+cgrad_status cgrad_storage_init_global_registry(void);
 
 /**
  * @brief Cleanup the global storage registry.

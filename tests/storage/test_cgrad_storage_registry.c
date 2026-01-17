@@ -1,7 +1,7 @@
 #include <cmocka.h>
 #include "storage/cgrad_storage_registry.h"
 #include "storage/cgrad_storage.h"
-#include "cgrad_errors.h"
+#include "cgrad_status.h"
 #include <stdlib.h>
 
 // Forward declare getter - it's internal to storage module
@@ -55,7 +55,7 @@ static void test_cgrad_storage_register_root_and_find(void **state) {
 
     // Deregister again (should return error)
     rc = cgrad_storage_registry_deregister(registry, tensor);
-    assert_int_equal(rc, CGRAD_STORAGE_REGISTRY_PARENT_NOT_REGISTERED);
+    assert_int_equal(rc, CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED);
 
     free(tensor);
 }
@@ -126,7 +126,7 @@ static void test_cgrad_storage_register_with_unregistered_parent(void **state) {
 
     // Do not register parent
     int rc = cgrad_storage_registry_register(registry, child, parent);
-    assert_int_equal(rc, CGRAD_STORAGE_REGISTRY_PARENT_NOT_REGISTERED);
+    assert_int_equal(rc, CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED);
 
     free(child);
     free(parent);
@@ -195,7 +195,7 @@ static void test_cgrad_storage_register_idempotency(void **state) {
     assert_int_equal(rc, CGRAD_SUCCESS);
 
     rc = cgrad_storage_registry_deregister(registry, tensor);
-    assert_int_equal(rc, CGRAD_STORAGE_REGISTRY_PARENT_NOT_REGISTERED);
+    assert_int_equal(rc, CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED);
 
     free(tensor);
 }

@@ -7,7 +7,7 @@
 #include <math.h>
 
 #include "autograd/cgrad_tensor.h"
-#include "cgrad_errors.h"
+#include "cgrad_status.h"
 
 #define EPSILON 1e-5
 
@@ -456,7 +456,7 @@ static void test_cgrad_tensor_get_gradient(void **state) {
     // Try to get gradient of b (should fail - requires_grad=False)
     cgrad_tensor grad_b;
     ret = cgrad_tensor_get_gradient(&b, &grad_b);
-    assert_int_equal(ret, CGRAD_GRAPH_ERR_GRADIENT_NOT_AVAILABLE);
+    assert_int_equal(ret, CGRAD_ERR_COMPUTE_GRAPH_GRADIENT_NOT_AVAILABLE);
 }
 
 // ============================================================================

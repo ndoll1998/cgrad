@@ -1,7 +1,7 @@
 #include <cmocka.h>
 #include "cgrad.h"
 #include "storage/cgrad_storage_layout.h"
-#include "cgrad_errors.h"
+#include "cgrad_status.h"
 #include <stdint.h>
 #include <string.h>
 
@@ -57,7 +57,7 @@ static void test_cgrad_storage_layout_flat_index(void **state) {
     // Out-of-bounds index
     uint32_t indices_oob[2] = {4, 0}; // 4 >= shape[0]
     err = cgrad_storage_layout_flat_index(&l, indices_oob, 2, &idx);
-    assert_int_equal(err, CGRAD_STORAGE_LAYOUT_ERR_INDEX_OUT_OF_BOUNDS);
+    assert_int_equal(err, CGRAD_ERR_STORAGE_LAYOUT_INDEX_OUT_OF_BOUNDS);
 }
 
 static void test_cgrad_storage_layout_transpose(void **state) {
@@ -111,7 +111,7 @@ static void test_cgrad_storage_layout_transpose_duplicate_dim(void **state) {
     for (int i = 0; i < TENSOR_DIM; ++i) perm[i] = i;
     if (TENSOR_DIM > 1) perm[TENSOR_DIM - 1] = 0; // duplicate 0
     int err = cgrad_storage_layout_transpose(&l, perm, TENSOR_DIM);
-    assert_int_equal(err, CGRAD_STORAGE_LAYOUT_ERR_DUPLICATE_DIM);
+    assert_int_equal(err, CGRAD_ERR_STORAGE_LAYOUT_DUPLICATE_DIM);
 }
 
 static void test_cgrad_storage_layout_is_regular(void **state) {
@@ -163,7 +163,7 @@ static void test_cgrad_storage_layout_partial_shape_and_index(void **state) {
     // Out-of-bounds for last 2 dims
     uint32_t indices2_oob[2] = {3, 0};
     err = cgrad_storage_layout_flat_index(&l, indices2_oob, 2, &idx);
-    assert_int_equal(err, CGRAD_STORAGE_LAYOUT_ERR_INDEX_OUT_OF_BOUNDS);
+    assert_int_equal(err, CGRAD_ERR_STORAGE_LAYOUT_INDEX_OUT_OF_BOUNDS);
 
     // ndim = 1
     uint32_t shape1[1] = {7};
@@ -243,11 +243,11 @@ static void test_cgrad_storage_layout_reshape(void **state) {
     uint32_t shape4[3] = {2, 3, 4};
     assert_int_equal(cgrad_storage_layout_init(&l, shape4, 3), 0);
     int32_t bad_shape[3] = {2, 2, 2}; // 2*2*2=8 != 24
-    assert_int_equal(cgrad_storage_layout_reshape(&l, bad_shape, 3), CGRAD_STORAGE_LAYOUT_ERR_RESHAPE_INVALID_SHAPE);
+    assert_int_equal(cgrad_storage_layout_reshape(&l, bad_shape, 3), CGRAD_ERR_STORAGE_LAYOUT_RESHAPE_INVALID_SHAPE);
 
     // Error: more than one -1
     int32_t bad_shape2[3] = {-1, -1, 2};
-    assert_int_equal(cgrad_storage_layout_reshape(&l, bad_shape2, 3), CGRAD_STORAGE_LAYOUT_ERR_RESHAPE_INVALID_SHAPE);
+    assert_int_equal(cgrad_storage_layout_reshape(&l, bad_shape2, 3), CGRAD_ERR_STORAGE_LAYOUT_RESHAPE_INVALID_SHAPE);
 
     // Error: non-regular layout
     uint32_t shape5[3] = {2, 3, 4};
@@ -255,7 +255,7 @@ static void test_cgrad_storage_layout_reshape(void **state) {
     // Make strides irregular
     if (TENSOR_DIM > 2) l.strides[TENSOR_DIM - 2] = 7;
     int32_t new_shape5[3] = {4, 3, 2};
-    assert_int_equal(cgrad_storage_layout_reshape(&l, new_shape5, 3), CGRAD_STORAGE_LAYOUT_ERR_NOT_REGULAR);
+    assert_int_equal(cgrad_storage_layout_reshape(&l, new_shape5, 3), CGRAD_ERR_STORAGE_LAYOUT_NOT_REGULAR);
 
     // Stride scaling: regular but step != 1
     uint32_t shape6[3] = {2, 3, 4};
@@ -341,12 +341,12 @@ static void test_cgrad_storage_layout_reduce(void **state) {
     assert_int_equal(l.size, 12);
     
     // Test 6: Error - NULL pointer
-    assert_int_equal(cgrad_storage_layout_reduce(NULL, mask1, 2), CGRAD_STORAGE_LAYOUT_ERR_NULL_POINTER);
-    assert_int_equal(cgrad_storage_layout_reduce(&l, NULL, 2), CGRAD_STORAGE_LAYOUT_ERR_NULL_POINTER);
+    assert_int_equal(cgrad_storage_layout_reduce(NULL, mask1, 2), CGRAD_ERR_STORAGE_LAYOUT_NULL_POINTER);
+    assert_int_equal(cgrad_storage_layout_reduce(&l, NULL, 2), CGRAD_ERR_STORAGE_LAYOUT_NULL_POINTER);
     
     // Test 7: Error - invalid ndim
-    assert_int_equal(cgrad_storage_layout_reduce(&l, mask1, -1), CGRAD_STORAGE_LAYOUT_ERR_SHAPE_MISMATCH);
-    assert_int_equal(cgrad_storage_layout_reduce(&l, mask1, TENSOR_DIM + 1), CGRAD_STORAGE_LAYOUT_ERR_SHAPE_MISMATCH);
+    assert_int_equal(cgrad_storage_layout_reduce(&l, mask1, -1), CGRAD_ERR_STORAGE_LAYOUT_SHAPE_MISMATCH);
+    assert_int_equal(cgrad_storage_layout_reduce(&l, mask1, TENSOR_DIM + 1), CGRAD_ERR_STORAGE_LAYOUT_SHAPE_MISMATCH);
 }
 
 // ============================================================================

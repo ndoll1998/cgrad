@@ -1,5 +1,5 @@
 #include "autograd/cgrad_tensor.h"
-#include "cgrad_errors.h"
+#include "cgrad_status.h"
 #include "storage/cgrad_storage.h"
 #include "storage/cgrad_storage_registry.h"
 #include <stdlib.h>
@@ -20,17 +20,17 @@
  */
 static int g_grad_enabled = 1;
 
-int cgrad_enable_grad(void) {
+cgrad_status cgrad_enable_grad(void) {
     g_grad_enabled = 1;
     return CGRAD_SUCCESS;
 }
 
-int cgrad_disable_grad(void) {
+cgrad_status cgrad_disable_grad(void) {
     g_grad_enabled = 0;
     return CGRAD_SUCCESS;
 }
 
-int cgrad_is_grad_enabled(void) {
+cgrad_status cgrad_is_grad_enabled(void) {
     return g_grad_enabled;
 }
 
@@ -43,7 +43,7 @@ static cgrad_compute_graph* g_global_graph = NULL;
 /**
  * @brief Initialize the global compute graph.
  */
-int cgrad_tensor_init_global_graph(void) {
+cgrad_status cgrad_tensor_init_global_graph(void) {
     if (g_global_graph != NULL) {
         // Already initialized
         return CGRAD_SUCCESS;
@@ -51,7 +51,7 @@ int cgrad_tensor_init_global_graph(void) {
     
     g_global_graph = (cgrad_compute_graph*)malloc(sizeof(cgrad_compute_graph));
     if (g_global_graph == NULL) {
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
     
     int ret = cgrad_compute_graph_create(g_global_graph);
@@ -119,7 +119,7 @@ static int infer_gemm_output_shape(const cgrad_storage_layout* a_layout,
     int n = b_layout->shape[TENSOR_DIM - 1];
 
     if (k_a != k_b) {
-        return CGRAD_GRAPH_ERR_SHAPE_MISMATCH;
+        return CGRAD_ERR_STORAGE_LAYOUT_SHAPE_MISMATCH;
     }
 
     // Copy entire layout from a
@@ -146,7 +146,7 @@ static int infer_gemm_output_shape(const cgrad_storage_layout* a_layout,
 // Tensor Initialization and Management
 // ============================================================================
 
-int cgrad_tensor_init(
+cgrad_status cgrad_tensor_init(
     cgrad_tensor* tensor,
     const uint32_t* shape,
     int ndim,
@@ -159,7 +159,7 @@ int cgrad_tensor_init(
     // Get global graph
     cgrad_compute_graph* graph = get_global_graph();
     if (graph == NULL) {
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
 
     // Initialize layout
@@ -197,14 +197,14 @@ int cgrad_tensor_init(
     return CGRAD_SUCCESS;
 }
 
-int cgrad_tensor_fill(cgrad_tensor* tensor, float value) {
+cgrad_status cgrad_tensor_fill(cgrad_tensor* tensor, float value) {
     if (tensor == NULL) {
         return CGRAD_ERR_NULL_POINTER;
     }
 
     cgrad_compute_graph* graph = get_global_graph();
     if (graph == NULL) {
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
 
     // Get the node
@@ -216,20 +216,20 @@ int cgrad_tensor_fill(cgrad_tensor* tensor, float value) {
 
     // Fill the storage
     if (node->storage == NULL) {
-        return CGRAD_GRAPH_ERR_EXECUTION_FAILED;
+        return CGRAD_ERR_COMPUTE_GRAPH_EXECUTION_FAILED;
     }
 
     return cgrad_storage_fill(node->storage, value);
 }
 
-int cgrad_tensor_fill_rand(cgrad_tensor* tensor) {
+cgrad_status cgrad_tensor_fill_rand(cgrad_tensor* tensor) {
     if (tensor == NULL) {
         return CGRAD_ERR_NULL_POINTER;
     }
 
     cgrad_compute_graph* graph = get_global_graph();
     if (graph == NULL) {
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
 
     // Get the node
@@ -241,20 +241,20 @@ int cgrad_tensor_fill_rand(cgrad_tensor* tensor) {
 
     // Fill the storage
     if (node->storage == NULL) {
-        return CGRAD_GRAPH_ERR_EXECUTION_FAILED;
+        return CGRAD_ERR_COMPUTE_GRAPH_EXECUTION_FAILED;
     }
 
     return cgrad_storage_fill_rand(node->storage);
 }
 
-int cgrad_tensor_free(cgrad_tensor* tensor) {
+cgrad_status cgrad_tensor_free(cgrad_tensor* tensor) {
     if (tensor == NULL) {
         return CGRAD_ERR_NULL_POINTER;
     }
 
     cgrad_compute_graph* graph = get_global_graph();
     if (graph == NULL) {
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
 
     // Delegate to compute graph layer for reference counting
@@ -265,7 +265,7 @@ int cgrad_tensor_free(cgrad_tensor* tensor) {
 // Binary Operations
 // ============================================================================
 
-int cgrad_tensor_add(
+cgrad_status cgrad_tensor_add(
     const cgrad_tensor* a,
     const cgrad_tensor* b,
     cgrad_tensor* out_tensor
@@ -276,7 +276,7 @@ int cgrad_tensor_add(
 
     cgrad_compute_graph* graph = get_global_graph();
     if (graph == NULL) {
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
 
     // Determine output shape
@@ -307,7 +307,7 @@ int cgrad_tensor_add(
     return CGRAD_SUCCESS;
 }
 
-int cgrad_tensor_sub(
+cgrad_status cgrad_tensor_sub(
     const cgrad_tensor* a,
     const cgrad_tensor* b,
     cgrad_tensor* out_tensor
@@ -318,7 +318,7 @@ int cgrad_tensor_sub(
 
     cgrad_compute_graph* graph = get_global_graph();
     if (graph == NULL) {
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
 
     // Determine output shape
@@ -351,7 +351,7 @@ int cgrad_tensor_sub(
 }
 
 
-int cgrad_tensor_gemm(
+cgrad_status cgrad_tensor_gemm(
     const cgrad_tensor* a,
     const cgrad_tensor* b,
     cgrad_tensor* out_tensor
@@ -362,7 +362,7 @@ int cgrad_tensor_gemm(
 
     cgrad_compute_graph* graph = get_global_graph();
     if (graph == NULL) {
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
 
     // Determine output shape
@@ -398,7 +398,7 @@ int cgrad_tensor_gemm(
 // Unary Operations
 // ============================================================================
 
-int cgrad_tensor_transpose(
+cgrad_status cgrad_tensor_transpose(
     const cgrad_tensor* tensor,
     const uint32_t* perm,
     int ndim,
@@ -410,7 +410,7 @@ int cgrad_tensor_transpose(
 
     cgrad_compute_graph* graph = get_global_graph();
     if (graph == NULL) {
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
 
     // Compute output layout
@@ -443,7 +443,7 @@ int cgrad_tensor_transpose(
     return CGRAD_SUCCESS;
 }
 
-int cgrad_tensor_reshape(
+cgrad_status cgrad_tensor_reshape(
     const cgrad_tensor* tensor,
     const int32_t* new_shape,
     int ndim,
@@ -455,7 +455,7 @@ int cgrad_tensor_reshape(
 
     cgrad_compute_graph* graph = get_global_graph();
     if (graph == NULL) {
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
 
     // Compute output layout
@@ -488,7 +488,7 @@ int cgrad_tensor_reshape(
     return CGRAD_SUCCESS;
 }
 
-int cgrad_tensor_reduce_sum(
+cgrad_status cgrad_tensor_reduce_sum(
     const cgrad_tensor* tensor,
     const uint8_t* mask,
     int ndim,
@@ -500,7 +500,7 @@ int cgrad_tensor_reduce_sum(
 
     cgrad_compute_graph* graph = get_global_graph();
     if (graph == NULL) {
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
 
     // Compute output layout using the layout reduce function
@@ -537,14 +537,14 @@ int cgrad_tensor_reduce_sum(
 // Execution
 // ============================================================================
 
-int cgrad_tensor_execute(cgrad_tensor* tensor) {
+cgrad_status cgrad_tensor_execute(cgrad_tensor* tensor) {
     if (!tensor) {
         return CGRAD_ERR_NULL_POINTER;
     }
 
     cgrad_compute_graph* graph = get_global_graph();
     if (!graph) {
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
 
     // Execute the subgraph for this tensor
@@ -577,14 +577,14 @@ const cgrad_storage* cgrad_tensor_get_grad_storage(const cgrad_tensor* tensor) {
     return cgrad_compute_graph_get_grad_storage(graph, tensor->node_id);
 }
 
-int cgrad_tensor_get(const cgrad_tensor* tensor, const uint32_t* indices, int ndim, float* out_value) {
+cgrad_status cgrad_tensor_get(const cgrad_tensor* tensor, const uint32_t* indices, int ndim, float* out_value) {
     if (tensor == NULL || indices == NULL || out_value == NULL) {
         return CGRAD_ERR_NULL_POINTER;
     }
 
     cgrad_compute_graph* graph = get_global_graph();
     if (graph == NULL) {
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
 
     cgrad_graph_node* node;
@@ -603,7 +603,7 @@ int cgrad_tensor_get(const cgrad_tensor* tensor, const uint32_t* indices, int nd
 
     // Now storage should be available
     if (node->storage == NULL) {
-        return CGRAD_GRAPH_ERR_EXECUTION_FAILED;
+        return CGRAD_ERR_COMPUTE_GRAPH_EXECUTION_FAILED;
     }
 
     // get the value from the storage
@@ -647,14 +647,14 @@ void cgrad_tensor_print(const cgrad_tensor* tensor) {
 // Gradient Functions
 // ============================================================================
 
-int cgrad_tensor_set_requires_grad(cgrad_tensor* tensor, int requires_grad) {
+cgrad_status cgrad_tensor_set_requires_grad(cgrad_tensor* tensor, int requires_grad) {
     if (tensor == NULL) {
         return CGRAD_ERR_NULL_POINTER;
     }
 
     cgrad_compute_graph* graph = get_global_graph();
     if (graph == NULL) {
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
 
     cgrad_graph_node* node;
@@ -667,14 +667,14 @@ int cgrad_tensor_set_requires_grad(cgrad_tensor* tensor, int requires_grad) {
     return CGRAD_SUCCESS;
 }
 
-int cgrad_tensor_get_requires_grad(const cgrad_tensor* tensor, int* out_requires_grad) {
+cgrad_status cgrad_tensor_get_requires_grad(const cgrad_tensor* tensor, int* out_requires_grad) {
     if (tensor == NULL || out_requires_grad == NULL) {
         return CGRAD_ERR_NULL_POINTER;
     }
 
     cgrad_compute_graph* graph = get_global_graph();
     if (graph == NULL) {
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
 
     cgrad_graph_node* node;
@@ -687,7 +687,7 @@ int cgrad_tensor_get_requires_grad(const cgrad_tensor* tensor, int* out_requires
     return CGRAD_SUCCESS;
 }
 
-int cgrad_tensor_from_storage(
+cgrad_status cgrad_tensor_from_storage(
     cgrad_storage* storage,
     cgrad_tensor* tensor
 ) {
@@ -697,7 +697,7 @@ int cgrad_tensor_from_storage(
 
     cgrad_compute_graph* graph = get_global_graph();
     if (graph == NULL) {
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
 
     // Get the layout from the storage using the backend
@@ -723,14 +723,14 @@ int cgrad_tensor_from_storage(
     return CGRAD_SUCCESS;
 }
 
-int cgrad_tensor_get_gradient(const cgrad_tensor* t, cgrad_tensor* grad) {
+cgrad_status cgrad_tensor_get_gradient(const cgrad_tensor* t, cgrad_tensor* grad) {
     if (t == NULL || grad == NULL) {
         return CGRAD_ERR_NULL_POINTER;
     }
 
     cgrad_compute_graph* graph = get_global_graph();
     if (graph == NULL) {
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
 
     cgrad_graph_node* node;
@@ -741,35 +741,35 @@ int cgrad_tensor_get_gradient(const cgrad_tensor* t, cgrad_tensor* grad) {
 
     // Check if gradient is available
     if (node->grad_storage == NULL) {
-        return CGRAD_GRAPH_ERR_GRADIENT_NOT_AVAILABLE;
+        return CGRAD_ERR_COMPUTE_GRAPH_GRADIENT_NOT_AVAILABLE;
     }
 
     // Create a tensor from the gradient storage
     return cgrad_tensor_from_storage(node->grad_storage, grad);
 }
 
-int cgrad_tensor_zero_grad(cgrad_tensor* tensor) {
+cgrad_status cgrad_tensor_zero_grad(cgrad_tensor* tensor) {
     if (tensor == NULL) {
         return CGRAD_ERR_NULL_POINTER;
     }
 
     cgrad_compute_graph* graph = get_global_graph();
     if (graph == NULL) {
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
 
     // Delegate to compute graph
     return cgrad_compute_graph_zero_grad_node(graph, tensor->node_id);
 }
 
-int cgrad_tensor_backward(cgrad_tensor* tensor) {
+cgrad_status cgrad_tensor_backward(cgrad_tensor* tensor) {
     if (tensor == NULL) {
         return CGRAD_ERR_NULL_POINTER;
     }
 
     cgrad_compute_graph* graph = get_global_graph();
     if (graph == NULL) {
-        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
 
     // Execute forward pass if not already executed

@@ -1,5 +1,5 @@
 #include "cgrad.h"
-#include "cgrad_errors.h"
+#include "cgrad_status.h"
 #include "autograd/cgrad_tensor.h"
 #include "backends/cgrad_backend_registry.h"
 #include "storage/cgrad_storage_registry.h"
@@ -12,7 +12,7 @@
 
 static int g_cgrad_initialized = 0;
 
-int cgrad_init(void) {
+cgrad_status cgrad_init(void) {
     // Prevent double initialization
     if (g_cgrad_initialized) {
         return CGRAD_SUCCESS;
@@ -76,6 +76,6 @@ void cgrad_cleanup(void) {
     g_cgrad_initialized = 0;
 }
 
-int cgrad_is_initialized(void) {
+cgrad_status cgrad_is_initialized(void) {
     return g_cgrad_initialized;
 }

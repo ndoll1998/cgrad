@@ -2,7 +2,7 @@
 #include <benchmark/benchmark.h>
 
 extern "C" {
-#include "cgrad_errors.h"
+#include "cgrad_status.h"
 #include "cgrad_storage.h"
 #include <stdint.h>
 #include <stdlib.h>

@@ -7,7 +7,7 @@
 
 #include "cgrad.h"
 #include "autograd/cgrad_ops.h"
-#include "cgrad_errors.h"
+#include "cgrad_status.h"
 #include "storage/cgrad_storage.h"
 #include "storage/cgrad_storage_layout.h"
 

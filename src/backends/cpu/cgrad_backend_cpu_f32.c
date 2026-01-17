@@ -1,4 +1,4 @@
-#include "cgrad_errors.h"
+#include "cgrad_status.h"
 #include "backends/cgrad_backend.h"
 #include "backends/cgrad_backend_registry.h"
 #include "storage/cgrad_storage_layout.h"
@@ -16,16 +16,16 @@ struct cgrad_backend_cpu_f32 {
 
 typedef struct cgrad_backend_cpu_f32 cgrad_backend_cpu_f32;
 
-static int cgrad_backend_cpu_f32_init(void* t, const uint32_t* shape, int ndim);
-static int cgrad_backend_cpu_f32_get(const void* t, const uint32_t* indices, int ndim, float* out_value);
-static int cgrad_backend_cpu_f32_set(void* t, const uint32_t* indices, int ndim, float value);
-static int cgrad_backend_cpu_f32_fill(void* t, float value);
-static int cgrad_backend_cpu_f32_fill_rand(void* t);
-static int cgrad_backend_cpu_f32_shallow_copy(const void* src, void* dst);
-static int cgrad_backend_cpu_f32_contiguous(const void* src, void* dst);
+static cgrad_status cgrad_backend_cpu_f32_init(void* t, const uint32_t* shape, int ndim);
+static cgrad_status cgrad_backend_cpu_f32_get(const void* t, const uint32_t* indices, int ndim, float* out_value);
+static cgrad_status cgrad_backend_cpu_f32_set(void* t, const uint32_t* indices, int ndim, float value);
+static cgrad_status cgrad_backend_cpu_f32_fill(void* t, float value);
+static cgrad_status cgrad_backend_cpu_f32_fill_rand(void* t);
+static cgrad_status cgrad_backend_cpu_f32_shallow_copy(const void* src, void* dst);
+static cgrad_status cgrad_backend_cpu_f32_contiguous(const void* src, void* dst);
 static void cgrad_backend_cpu_f32_free(void* t);
-static int cgrad_backend_cpu_f32_axpy(float alpha, void* x, void* y, void* unused);
-static int cgrad_backend_cpu_f32_gemm(float alpha, void* a, void* b, float beta, void* c);
+static cgrad_status cgrad_backend_cpu_f32_axpy(float alpha, void* x, void* y, void* unused);
+static cgrad_status cgrad_backend_cpu_f32_gemm(float alpha, void* a, void* b, float beta, void* c);
 static cgrad_storage_layout* cgrad_backend_cpu_f32_get_layout(void* t);
 static void cgrad_backend_cpu_f32_print_data(const void* t);
 
@@ -63,7 +63,7 @@ static int helper_cgrad_backend_cpu_f32_build_batch_array(const cgrad_backend_cp
     
     // allocate memory for array of pointers
     *array = (float**)malloc(batch_size * sizeof(float*));
-    if (!(*array)) return CGRAD_STORAGE_F32_CPU_ERR_BATCH_ALLOC_FAILED;
+    if (!(*array)) return CGRAD_ERR_ALLOC_FAILED;
     
     // fill array
     uint32_t indices[TENSOR_DIM] = {0};
@@ -91,7 +91,7 @@ static int helper_cgrad_backend_cpu_f32_build_batch_array(const cgrad_backend_cp
 }
 
 // Function implementations
-static int cgrad_backend_cpu_f32_init(void* t, const uint32_t* shape, int ndim) {
+static cgrad_status cgrad_backend_cpu_f32_init(void* t, const uint32_t* shape, int ndim) {
     cgrad_backend_cpu_f32* tensor = (cgrad_backend_cpu_f32*)t;
     if (!tensor || !shape) return CGRAD_ERR_NULL_POINTER;
     
@@ -99,12 +99,12 @@ static int cgrad_backend_cpu_f32_init(void* t, const uint32_t* shape, int ndim) 
     if (layout_err != CGRAD_SUCCESS) return layout_err;
     
     tensor->data = (float*)calloc(tensor->layout.size, sizeof(float));
-    if (!tensor->data) return CGRAD_STORAGE_F32_CPU_ERR_ALLOC_FAILED;
+    if (!tensor->data) return CGRAD_ERR_ALLOC_FAILED;
     
     return CGRAD_SUCCESS;
 }
 
-static int cgrad_backend_cpu_f32_get(const void* t, const uint32_t* indices, int ndim, float* out_value) {
+static cgrad_status cgrad_backend_cpu_f32_get(const void* t, const uint32_t* indices, int ndim, float* out_value) {
     const cgrad_backend_cpu_f32* tensor = (const cgrad_backend_cpu_f32*)t;
     if (!tensor || !indices || !out_value) return CGRAD_ERR_NULL_POINTER;
     
@@ -116,7 +116,7 @@ static int cgrad_backend_cpu_f32_get(const void* t, const uint32_t* indices, int
     return CGRAD_SUCCESS;
 }
 
-static int cgrad_backend_cpu_f32_set(void* t, const uint32_t* indices, int ndim, float value) {
+static cgrad_status cgrad_backend_cpu_f32_set(void* t, const uint32_t* indices, int ndim, float value) {
     cgrad_backend_cpu_f32* tensor = (cgrad_backend_cpu_f32*)t;
     if (!tensor || !indices) return CGRAD_ERR_NULL_POINTER;
     
@@ -128,7 +128,7 @@ static int cgrad_backend_cpu_f32_set(void* t, const uint32_t* indices, int ndim,
     return CGRAD_SUCCESS;
 }
 
-static int cgrad_backend_cpu_f32_fill(void* t, float value) {
+static cgrad_status cgrad_backend_cpu_f32_fill(void* t, float value) {
     cgrad_backend_cpu_f32* tensor = (cgrad_backend_cpu_f32*)t;
     if (!tensor || !tensor->data) return CGRAD_ERR_NULL_POINTER;
 
@@ -152,7 +152,7 @@ static int cgrad_backend_cpu_f32_fill(void* t, float value) {
     return CGRAD_SUCCESS;
 }
 
-static int cgrad_backend_cpu_f32_fill_rand(void* t) {
+static cgrad_status cgrad_backend_cpu_f32_fill_rand(void* t) {
     cgrad_backend_cpu_f32* tensor = (cgrad_backend_cpu_f32*)t;
     if (!tensor || !tensor->data) return CGRAD_ERR_NULL_POINTER;
     
@@ -162,7 +162,7 @@ static int cgrad_backend_cpu_f32_fill_rand(void* t) {
     return CGRAD_SUCCESS;
 }
 
-static int cgrad_backend_cpu_f32_shallow_copy(const void* src, void* dst) {
+static cgrad_status cgrad_backend_cpu_f32_shallow_copy(const void* src, void* dst) {
     const cgrad_backend_cpu_f32* src_tensor = (const cgrad_backend_cpu_f32*)src;
     cgrad_backend_cpu_f32* dst_tensor = (cgrad_backend_cpu_f32*)dst;
     
@@ -174,7 +174,7 @@ static int cgrad_backend_cpu_f32_shallow_copy(const void* src, void* dst) {
     return CGRAD_SUCCESS;
 }
 
-static int cgrad_backend_cpu_f32_contiguous(const void* src, void* dst) {
+static cgrad_status cgrad_backend_cpu_f32_contiguous(const void* src, void* dst) {
     const cgrad_backend_cpu_f32* src_tensor = (const cgrad_backend_cpu_f32*)src;
     cgrad_backend_cpu_f32* dst_tensor = (cgrad_backend_cpu_f32*)dst;
     
@@ -183,13 +183,13 @@ static int cgrad_backend_cpu_f32_contiguous(const void* src, void* dst) {
     // Check shape
     for (int d = 0; d < TENSOR_DIM; d++) {
         if (src_tensor->layout.shape[d] != dst_tensor->layout.shape[d]) {
-            return CGRAD_STORAGE_F32_CPU_ERR_SHAPE_MISMATCH;
+            return CGRAD_ERR_STORAGE_LAYOUT_SHAPE_MISMATCH;
         }
     }
 
     // Check that dst is contiguous
     if (!cgrad_storage_layout_is_contiguous(&dst_tensor->layout)) {
-        return CGRAD_STORAGE_F32_CPU_ERR_LAYOUT_NOT_CONTIGUOUS;
+        return CGRAD_ERR_STORAGE_LAYOUT_NOT_CONTIGUOUS;
     }
 
     uint32_t block_size = src_tensor->layout.shape[TENSOR_DIM-1];
@@ -233,7 +233,7 @@ static void cgrad_backend_cpu_f32_free(void* t) {
     }
 }
 
-static int cgrad_backend_cpu_f32_axpy(float alpha, void* x, void* y, void* unused) {
+static cgrad_status cgrad_backend_cpu_f32_axpy(float alpha, void* x, void* y, void* unused) {
     const cgrad_backend_cpu_f32* x_tensor = (const cgrad_backend_cpu_f32*)x;
     cgrad_backend_cpu_f32* y_tensor = (cgrad_backend_cpu_f32*)y;
     
@@ -242,7 +242,7 @@ static int cgrad_backend_cpu_f32_axpy(float alpha, void* x, void* y, void* unuse
     // Check shapes match
     for (int d = 0; d < TENSOR_DIM; d++) {
         if (x_tensor->layout.shape[d] != y_tensor->layout.shape[d]) {
-            return CGRAD_STORAGE_F32_CPU_ERR_SHAPE_MISMATCH;
+            return CGRAD_ERR_STORAGE_LAYOUT_SHAPE_MISMATCH;
         }
     }
 
@@ -284,7 +284,7 @@ static int cgrad_backend_cpu_f32_axpy(float alpha, void* x, void* y, void* unuse
     return CGRAD_SUCCESS;
 }
 
-static int cgrad_backend_cpu_f32_gemm(float alpha, void* a, void* b, float beta, void* c) {
+static cgrad_status cgrad_backend_cpu_f32_gemm(float alpha, void* a, void* b, float beta, void* c) {
     const cgrad_backend_cpu_f32* a_tensor = (const cgrad_backend_cpu_f32*)a;
     const cgrad_backend_cpu_f32* b_tensor = (const cgrad_backend_cpu_f32*)b;
     cgrad_backend_cpu_f32* c_tensor = (cgrad_backend_cpu_f32*)c;
@@ -293,7 +293,7 @@ static int cgrad_backend_cpu_f32_gemm(float alpha, void* a, void* b, float beta,
     
     for (int d = 0; d < TENSOR_DIM - 2; d++) {
         if (a_tensor->layout.shape[d] != b_tensor->layout.shape[d]) {
-            return CGRAD_STORAGE_F32_CPU_ERR_SHAPE_MISMATCH;
+            return CGRAD_ERR_STORAGE_LAYOUT_SHAPE_MISMATCH;
         }
     }
     
@@ -302,7 +302,7 @@ static int cgrad_backend_cpu_f32_gemm(float alpha, void* a, void* b, float beta,
     int b_k = b_tensor->layout.shape[TENSOR_DIM-2];
     int b_n = b_tensor->layout.shape[TENSOR_DIM-1];
     if (a_k != b_k) {
-        return CGRAD_STORAGE_F32_CPU_ERR_SHAPE_MISMATCH;
+        return CGRAD_ERR_STORAGE_LAYOUT_SHAPE_MISMATCH;
     }
     
     int m = a_tensor->layout.shape[TENSOR_DIM-2];

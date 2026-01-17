@@ -1,5 +1,5 @@
 #include "storage/cgrad_storage_registry.h"
-#include "cgrad_errors.h"
+#include "cgrad_status.h"
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
@@ -57,7 +57,7 @@ static void delete_bucket(cgrad_storage_registry* registry, cgrad_storage_regist
 /**
  * @brief Initialize a storage registry.
  */
-int cgrad_storage_registry_init(cgrad_storage_registry* registry) {
+cgrad_status cgrad_storage_registry_init(cgrad_storage_registry* registry) {
     if (!registry) return CGRAD_ERR_NULL_POINTER;
     registry->storage_map = NULL;
     registry->bucket_map = NULL;
@@ -111,9 +111,9 @@ void cgrad_storage_registry_free(cgrad_storage_registry* registry) {
  * @param registry Pointer to the registry.
  * @param t Pointer to tensor to register.
  * @param parent Pointer to parent tensor (or NULL).
- * @return CGRAD_SUCCESS on success, CGRAD_STORAGE_REGISTRY_PARENT_NOT_REGISTERED if parent is not in registry.
+ * @return CGRAD_SUCCESS on success, CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED if parent is not in registry.
  */
-int cgrad_storage_registry_register(cgrad_storage_registry* registry, cgrad_storage* t, const cgrad_storage* parent) {
+cgrad_status cgrad_storage_registry_register(cgrad_storage_registry* registry, cgrad_storage* t, const cgrad_storage* parent) {
     if (!registry || !t) return CGRAD_ERR_NULL_POINTER;
 
     cgrad_storage_registry_entry* reg_entry = NULL;
@@ -129,21 +129,21 @@ int cgrad_storage_registry_register(cgrad_storage_registry* registry, cgrad_stor
     if (parent == NULL) {
         // Create new bucket and add t to it
         bucket = create_new_bucket(registry, t);
-        if (!bucket) return CGRAD_STORAGE_REGISTRY_ALLOC_FAILED;
+        if (!bucket) return CGRAD_ERR_ALLOC_FAILED;
         if (add_to_bucket(bucket, t) != 0) {
             delete_bucket(registry, bucket);
-            return CGRAD_STORAGE_REGISTRY_ALLOC_FAILED;
+            return CGRAD_ERR_ALLOC_FAILED;
         }
     } else {
         // Find parent's bucket
         cgrad_storage_registry_entry* parent_entry = NULL;
         HASH_FIND(hh, registry->storage_map, parent->uuid, sizeof(uuid_t), parent_entry);
         if (!parent_entry) {
-            return CGRAD_STORAGE_REGISTRY_PARENT_NOT_REGISTERED;
+            return CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED;
         }
         bucket = parent_entry->bucket;
         if (add_to_bucket(bucket, t) != 0) {
-            return CGRAD_STORAGE_REGISTRY_ALLOC_FAILED;
+            return CGRAD_ERR_ALLOC_FAILED;
         }
     }
 
@@ -163,7 +163,7 @@ int cgrad_storage_registry_register(cgrad_storage_registry* registry, cgrad_stor
                 delete_bucket(registry, bucket);
             }
         }
-        return CGRAD_STORAGE_REGISTRY_ALLOC_FAILED;
+        return CGRAD_ERR_ALLOC_FAILED;
     }
     memcpy(reg_entry->uuid, t->uuid, sizeof(uuid_t));
     reg_entry->storage = t;
@@ -190,14 +190,14 @@ int cgrad_storage_registry_register(cgrad_storage_registry* registry, cgrad_stor
  * @brief Deregister a tensor from the tensor registry.
  * @param registry Pointer to the registry.
  * @param t Pointer to tensor to deregister.
- * @return CGRAD_SUCCESS on success, CGRAD_STORAGE_REGISTRY_PARENT_NOT_REGISTERED if tensor is not registered.
+ * @return CGRAD_SUCCESS on success, CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED if tensor is not registered.
  */
-int cgrad_storage_registry_deregister(cgrad_storage_registry* registry, cgrad_storage* t) {
+cgrad_status cgrad_storage_registry_deregister(cgrad_storage_registry* registry, cgrad_storage* t) {
     if (!registry || !t) return CGRAD_ERR_NULL_POINTER;
 
     cgrad_storage_registry_entry* reg_entry = NULL;
     HASH_FIND(hh, registry->storage_map, t->uuid, sizeof(uuid_t), reg_entry);
-    if (!reg_entry) return CGRAD_STORAGE_REGISTRY_PARENT_NOT_REGISTERED;
+    if (!reg_entry) return CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED;
 
     cgrad_storage_registry_bucket* bucket = reg_entry->bucket;
 
@@ -232,15 +232,15 @@ size_t cgrad_storage_registry_count(cgrad_storage_registry* registry) {
  *        Only succeeds if the bucket is empty.
  * @param registry Pointer to the registry.
  * @param t Pointer to any tensor in the bucket.
- * @return CGRAD_SUCCESS on success, CGRAD_STORAGE_REGISTRY_PARENT_NOT_REGISTERED if tensor is not registered,
- *         CGRAD_STORAGE_REGISTRY_BUCKET_NOT_EMPTY if the bucket is not empty.
+ * @return CGRAD_SUCCESS on success, CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED if tensor is not registered,
+ *         CGRAD_ERR_STORAGE_REGISTRY_BUCKET_NOT_EMPTY if the bucket is not empty.
  */
-int cgrad_storage_registry_deregister_and_delete_bucket(cgrad_storage_registry* registry, const cgrad_storage* t) {
+cgrad_status cgrad_storage_registry_deregister_and_delete_bucket(cgrad_storage_registry* registry, const cgrad_storage* t) {
     if (!registry || !t) return CGRAD_ERR_NULL_POINTER;
 
     cgrad_storage_registry_entry* reg_entry = NULL;
     HASH_FIND(hh, registry->storage_map, t->uuid, sizeof(uuid_t), reg_entry);
-    if (!reg_entry || !reg_entry->bucket) return CGRAD_STORAGE_REGISTRY_PARENT_NOT_REGISTERED;
+    if (!reg_entry || !reg_entry->bucket) return CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED;
 
     cgrad_storage_registry_bucket* bucket = reg_entry->bucket;
 
@@ -253,14 +253,14 @@ int cgrad_storage_registry_deregister_and_delete_bucket(cgrad_storage_registry* 
 
     // If the bucket is not empty, return error
     if (HASH_COUNT(bucket->storage_map) > 0) {
-        return CGRAD_STORAGE_REGISTRY_BUCKET_NOT_EMPTY;
+        return CGRAD_ERR_STORAGE_REGISTRY_BUCKET_NOT_EMPTY;
     }
 
     // Remove all registry entries that point to this bucket
     cgrad_storage_registry_entry *entry, *tmp;
     HASH_ITER(hh, registry->storage_map, entry, tmp) {
         if (entry->bucket == bucket) {
-            return CGRAD_STORAGE_REGISTRY_BUCKET_NOT_EMPTY;
+            return CGRAD_ERR_STORAGE_REGISTRY_BUCKET_NOT_EMPTY;
         }
     }
 
@@ -276,13 +276,13 @@ int cgrad_storage_registry_deregister_and_delete_bucket(cgrad_storage_registry* 
  * @param registry Pointer to the registry.
  * @param t Pointer to any tensor in the bucket.
  * @param root_out Output pointer to receive the root tensor (by value).
- * @return CGRAD_SUCCESS on success, CGRAD_STORAGE_REGISTRY_PARENT_NOT_REGISTERED if tensor is not registered.
+ * @return CGRAD_SUCCESS on success, CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED if tensor is not registered.
  */
-int cgrad_storage_registry_get_root(cgrad_storage_registry* registry, const cgrad_storage* t, cgrad_storage* root_out) {
+cgrad_status cgrad_storage_registry_get_root(cgrad_storage_registry* registry, const cgrad_storage* t, cgrad_storage* root_out) {
     if (!registry || !t || !root_out) return CGRAD_ERR_NULL_POINTER;
     cgrad_storage_registry_entry* reg_entry = NULL;
     HASH_FIND(hh, registry->storage_map, t->uuid, sizeof(uuid_t), reg_entry);
-    if (!reg_entry || !reg_entry->bucket) return CGRAD_STORAGE_REGISTRY_PARENT_NOT_REGISTERED;
+    if (!reg_entry || !reg_entry->bucket) return CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED;
     *root_out = reg_entry->bucket->root;
     return CGRAD_SUCCESS;
 }
@@ -359,14 +359,14 @@ cgrad_storage_registry_record* cgrad_storage_registry_start_recording(cgrad_stor
 /**
  * @brief Stop tracking and deactivate the tracker.
  */
-int cgrad_storage_registry_stop_recording(cgrad_storage_registry* registry, cgrad_storage_registry_record* record) {
+cgrad_status cgrad_storage_registry_stop_recording(cgrad_storage_registry* registry, cgrad_storage_registry_record* record) {
     if (!registry || !record) return CGRAD_ERR_NULL_POINTER;
     
     // Find and remove from active records
     cgrad_storage_registry_record* found = NULL;
     HASH_FIND(hh, registry->active_records, record->record_id, sizeof(uuid_t), found);
     if (!found) {
-        return CGRAD_STORAGE_REGISTRY_PARENT_NOT_REGISTERED; // Record not active
+        return CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED; // Record not active
     }
     
     HASH_DEL(registry->active_records, found);
