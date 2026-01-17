@@ -51,7 +51,7 @@ static void test_op_gemm_forward(void **state) {
     cgrad_storage_fill(&c, 0.0f);
     
     // Get the GEMM operation descriptor
-    const cgrad_op_descriptor* op_desc = cgrad_get_op_descriptor(CGRAD_OP_GEMM);
+    const cgrad_op_descriptor* op_desc = &cgrad_op_gemm;
     assert_non_null(op_desc);
     
     // Prepare inputs
@@ -113,7 +113,7 @@ static void test_op_gemm_backward_basic(void **state) {
     cgrad_storage_fill(&grad_c, 1.0f);
     
     // Get the GEMM operation descriptor
-    const cgrad_op_descriptor* op_desc = cgrad_get_op_descriptor(CGRAD_OP_GEMM);
+    const cgrad_op_descriptor* op_desc = &cgrad_op_gemm;
     assert_non_null(op_desc);
     
     // Prepare inputs
@@ -192,7 +192,7 @@ static void test_op_gemm_backward_one_no_grad(void **state) {
     cgrad_storage_fill(&grad_c, 1.0f);
     
     // Get the GEMM operation descriptor
-    const cgrad_op_descriptor* op_desc = cgrad_get_op_descriptor(CGRAD_OP_GEMM);
+    const cgrad_op_descriptor* op_desc = &cgrad_op_gemm;
     assert_non_null(op_desc);
     
     // Prepare inputs (a does not require grad)
@@ -258,7 +258,7 @@ static void test_op_gemm_backward_square(void **state) {
     cgrad_storage_fill(&grad_c, 1.0f);
     
     // Get the GEMM operation descriptor
-    const cgrad_op_descriptor* op_desc = cgrad_get_op_descriptor(CGRAD_OP_GEMM);
+    const cgrad_op_descriptor* op_desc = &cgrad_op_gemm;
     assert_non_null(op_desc);
     
     // Prepare inputs

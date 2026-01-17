@@ -119,7 +119,7 @@ cgrad_status cgrad_compute_graph_backward(
         if (!node->requires_grad) continue;
 
         // Skip leaf nodes (no backward to compute)
-        if (node->op_info.type == CGRAD_OP_NONE) continue;
+        if (node->op_info.descriptor == NULL) continue;
 
         // Get incoming gradient
         if (node->grad_storage == NULL) {
@@ -127,7 +127,7 @@ cgrad_status cgrad_compute_graph_backward(
         }
 
         // Get operation descriptor
-        const cgrad_op_descriptor* op_desc = cgrad_get_op_descriptor(node->op_info.type);
+        const cgrad_op_descriptor* op_desc = node->op_info.descriptor;
         if (op_desc == NULL || op_desc->backward == NULL) {
             return CGRAD_ERR_COMPUTE_GRAPH_BACKWARD_NOT_IMPLEMENTED;
         }
@@ -189,12 +189,6 @@ cgrad_status cgrad_compute_graph_backward(
         );
         if (ret != CGRAD_SUCCESS) {
             return ret;
-        }
-
-        // Free context if operation has a free_ctx function
-        if (node->ctx != NULL && op_desc->free_ctx != NULL) {
-            op_desc->free_ctx(node->ctx);
-            node->ctx = NULL;
         }
     }
 
@@ -613,7 +607,7 @@ cgrad_status cgrad_compute_graph_add_leaf(
     }
 
     uuid_generate(node->node_id);
-    node->op_info.type = CGRAD_OP_NONE;
+    node->op_info.descriptor = NULL;  // Leaf nodes have no operation
     node->layout = *layout;
     node->storage = node_storage;
     node->grad_storage = NULL;  // Initialize gradient storage
@@ -738,7 +732,7 @@ cgrad_status cgrad_compute_graph_add_op(
 
     // Set node attributes
     agsafeset(ag_node, "type", "op", "");
-    agsafeset(ag_node, "op", cgrad_op_type_to_string(op_info->type), "");
+    agsafeset(ag_node, "op", cgrad_op_descriptor_to_string(op_info->descriptor), "");
 
     // Add edges from inputs and increment their reference counts
     for (int i = 0; i < num_inputs; i++) {
@@ -775,16 +769,11 @@ cgrad_status cgrad_compute_graph_add_op(
 // Graph Visualization and Debugging
 // ============================================================================
 
-const char* cgrad_op_type_to_string(cgrad_op_type op_type) {
-    switch (op_type) {
-        case CGRAD_OP_NONE: return "LEAF";
-        case CGRAD_OP_AXPY: return "AXPY";
-        case CGRAD_OP_GEMM: return "GEMM";
-        case CGRAD_OP_TRANSPOSE: return "TRANSPOSE";
-        case CGRAD_OP_RESHAPE: return "RESHAPE";
-        case CGRAD_OP_REDUCE_SUM: return "REDUCE_SUM";
-        default: return "UNKNOWN";
+const char* cgrad_op_descriptor_to_string(const cgrad_op_descriptor* descriptor) {
+    if (descriptor == NULL) {
+        return "LEAF";
     }
+    return descriptor->name;
 }
 
 cgrad_status cgrad_compute_graph_to_dot(
@@ -836,7 +825,7 @@ void cgrad_graph_node_print(const cgrad_graph_node* node) {
     uuid_to_string(node->node_id, node_id_str);
     
     printf("  Node ID: %s\n", node_id_str);
-    printf("    Op: %s\n", cgrad_op_type_to_string(node->op_info.type));
+    printf("    Op: %s\n", cgrad_op_descriptor_to_string(node->op_info.descriptor));
     printf("    Shape: ");
     cgrad_storage_layout_print_shape(&node->layout, TENSOR_DIM);
     printf("    Storage: %s\n", node->storage ? "materialized" : "lazy");
@@ -883,7 +872,7 @@ static int forward_node(cgrad_compute_graph* graph, cgrad_graph_node* node) {
     }
 
     // Get operation descriptor
-    const cgrad_op_descriptor* op_desc = cgrad_get_op_descriptor(node->op_info.type);
+    const cgrad_op_descriptor* op_desc = node->op_info.descriptor;
     if (op_desc == NULL || op_desc->forward == NULL) {
         free(out_storage);
         return CGRAD_ERR_COMPUTE_GRAPH_INVALID_OPERATION;
@@ -954,7 +943,7 @@ cgrad_status cgrad_compute_graph_forward(
         }
 
         // Skip leaf nodes (already have storage)
-        if (node->op_info.type == CGRAD_OP_NONE) {
+        if (node->op_info.descriptor == NULL) {
             continue;
         }
 

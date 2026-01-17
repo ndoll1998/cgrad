@@ -7,6 +7,7 @@
 #include "storage/cgrad_storage.h"
 #include "backends/cgrad_backend.h"
 #include "third_party/uthash.h"
+#include "autograd/cgrad_ops.h"
 
 #define MAX_NODE_INPUTS 16
 #define MAX_GRAPH_NODES 1024
@@ -20,66 +21,6 @@
  * and execution happens on-demand with result caching.
  */
 
-/**
- * @brief Enumeration of all supported operations in the compute graph.
- * 
- * Only non-leaf operations are included. Leaf nodes (inputs) are created
- * with materialized eager storage and are not represented by an operation type.
- */
-typedef enum {
-    CGRAD_OP_NONE = 0,            /**< No operation (used for leaf nodes) */
-    
-    // Element-wise binary operations (2 tensor inputs)
-    CGRAD_OP_AXPY = 1,            /**< AXPY operation: c = alpha * a + b */
-    
-    // Linear algebra operations (2 tensor inputs)
-    CGRAD_OP_GEMM = 3,            /**< Batched matrix multiplication (GEMM) */
-    
-    // Unary operations (1 tensor input)
-    CGRAD_OP_TRANSPOSE = 4,       /**< Transpose along specified axes */
-    CGRAD_OP_RESHAPE = 5,         /**< Reshape to new dimensions */
-    CGRAD_OP_REDUCE_SUM = 6,      /**< Sum reduction along axes */
-} cgrad_op_type;
-
-/**
- * @brief Union containing operation-specific metadata.
- * The relevant field depends on the operation type.
- */
-typedef union {
-    struct {
-        uint32_t perm[TENSOR_DIM];  /**< Permutation for transpose */
-        int ndim;                   /**< Number of dimensions to permute */
-    } transpose;                    /**< Metadata for CGRAD_OP_TRANSPOSE */
-    
-    struct {
-        int32_t new_shape[TENSOR_DIM];  /**< Target shape for reshape */
-        int ndim;                        /**< Number of dimensions */
-    } reshape;                      /**< Metadata for CGRAD_OP_RESHAPE */
-    
-    struct {
-        uint8_t mask[TENSOR_DIM];   /**< Reduction mask (1=reduce, 0=keep) */
-        int ndim;                   /**< Number of dimensions */
-    } reduce_sum;                   /**< Metadata for CGRAD_OP_REDUCE_SUM */
-    
-    struct {
-        float alpha;                /**< Scalar multiplier for A*B */
-        float beta;                 /**< Scalar multiplier for C */
-    } gemm;                         /**< Metadata for CGRAD_OP_GEMM */
-    
-    struct {
-        float alpha;                /**< Scalar multiplier for x in y = alpha*x + y */
-    } axpy;                          /**< Metadata for CGRAD_OP_AXPY */
-    
-    float scalar;                   /**< For scalar operations */
-} cgrad_op_metadata;
-
-/**
- * @brief Information about an operation and its metadata.
- */
-typedef struct {
-    cgrad_op_type type;             /**< Type of operation */
-    cgrad_op_metadata metadata;     /**< Operation-specific metadata */
-} cgrad_op_info;
 
 /**
  * @brief A node in the computation graph.
@@ -284,11 +225,11 @@ void cgrad_compute_graph_print(const cgrad_compute_graph* graph);
 void cgrad_graph_node_print(const cgrad_graph_node* node);
 
 /**
- * @brief Get string name of operation type.
- * @param op_type Operation type.
+ * @brief Get string name of operation from descriptor.
+ * @param descriptor Operation descriptor (can be NULL for leaf nodes).
  * @return String name of operation.
  */
-const char* cgrad_op_type_to_string(cgrad_op_type op_type);
+const char* cgrad_op_descriptor_to_string(const cgrad_op_descriptor* descriptor);
 
 // ============================================================================
 // Graph Execution Functions

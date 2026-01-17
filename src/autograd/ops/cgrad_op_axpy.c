@@ -8,7 +8,7 @@
  * Computes: output = alpha * x + y
  * No context is needed for backward pass.
  */
-static int axpy_forward(
+int cgrad_op_axpy_forward(
     cgrad_storage** inputs,
     int num_inputs,
     const cgrad_op_metadata* metadata,
@@ -37,7 +37,7 @@ static int axpy_forward(
  *   grad_a += grad_output
  *   grad_b += grad_output
  */
-static int add_backward(
+int cgrad_op_axpy_backward(
     cgrad_storage** inputs,
     int num_inputs,
     cgrad_storage* output,
@@ -80,11 +80,3 @@ static int add_backward(
     
     return CGRAD_SUCCESS;
 }
-
-const cgrad_op_descriptor cgrad_op_axpy_descriptor = {
-    .type = CGRAD_OP_AXPY,
-    .name = "AXPY",
-    .forward = axpy_forward,
-    .backward = add_backward,
-    .free_ctx = NULL
-};

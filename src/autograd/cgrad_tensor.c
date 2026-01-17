@@ -1,4 +1,5 @@
 #include "autograd/cgrad_tensor.h"
+#include "autograd/cgrad_ops.h"
 #include "cgrad_status.h"
 #include "storage/cgrad_storage.h"
 #include "storage/cgrad_storage_registry.h"
@@ -288,7 +289,7 @@ cgrad_status cgrad_tensor_add(
 
     // Create operation node
     cgrad_op_info op_info;
-    op_info.type = CGRAD_OP_AXPY;
+    op_info.descriptor = &cgrad_op_axpy;
     op_info.metadata.axpy.alpha = 1.0f;
 
     uuid_t input_ids[2];
@@ -331,7 +332,7 @@ cgrad_status cgrad_tensor_sub(
     // Create operation node using AXPY with alpha = -1.0
     // This computes: out = (-1.0) * b + a = a - b
     cgrad_op_info op_info;
-    op_info.type = CGRAD_OP_AXPY;
+    op_info.descriptor = &cgrad_op_axpy;
     op_info.metadata.axpy.alpha = -1.0f;
 
     uuid_t input_ids[2];
@@ -374,7 +375,7 @@ cgrad_status cgrad_tensor_gemm(
 
     // Create operation node
     cgrad_op_info op_info;
-    op_info.type = CGRAD_OP_GEMM;
+    op_info.descriptor = &cgrad_op_gemm;
     op_info.metadata.gemm.alpha = 1.0f;
     op_info.metadata.gemm.beta = 0.0f;
 
@@ -422,7 +423,7 @@ cgrad_status cgrad_tensor_transpose(
 
     // Create operation node
     cgrad_op_info op_info;
-    op_info.type = CGRAD_OP_TRANSPOSE;
+    op_info.descriptor = &cgrad_op_transpose;
     op_info.metadata.transpose.ndim = ndim;
     for (int i = 0; i < ndim; i++) {
         op_info.metadata.transpose.perm[i] = perm[i];
@@ -467,7 +468,7 @@ cgrad_status cgrad_tensor_reshape(
 
     // Create operation node
     cgrad_op_info op_info;
-    op_info.type = CGRAD_OP_RESHAPE;
+    op_info.descriptor = &cgrad_op_reshape;
     op_info.metadata.reshape.ndim = ndim;
     for (int i = 0; i < ndim; i++) {
         op_info.metadata.reshape.new_shape[i] = new_shape[i];
@@ -512,7 +513,7 @@ cgrad_status cgrad_tensor_reduce_sum(
 
     // Create operation node
     cgrad_op_info op_info;
-    op_info.type = CGRAD_OP_REDUCE_SUM;
+    op_info.descriptor = &cgrad_op_reduce_sum;
     op_info.metadata.reduce_sum.ndim = ndim;
     for (int i = 0; i < ndim; i++) {
         op_info.metadata.reduce_sum.mask[i] = mask[i];
@@ -625,7 +626,7 @@ void cgrad_tensor_print(const cgrad_tensor* tensor) {
     cgrad_graph_node* node;
     int ret = cgrad_compute_graph_get_node(graph, tensor->node_id, &node);
     if (ret == CGRAD_SUCCESS) {
-        printf("Op: %s\n", cgrad_op_type_to_string(node->op_info.type));
+        printf("Op: %s\n", cgrad_op_descriptor_to_string(node->op_info.descriptor));
         printf("Storage: %s\n", node->storage ? "materialized" : "lazy");
         
         // If storage is not available, execute the tensor first

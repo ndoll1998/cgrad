@@ -48,7 +48,7 @@ static void test_op_axpy_forward(void **state) {
     cgrad_storage_fill(&c, 0.0f);
     
     // Get the AXPY operation descriptor
-    const cgrad_op_descriptor* op_desc = cgrad_get_op_descriptor(CGRAD_OP_AXPY);
+    const cgrad_op_descriptor* op_desc = &cgrad_op_axpy;
     assert_non_null(op_desc);
     
     // Prepare inputs
@@ -105,7 +105,7 @@ static void test_op_axpy_backward_basic(void **state) {
     cgrad_storage_fill(&grad_c, 1.0f);  // Gradient from upstream
     
     // Get the AXPY operation descriptor
-    const cgrad_op_descriptor* op_desc = cgrad_get_op_descriptor(CGRAD_OP_AXPY);
+    const cgrad_op_descriptor* op_desc = &cgrad_op_axpy;
     assert_non_null(op_desc);
     
     // Prepare inputs
@@ -171,7 +171,7 @@ static void test_op_axpy_backward_one_no_grad(void **state) {
     cgrad_storage_fill(&grad_c, 1.0f);
     
     // Get the AXPY operation descriptor
-    const cgrad_op_descriptor* op_desc = cgrad_get_op_descriptor(CGRAD_OP_AXPY);
+    const cgrad_op_descriptor* op_desc = &cgrad_op_axpy;
     assert_non_null(op_desc);
     
     // Prepare inputs (a does not require grad)
@@ -236,7 +236,7 @@ static void test_op_axpy_backward_accumulation(void **state) {
     cgrad_storage_fill(&grad_c, 1.0f);
     
     // Get the AXPY operation descriptor
-    const cgrad_op_descriptor* op_desc = cgrad_get_op_descriptor(CGRAD_OP_AXPY);
+    const cgrad_op_descriptor* op_desc = &cgrad_op_axpy;
     assert_non_null(op_desc);
     
     // Prepare inputs

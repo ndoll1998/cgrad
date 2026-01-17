@@ -9,7 +9,7 @@
  * Computes: output = sum(input, mask)
  * No context is needed for backward pass.
  */
-static int reduce_sum_forward(
+int cgrad_op_reduce_sum_forward(
     cgrad_storage** inputs,
     int num_inputs,
     const cgrad_op_metadata* metadata,
@@ -42,7 +42,7 @@ static int reduce_sum_forward(
  * Since grad_output has reduced shape and grad_inputs[0] has original shape,
  * we need to add grad_output (broadcast) to grad_inputs[0].
  */
-static int reduce_sum_backward(
+int cgrad_op_reduce_sum_backward(
     cgrad_storage** inputs,
     int num_inputs,
     cgrad_storage* output,
@@ -92,10 +92,3 @@ static int reduce_sum_backward(
     return err;
 }
 
-const cgrad_op_descriptor cgrad_op_reduce_sum_descriptor = {
-    .type = CGRAD_OP_REDUCE_SUM,
-    .name = "REDUCE_SUM",
-    .forward = reduce_sum_forward,
-    .backward = reduce_sum_backward,
-    .free_ctx = NULL
-};

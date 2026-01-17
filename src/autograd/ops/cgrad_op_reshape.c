@@ -9,7 +9,7 @@
  * Computes: output = reshape(input, new_shape)
  * No context is needed for backward pass.
  */
-static int reshape_forward(
+int cgrad_op_reshape_forward(
     cgrad_storage** inputs,
     int num_inputs,
     const cgrad_op_metadata* metadata,
@@ -38,7 +38,7 @@ static int reshape_forward(
  * For B = reshape(A, new_shape):
  *   grad_A += reshape(grad_B, original_shape)
  */
-static int reshape_backward(
+int cgrad_op_reshape_backward(
     cgrad_storage** inputs,
     int num_inputs,
     cgrad_storage* output,
@@ -83,10 +83,3 @@ static int reshape_backward(
     return ret;
 }
 
-const cgrad_op_descriptor cgrad_op_reshape_descriptor = {
-    .type = CGRAD_OP_RESHAPE,
-    .name = "RESHAPE",
-    .forward = reshape_forward,
-    .backward = reshape_backward,
-    .free_ctx = NULL
-};
