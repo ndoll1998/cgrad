@@ -1,6 +1,6 @@
 #include "backends/cgrad_backend.h"
 #include "cgrad_status.h"
-#include "uthash.h"
+#include "third_party/uthash.h"
 #include <string.h>
 #include <stdlib.h>
 

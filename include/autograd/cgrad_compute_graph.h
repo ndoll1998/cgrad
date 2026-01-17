@@ -6,7 +6,7 @@
 #include "storage/cgrad_storage_layout.h"
 #include "storage/cgrad_storage.h"
 #include "backends/cgrad_backend.h"
-#include "uthash.h"
+#include "third_party/uthash.h"
 
 #define MAX_NODE_INPUTS 16
 #define MAX_GRAPH_NODES 1024

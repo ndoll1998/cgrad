@@ -1,7 +1,7 @@
 #include "autograd/cgrad_compute_graph.h"
 #include "autograd/cgrad_ops.h"
 #include "cgrad_status.h"
-#include "uthash.h"
+#include "third_party/uthash.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>

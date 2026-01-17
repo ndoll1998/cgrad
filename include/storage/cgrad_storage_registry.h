@@ -2,7 +2,7 @@
 #define CGRAD_STORAGE_REGISTRY_H
 
 #include "storage/cgrad_storage.h"
-#include "uthash.h"
+#include "third_party/uthash.h"
 
 /**
  * @brief Generic storage node for hashmaps (used in buckets and records).

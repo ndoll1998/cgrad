@@ -2,7 +2,7 @@
 #define CGRAD_BACKEND_H
 
 #include "storage/cgrad_storage_layout.h"
-#include "uthash.h"
+#include "third_party/uthash.h"
 #include <stdint.h>
 #include <stddef.h>
 
