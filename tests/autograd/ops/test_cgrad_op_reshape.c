@@ -1,4 +1,5 @@
 #include <stdarg.h>
+#include "cgrad.h"
 #include <stddef.h>
 #include <setjmp.h>
 #include <cmocka.h>
@@ -6,33 +7,25 @@
 #include <math.h>
 
 #include "autograd/cgrad_ops.h"
-#include "cgrad_errors.h"
+#include "cgrad_status.h"
 #include "storage/cgrad_storage.h"
 #include "storage/cgrad_storage_layout.h"
-#include "storage/backends/cgrad_storage_f32_cpu.h"
 
 #define OP_RESHAPE_EPSILON 1e-4f
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-static float op_reshape_get_storage_value(cgrad_storage* storage, int idx) {
-    cgrad_storage_f32_cpu* cpu_storage = (cgrad_storage_f32_cpu*)storage->data;
-    return cpu_storage->data[idx];
-}
-
-static int op_reshape_approx_equal(float a, float b, float eps) {
-    return fabsf(a - b) < eps;
-}
 
 // ============================================================================
 // Setup and Teardown
 // ============================================================================
 
-static int op_reshape_teardown_test(void **state) {
+static int reshape_setup_test(void **state) {
     (void) state;
-    cgrad_storage_cleanup_global_registry();
+    cgrad_init();
+    return 0;
+}
+
+static int reshape_teardown_test(void **state) {
+    (void) state;
+    cgrad_cleanup();
     return 0;
 }
 
@@ -46,7 +39,7 @@ static void test_op_reshape_forward(void **state) {
     uint32_t shape[] = {2, 3};
     cgrad_storage a, b;
     
-    cgrad_storage_init(&a, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    cgrad_storage_init(&a, shape, 2, "cpu_f32");
     cgrad_storage_fill(&a, 1.0f);
     
     // Get the RESHAPE operation descriptor
@@ -69,12 +62,12 @@ static void test_op_reshape_forward(void **state) {
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Get the layout to check shape
-    cgrad_storage_f32_cpu* cpu_storage = (cgrad_storage_f32_cpu*)b.data;
-    assert_non_null(cpu_storage);
+    cgrad_storage_layout* layout = b.backend->storage_get_layout(b.data);
+    assert_non_null(layout);
     
     // Output should be (3, 2)
-    assert_int_equal(cpu_storage->layout.shape[TENSOR_DIM - 2], 3);
-    assert_int_equal(cpu_storage->layout.shape[TENSOR_DIM - 1], 2);
+    assert_int_equal(layout->shape[TENSOR_DIM - 2], 3);
+    assert_int_equal(layout->shape[TENSOR_DIM - 1], 2);
     
     cgrad_storage_free(&a);
     cgrad_storage_free(&b);
@@ -92,8 +85,8 @@ static void test_op_reshape_backward_basic(void **state) {
     cgrad_storage a, b;
     cgrad_storage grad_a, grad_b;
     
-    cgrad_storage_init(&a, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
-    cgrad_storage_init(&grad_a, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    cgrad_storage_init(&a, shape, 2, "cpu_f32");
+    cgrad_storage_init(&grad_a, shape, 2, "cpu_f32");
     cgrad_storage_fill(&a, 1.0f);
     cgrad_storage_fill(&grad_a, 0.0f);
     
@@ -117,7 +110,7 @@ static void test_op_reshape_backward_basic(void **state) {
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Initialize gradient for output (reshaped shape)
-    cgrad_storage_init(&grad_b, shape_r, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    cgrad_storage_init(&grad_b, shape_r, 2, "cpu_f32");
     cgrad_storage_fill(&grad_b, 1.0f);
     
     // Execute backward pass
@@ -128,8 +121,14 @@ static void test_op_reshape_backward_basic(void **state) {
     
     // Gradient should be reshaped back to original shape
     // All gradients should be 1.0
-    for (int i = 0; i < 6; i++) {
-        assert_true(op_reshape_approx_equal(op_reshape_get_storage_value(&grad_a, i), 1.0f, OP_RESHAPE_EPSILON));
+    float value;
+    uint32_t idx[2];
+    for (uint32_t i = 0; i < 2; i++) {
+        for (uint32_t j = 0; j < 3; j++) {
+            idx[0] = i; idx[1] = j;
+            cgrad_storage_get(&grad_a, idx, 2, &value);
+            assert_true(fabsf(value - 1.0f) < OP_RESHAPE_EPSILON);
+        }
     }
     
     cgrad_storage_free(&a);
@@ -150,7 +149,7 @@ static void test_op_reshape_backward_no_grad(void **state) {
     cgrad_storage a, b;
     cgrad_storage grad_b;
     
-    cgrad_storage_init(&a, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    cgrad_storage_init(&a, shape, 2, "cpu_f32");
     cgrad_storage_fill(&a, 1.0f);
     
     // Get the RESHAPE operation descriptor
@@ -173,7 +172,7 @@ static void test_op_reshape_backward_no_grad(void **state) {
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Initialize gradient for output
-    cgrad_storage_init(&grad_b, shape_r, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    cgrad_storage_init(&grad_b, shape_r, 2, "cpu_f32");
     cgrad_storage_fill(&grad_b, 1.0f);
     
     // Execute backward pass with no grad required
@@ -199,8 +198,8 @@ static void test_op_reshape_backward_flatten(void **state) {
     cgrad_storage a, b;
     cgrad_storage grad_a, grad_b;
     
-    cgrad_storage_init(&a, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
-    cgrad_storage_init(&grad_a, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    cgrad_storage_init(&a, shape, 2, "cpu_f32");
+    cgrad_storage_init(&grad_a, shape, 2, "cpu_f32");
     cgrad_storage_fill(&a, 1.0f);
     cgrad_storage_fill(&grad_a, 0.0f);
     
@@ -223,7 +222,7 @@ static void test_op_reshape_backward_flatten(void **state) {
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Initialize gradient for output (flattened shape)
-    cgrad_storage_init(&grad_b, shape_flat, 1, CGRAD_STORAGE_BACKEND_F32_CPU);
+    cgrad_storage_init(&grad_b, shape_flat, 1, "cpu_f32");
     cgrad_storage_fill(&grad_b, 1.0f);
     
     // Execute backward pass
@@ -233,8 +232,14 @@ static void test_op_reshape_backward_flatten(void **state) {
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // All gradients should be 1.0
-    for (int i = 0; i < 6; i++) {
-        assert_true(op_reshape_approx_equal(op_reshape_get_storage_value(&grad_a, i), 1.0f, OP_RESHAPE_EPSILON));
+    float value;
+    uint32_t idx[2];
+    for (uint32_t i = 0; i < 2; i++) {
+        for (uint32_t j = 0; j < 3; j++) {
+            idx[0] = i; idx[1] = j;
+            cgrad_storage_get(&grad_a, idx, 2, &value);
+            assert_true(fabsf(value - 1.0f) < OP_RESHAPE_EPSILON);
+        }
     }
     
     cgrad_storage_free(&a);
@@ -256,8 +261,8 @@ static void test_op_reshape_backward_double(void **state) {
     cgrad_storage a, b, c;
     cgrad_storage grad_a, grad_b, grad_c;
     
-    cgrad_storage_init(&a, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
-    cgrad_storage_init(&grad_a, shape, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
+    cgrad_storage_init(&a, shape, 2, "cpu_f32");
+    cgrad_storage_init(&grad_a, shape, 2, "cpu_f32");
     cgrad_storage_fill(&a, 1.0f);
     cgrad_storage_fill(&grad_a, 0.0f);
     
@@ -289,8 +294,8 @@ static void test_op_reshape_backward_double(void **state) {
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Initialize gradients
-    cgrad_storage_init(&grad_b, shape1, 2, CGRAD_STORAGE_BACKEND_F32_CPU);
-    cgrad_storage_init(&grad_c, shape2, 1, CGRAD_STORAGE_BACKEND_F32_CPU);
+    cgrad_storage_init(&grad_b, shape1, 2, "cpu_f32");
+    cgrad_storage_init(&grad_c, shape2, 1, "cpu_f32");
     cgrad_storage_fill(&grad_b, 0.0f);
     cgrad_storage_fill(&grad_c, 1.0f);
     
@@ -307,8 +312,14 @@ static void test_op_reshape_backward_double(void **state) {
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // All gradients should be 1.0
-    for (int i = 0; i < 6; i++) {
-        assert_true(op_reshape_approx_equal(op_reshape_get_storage_value(&grad_a, i), 1.0f, OP_RESHAPE_EPSILON));
+    float value;
+    uint32_t idx[2];
+    for (uint32_t i = 0; i < 2; i++) {
+        for (uint32_t j = 0; j < 3; j++) {
+            idx[0] = i; idx[1] = j;
+            cgrad_storage_get(&grad_a, idx, 2, &value);
+            assert_true(fabsf(value - 1.0f) < OP_RESHAPE_EPSILON);
+        }
     }
     
     cgrad_storage_free(&a);
@@ -325,11 +336,11 @@ static void test_op_reshape_backward_double(void **state) {
 
 int run_cgrad_op_reshape_tests(void) {
     const struct CMUnitTest tests[] = {
-        cmocka_unit_test_teardown(test_op_reshape_forward, op_reshape_teardown_test),
-        cmocka_unit_test_teardown(test_op_reshape_backward_basic, op_reshape_teardown_test),
-        cmocka_unit_test_teardown(test_op_reshape_backward_no_grad, op_reshape_teardown_test),
-        cmocka_unit_test_teardown(test_op_reshape_backward_flatten, op_reshape_teardown_test),
-        cmocka_unit_test_teardown(test_op_reshape_backward_double, op_reshape_teardown_test),
+        cmocka_unit_test_setup_teardown(test_op_reshape_forward, reshape_setup_test, reshape_teardown_test),
+        cmocka_unit_test_setup_teardown(test_op_reshape_backward_basic, reshape_setup_test, reshape_teardown_test),
+        cmocka_unit_test_setup_teardown(test_op_reshape_backward_no_grad, reshape_setup_test, reshape_teardown_test),
+        cmocka_unit_test_setup_teardown(test_op_reshape_backward_flatten, reshape_setup_test, reshape_teardown_test),
+        cmocka_unit_test_setup_teardown(test_op_reshape_backward_double, reshape_setup_test, reshape_teardown_test),
     };
     
     return cmocka_run_group_tests_name("cgrad_op_reshape", tests, NULL, NULL);

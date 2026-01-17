@@ -1,7 +1,7 @@
 #ifndef CGRAD_STORAGE_H
 #define CGRAD_STORAGE_H
 
-#include "storage/cgrad_storage_backend.h"
+#include "backends/cgrad_backend.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <uuid/uuid.h>
@@ -11,23 +11,23 @@
  */
 typedef struct cgrad_storage {
     uuid_t uuid;                        /**< Unique identifier for this storage */
-    cgrad_storage_backend* backend;     /**< Pointer to backend ops */
+    cgrad_backend* backend;     /**< Pointer to backend ops */
     void* data;                         /**< Backend-specific storage object (e.g., cgrad_tensor_f32*) */
 } cgrad_storage;
 
 // --- Initialization/Allocation ---
 
 /**
- * @brief Initialize a high-level tensor with the given shape, ndim, and backend type.
+ * @brief Initialize a high-level tensor with the given shape, ndim, and backend name.
  *        The user-specified shape (length ndim) is placed at the end; leading unspecified dims are set to 1.
  *        For example, shape={3,4}, ndim=2, MAX_TENSOR_DIM=4 => layout.shape={1,1,3,4}
  * @param t Pointer to tensor to initialize.
  * @param shape Array of dimensions (length ndim).
  * @param ndim Number of dimensions in shape (≤ MAX_TENSOR_DIM).
- * @param backend_type Backend type to use.
+ * @param backend_name Backend name to use (e.g., "cpu_f32").
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_init(cgrad_storage* t, const uint32_t* shape, int ndim, cgrad_storage_backend_type backend_type);
+cgrad_status cgrad_storage_init(cgrad_storage* t, const uint32_t* shape, int ndim, const char* backend_name);
 
 /**
  * @brief Perform a shallow copy of a tensor (copies data pointer, not underlying data).
@@ -35,7 +35,7 @@ int cgrad_storage_init(cgrad_storage* t, const uint32_t* shape, int ndim, cgrad_
  * @param dst Destination tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_shallow_copy(const cgrad_storage* src, cgrad_storage* dst);
+cgrad_status cgrad_storage_shallow_copy(const cgrad_storage* src, cgrad_storage* dst);
 
 /**
  * @brief Make a contiguous copy of a tensor into dst.
@@ -43,7 +43,7 @@ int cgrad_storage_shallow_copy(const cgrad_storage* src, cgrad_storage* dst);
  * @param dst Destination tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_contiguous(const cgrad_storage* src, cgrad_storage* dst);
+cgrad_status cgrad_storage_contiguous(const cgrad_storage* src, cgrad_storage* dst);
 
 /**
  * @brief Free the memory associated with a high-level tensor.
@@ -51,7 +51,7 @@ int cgrad_storage_contiguous(const cgrad_storage* src, cgrad_storage* dst);
  * @param t Pointer to tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_free(cgrad_storage* t);
+cgrad_status cgrad_storage_free(cgrad_storage* t);
 
 /**
  * @brief Cleanup the global storage registry.
@@ -80,7 +80,7 @@ struct cgrad_storage_registry_record* cgrad_storage_start_recording(void);
  * @param record Pointer to the record from cgrad_storage_start_recording.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_stop_recording(struct cgrad_storage_registry_record* record);
+cgrad_status cgrad_storage_stop_recording(struct cgrad_storage_registry_record* record);
 
 /**
  * @brief Free all storages recorded in a record.
@@ -90,7 +90,7 @@ int cgrad_storage_stop_recording(struct cgrad_storage_registry_record* record);
  * @param record Pointer to the record from cgrad_storage_start_recording.
  * @return CGRAD_SUCCESS if all storages freed successfully, otherwise the first error code encountered.
  */
-int cgrad_storage_free_all_from_record(struct cgrad_storage_registry_record* record);
+cgrad_status cgrad_storage_free_all_from_record(struct cgrad_storage_registry_record* record);
 
 /**
  * @brief Fill the tensor with a constant value.
@@ -98,14 +98,14 @@ int cgrad_storage_free_all_from_record(struct cgrad_storage_registry_record* rec
  * @param value The value to fill the tensor with.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_fill(cgrad_storage* t, float value);
+cgrad_status cgrad_storage_fill(cgrad_storage* t, float value);
 
 /**
  * @brief Fill the tensor with random values.
  * @param t Pointer to tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_fill_rand(cgrad_storage* t);
+cgrad_status cgrad_storage_fill_rand(cgrad_storage* t);
 
 // --- Math Ops ---
 
@@ -117,7 +117,7 @@ int cgrad_storage_fill_rand(cgrad_storage* t);
  * @param r Output tensor (initialized inside function).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_sum(const cgrad_storage* a, const uint8_t* mask, int ndim, cgrad_storage* r);
+cgrad_status cgrad_storage_sum(const cgrad_storage* a, const uint8_t* mask, int ndim, cgrad_storage* r);
 
 /**
  * @brief Perform batched matrix multiplication (GEMM) on two tensors.
@@ -129,7 +129,7 @@ int cgrad_storage_sum(const cgrad_storage* a, const uint8_t* mask, int ndim, cgr
  * @param r Output tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_gemm(float alpha, const cgrad_storage* a, const cgrad_storage* b, float beta, cgrad_storage* r);
+cgrad_status cgrad_storage_gemm(float alpha, const cgrad_storage* a, const cgrad_storage* b, float beta, cgrad_storage* r);
 
 /**
  * @brief Compute y = alpha * x + y (AXPY operation).
@@ -140,7 +140,7 @@ int cgrad_storage_gemm(float alpha, const cgrad_storage* a, const cgrad_storage*
  * @param r Output tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_axpy(float alpha, cgrad_storage* x, cgrad_storage* y, cgrad_storage* r);
+cgrad_status cgrad_storage_axpy(float alpha, cgrad_storage* x, cgrad_storage* y, cgrad_storage* r);
 
 // --- Data Transform ---
 
@@ -152,7 +152,7 @@ int cgrad_storage_axpy(float alpha, cgrad_storage* x, cgrad_storage* y, cgrad_st
  * @param ndim Number of dimensions in new_shape (<= TENSOR_DIM).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_reshape(const cgrad_storage* src, cgrad_storage* dst, const int32_t* new_shape, int ndim);
+cgrad_status cgrad_storage_reshape(const cgrad_storage* src, cgrad_storage* dst, const int32_t* new_shape, int ndim);
 
 
 /**
@@ -164,9 +164,19 @@ int cgrad_storage_reshape(const cgrad_storage* src, cgrad_storage* dst, const in
  * @param ndim Number of trailing dimensions to permute (≤ MAX_TENSOR_DIM).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_transpose(const cgrad_storage* src, cgrad_storage* dst, const uint32_t* perm, int ndim);
+cgrad_status cgrad_storage_transpose(const cgrad_storage* src, cgrad_storage* dst, const uint32_t* perm, int ndim);
 
 // --- Data Access/Info ---
+
+/**
+ * @brief Get the value at the given indices.
+ * @param t Pointer to storage.
+ * @param indices Array of indices.
+ * @param ndim Number of dimensions in indices.
+ * @param out_value Pointer to float where the value will be written.
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+cgrad_status cgrad_storage_get(const cgrad_storage* t, const uint32_t* indices, int ndim, float* out_value);
 
 /**
  * @brief Print the tensor's shape and contents.

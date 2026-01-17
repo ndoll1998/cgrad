@@ -3,8 +3,8 @@
 
 #include <uuid/uuid.h>
 #include "autograd/cgrad_compute_graph.h"
+#include "backends/cgrad_backend.h"
 #include "storage/cgrad_storage_layout.h"
-#include "storage/cgrad_storage_backend.h"
 #include "storage/cgrad_storage_registry.h"
 
 /**
@@ -52,7 +52,7 @@ typedef struct {
  * 
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_enable_grad(void);
+cgrad_status cgrad_enable_grad(void);
 
 /**
  * @brief Disable gradient computation for subsequently created tensors.
@@ -67,14 +67,14 @@ int cgrad_enable_grad(void);
  * 
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_disable_grad(void);
+cgrad_status cgrad_disable_grad(void);
 
 /**
  * @brief Check if gradient computation is currently enabled.
  * 
  * @return 1 if gradients are enabled, 0 if disabled.
  */
-int cgrad_is_grad_enabled(void);
+cgrad_status cgrad_is_grad_enabled(void);
 
 // ============================================================================
 // Tensor Initialization and Management
@@ -90,14 +90,14 @@ int cgrad_is_grad_enabled(void);
  * @param tensor Pointer to tensor to initialize.
  * @param shape Array of dimensions (length ndim).
  * @param ndim Number of dimensions (≤ TENSOR_DIM).
- * @param backend_type Which backend to use for storage.
+ * @param backend_name Which backend to use for storage (e.g., "cpu_f32").
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_init(
+cgrad_status cgrad_tensor_init(
     cgrad_tensor* tensor,
     const uint32_t* shape,
     int ndim,
-    cgrad_storage_backend_type backend_type
+    const char* backend_name
 );
 
 /**
@@ -107,7 +107,7 @@ int cgrad_tensor_init(
  * @param value The value to fill with.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_fill(cgrad_tensor* tensor, float value);
+cgrad_status cgrad_tensor_fill(cgrad_tensor* tensor, float value);
 
 /**
  * @brief Fill a tensor with random values.
@@ -115,7 +115,7 @@ int cgrad_tensor_fill(cgrad_tensor* tensor, float value);
  * @param tensor Tensor to fill with random data.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_fill_rand(cgrad_tensor* tensor);
+cgrad_status cgrad_tensor_fill_rand(cgrad_tensor* tensor);
 
 /**
  * @brief Free a tensor using reference counting.
@@ -127,7 +127,7 @@ int cgrad_tensor_fill_rand(cgrad_tensor* tensor);
  * @param tensor Tensor to free.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_free(cgrad_tensor* tensor);
+cgrad_status cgrad_tensor_free(cgrad_tensor* tensor);
 
 /**
  * @brief Create a tensor from existing storage.
@@ -140,13 +140,27 @@ int cgrad_tensor_free(cgrad_tensor* tensor);
  * @param tensor Output tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_from_storage(cgrad_storage* storage, cgrad_tensor* tensor);
+cgrad_status cgrad_tensor_from_storage(cgrad_storage* storage, cgrad_tensor* tensor);
+
+// ============================================================================
+// Global Compute Graph Management
+// ============================================================================
+
+/**
+ * @brief Initialize the global compute graph.
+ * 
+ * This function allocates and initializes the global compute graph.
+ * It should be called once during library initialization.
+ * 
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+cgrad_status cgrad_tensor_init_global_graph(void);
 
 /**
  * @brief Cleanup the global compute graph.
  * 
- * This should be called at program shutdown to free all graph resources.
- * After calling this, no tensor operations should be performed.
+ * This function frees all resources associated with the global compute graph.
+ * It should be called once during library cleanup.
  */
 void cgrad_tensor_cleanup_global_graph(void);
 
@@ -165,7 +179,7 @@ void cgrad_tensor_cleanup_global_graph(void);
  * @param out_tensor Pointer to output tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_add(
+cgrad_status cgrad_tensor_add(
     const cgrad_tensor* a,
     const cgrad_tensor* b,
     cgrad_tensor* out_tensor
@@ -182,7 +196,7 @@ int cgrad_tensor_add(
  * @param out_tensor Pointer to output tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_sub(
+cgrad_status cgrad_tensor_sub(
     const cgrad_tensor* a,
     const cgrad_tensor* b,
     cgrad_tensor* out_tensor
@@ -195,7 +209,7 @@ int cgrad_tensor_sub(
  * @param out_tensor Pointer to output tensor (shape: ..., m, n).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_gemm(
+cgrad_status cgrad_tensor_gemm(
     const cgrad_tensor* a,
     const cgrad_tensor* b,
     cgrad_tensor* out_tensor
@@ -218,7 +232,7 @@ int cgrad_tensor_gemm(
  * @param out_tensor Pointer to output tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_transpose(
+cgrad_status cgrad_tensor_transpose(
     const cgrad_tensor* tensor,
     const uint32_t* perm,
     int ndim,
@@ -238,7 +252,7 @@ int cgrad_tensor_transpose(
  * @param out_tensor Pointer to output tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_reshape(
+cgrad_status cgrad_tensor_reshape(
     const cgrad_tensor* tensor,
     const int32_t* new_shape,
     int ndim,
@@ -257,7 +271,7 @@ int cgrad_tensor_reshape(
  * @param out_tensor Pointer to output tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_reduce_sum(
+cgrad_status cgrad_tensor_reduce_sum(
     const cgrad_tensor* tensor,
     const uint8_t* mask,
     int ndim,
@@ -286,7 +300,7 @@ int cgrad_tensor_reduce_sum(
  * @param tensor Tensor to materialize (specifies which node to compute).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_execute(cgrad_tensor* tensor);
+cgrad_status cgrad_tensor_execute(cgrad_tensor* tensor);
 
 /**
  * @brief Get the underlying storage of a tensor.
@@ -297,7 +311,7 @@ int cgrad_tensor_execute(cgrad_tensor* tensor);
  * @param tensor Tensor to get storage from.
  * @return Const pointer to storage, or NULL if not computed.
  */
-const cgrad_storage* cgrad_tensor_get_storage(const cgrad_tensor* tensor);
+cgrad_storage* cgrad_tensor_get_storage(const cgrad_tensor* tensor);
 
 /**
  * @brief Get the gradient storage of a tensor.
@@ -308,7 +322,7 @@ const cgrad_storage* cgrad_tensor_get_storage(const cgrad_tensor* tensor);
  * @param tensor Tensor to get gradient storage from.
  * @return Const pointer to gradient storage, or NULL if not available.
  */
-const cgrad_storage* cgrad_tensor_get_grad_storage(const cgrad_tensor* tensor);
+cgrad_storage* cgrad_tensor_get_grad_storage(const cgrad_tensor* tensor);
 
 /**
  * @brief Get a value from a tensor at the given indices.
@@ -323,7 +337,7 @@ const cgrad_storage* cgrad_tensor_get_grad_storage(const cgrad_tensor* tensor);
  * @param out_value Pointer to float where the value will be written.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_get(const cgrad_tensor* tensor, const uint32_t* indices, int ndim, float* out_value);
+cgrad_status cgrad_tensor_get(const cgrad_tensor* tensor, const uint32_t* indices, int ndim, float* out_value);
 
 /**
  * @brief Print tensor information.
@@ -349,7 +363,7 @@ void cgrad_tensor_print(const cgrad_tensor* tensor);
  * @param requires_grad 1 to enable gradient computation, 0 to disable.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_set_requires_grad(cgrad_tensor* tensor, int requires_grad);
+cgrad_status cgrad_tensor_set_requires_grad(cgrad_tensor* tensor, int requires_grad);
 
 /**
  * @brief Check if a tensor requires gradient computation.
@@ -358,7 +372,7 @@ int cgrad_tensor_set_requires_grad(cgrad_tensor* tensor, int requires_grad);
  * @param out_requires_grad Pointer to output flag.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_get_requires_grad(const cgrad_tensor* tensor, int* out_requires_grad);
+cgrad_status cgrad_tensor_get_requires_grad(const cgrad_tensor* tensor, int* out_requires_grad);
 
 /**
  * @brief Get the gradient of a tensor after backward pass.
@@ -370,7 +384,7 @@ int cgrad_tensor_get_requires_grad(const cgrad_tensor* tensor, int* out_requires
  * @param grad Pointer to output gradient tensor.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_get_gradient(const cgrad_tensor* t, cgrad_tensor* grad);
+cgrad_status cgrad_tensor_get_gradient(const cgrad_tensor* t, cgrad_tensor* grad);
 
 /**
  * @brief Zero out the gradient of a specific tensor.
@@ -382,7 +396,7 @@ int cgrad_tensor_get_gradient(const cgrad_tensor* t, cgrad_tensor* grad);
  * @param tensor Tensor whose gradient should be zeroed.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_zero_grad(cgrad_tensor* tensor);
+cgrad_status cgrad_tensor_zero_grad(cgrad_tensor* tensor);
 
 /**
  * @brief Compute gradients by backpropagation through the computation graph.
@@ -399,6 +413,6 @@ int cgrad_tensor_zero_grad(cgrad_tensor* tensor);
  * @param tensor Target tensor (typically a scalar loss).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_tensor_backward(cgrad_tensor* tensor);
+cgrad_status cgrad_tensor_backward(cgrad_tensor* tensor);
 
 #endif // CGRAD_TENSOR_H

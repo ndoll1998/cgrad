@@ -5,8 +5,8 @@
 #include <graphviz/cgraph.h>
 #include "storage/cgrad_storage_layout.h"
 #include "storage/cgrad_storage.h"
-#include "storage/cgrad_storage_backend.h"
-#include "uthash.h"
+#include "backends/cgrad_backend.h"
+#include "third_party/uthash.h"
 
 #define MAX_NODE_INPUTS 16
 #define MAX_GRAPH_NODES 1024
@@ -98,7 +98,7 @@ typedef struct cgrad_graph_node {
     cgrad_storage* storage;            /**< For leaf: materialized eager storage; for ops: NULL or cached */
     cgrad_storage* grad_storage;       /**< Cached gradient (NULL if not computed) */
     void* ctx;                         /**< Operation context for caching intermediate results (NULL by default) */
-    cgrad_storage_backend_type backend_type;  /**< Backend type of the node */
+    const char* backend_name;          /**< Backend name of the node (e.g., "cpu_f32") */
     int ref_count;                     /**< Reference count for memory management */
     int requires_grad;                 /**< 1 if gradients should be computed, 0 otherwise */
     UT_hash_handle hh;                 /**< Hash handle for uthash */
@@ -132,7 +132,7 @@ typedef struct cgrad_compute_graph {
  * @param graph Pointer to graph to initialize.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_compute_graph_create(cgrad_compute_graph* graph);
+cgrad_status cgrad_compute_graph_create(cgrad_compute_graph* graph);
 
 /**
  * @brief Get the node information for a graph node.
@@ -141,7 +141,7 @@ int cgrad_compute_graph_create(cgrad_compute_graph* graph);
  * @param out_node_info Pointer to output node info.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_compute_graph_get_node(
+cgrad_status cgrad_compute_graph_get_node(
     const cgrad_compute_graph* graph,
     const uuid_t node_id,
     cgrad_graph_node** out_node_info
@@ -156,7 +156,7 @@ int cgrad_compute_graph_get_node(
  * @param out_num_inputs Pointer to actual number of inputs found.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_compute_graph_get_inputs(
+cgrad_status cgrad_compute_graph_get_inputs(
     const cgrad_compute_graph* graph,
     const uuid_t node_id,
     uuid_t* out_input_node_ids,
@@ -169,14 +169,14 @@ int cgrad_compute_graph_get_inputs(
  * @param graph Compute graph to free.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_compute_graph_free(cgrad_compute_graph* graph);
+cgrad_status cgrad_compute_graph_free(cgrad_compute_graph* graph);
 
 /**
  * @brief Get the number of nodes currently in the graph.
  * @param graph Compute graph.
  * @return Number of nodes in the graph.
  */
-int cgrad_compute_graph_get_node_count(const cgrad_compute_graph* graph);
+cgrad_status cgrad_compute_graph_get_node_count(const cgrad_compute_graph* graph);
 
 /**
  * @brief Free a single node and recursively free its inputs if their ref_count reaches zero.
@@ -187,7 +187,7 @@ int cgrad_compute_graph_get_node_count(const cgrad_compute_graph* graph);
  * @param node Node to free.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_compute_graph_free_node(cgrad_compute_graph* graph, cgrad_graph_node* node);
+cgrad_status cgrad_compute_graph_free_node(cgrad_compute_graph* graph, cgrad_graph_node* node);
 
 /**
  * @brief Decrement the reference count of a node and free it if count reaches zero.
@@ -200,7 +200,7 @@ int cgrad_compute_graph_free_node(cgrad_compute_graph* graph, cgrad_graph_node* 
  * @param node_id ID of the node to decrement.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_compute_graph_decrement_ref(cgrad_compute_graph* graph, const uuid_t node_id);
+cgrad_status cgrad_compute_graph_decrement_ref(cgrad_compute_graph* graph, const uuid_t node_id);
 
 /**
  * @brief Increment the reference count of a node.
@@ -212,7 +212,7 @@ int cgrad_compute_graph_decrement_ref(cgrad_compute_graph* graph, const uuid_t n
  * @param node_id ID of the node to increment.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_compute_graph_increment_ref(cgrad_compute_graph* graph, const uuid_t node_id);
+cgrad_status cgrad_compute_graph_increment_ref(cgrad_compute_graph* graph, const uuid_t node_id);
 
 // ============================================================================
 // Node Management Functions
@@ -226,7 +226,7 @@ int cgrad_compute_graph_increment_ref(cgrad_compute_graph* graph, const uuid_t n
  * @param out_node_id Output node ID.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_compute_graph_add_leaf(
+cgrad_status cgrad_compute_graph_add_leaf(
     cgrad_compute_graph* graph,
     const cgrad_storage_layout* layout,
     cgrad_storage* storage,
@@ -243,7 +243,7 @@ int cgrad_compute_graph_add_leaf(
  * @param out_node_id Output node ID.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_compute_graph_add_op(
+cgrad_status cgrad_compute_graph_add_op(
     cgrad_compute_graph* graph,
     const cgrad_op_info* op_info,
     const cgrad_storage_layout* layout,
@@ -266,7 +266,7 @@ int cgrad_compute_graph_add_op(
  * @param filename Path to output DOT file.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_compute_graph_to_dot(
+cgrad_status cgrad_compute_graph_to_dot(
     const cgrad_compute_graph* graph,
     const char* filename
 );
@@ -309,7 +309,7 @@ const char* cgrad_op_type_to_string(cgrad_op_type op_type);
  * @param target_node_id The node to execute (endpoint of the subgraph).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_compute_graph_forward(
+cgrad_status cgrad_compute_graph_forward(
     cgrad_compute_graph* graph,
     const uuid_t target_node_id
 );
@@ -334,7 +334,7 @@ int cgrad_compute_graph_forward(
  * @param target_node_id Target node (typically a scalar loss).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_compute_graph_backward(
+cgrad_status cgrad_compute_graph_backward(
     cgrad_compute_graph* graph,
     const uuid_t target_node_id
 );
@@ -347,7 +347,7 @@ int cgrad_compute_graph_backward(
  * @param graph Compute graph.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_compute_graph_zero_grad(cgrad_compute_graph* graph);
+cgrad_status cgrad_compute_graph_zero_grad(cgrad_compute_graph* graph);
 
 /**
  * @brief Zero out the gradient of a specific node.
@@ -359,7 +359,7 @@ int cgrad_compute_graph_zero_grad(cgrad_compute_graph* graph);
  * @param node_id Node identifier.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_compute_graph_zero_grad_node(cgrad_compute_graph* graph, const uuid_t node_id);
+cgrad_status cgrad_compute_graph_zero_grad_node(cgrad_compute_graph* graph, const uuid_t node_id);
 
 /**
  * @brief Set the requires_grad flag for a node.
@@ -369,7 +369,7 @@ int cgrad_compute_graph_zero_grad_node(cgrad_compute_graph* graph, const uuid_t 
  * @param requires_grad 1 to enable gradient computation, 0 to disable.
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_compute_graph_set_requires_grad(
+cgrad_status cgrad_compute_graph_set_requires_grad(
     cgrad_compute_graph* graph,
     const uuid_t node_id,
     int requires_grad
@@ -384,7 +384,7 @@ int cgrad_compute_graph_set_requires_grad(
  * @param node_id Node identifier.
  * @return Const pointer to storage, or NULL if not computed.
  */
-const cgrad_storage* cgrad_compute_graph_get_storage(
+cgrad_storage* cgrad_compute_graph_get_storage(
     const cgrad_compute_graph* graph,
     const uuid_t node_id
 );
@@ -398,7 +398,7 @@ const cgrad_storage* cgrad_compute_graph_get_storage(
  * @param node_id Node identifier.
  * @return Const pointer to gradient storage, or NULL if not available.
  */
-const cgrad_storage* cgrad_compute_graph_get_grad_storage(
+cgrad_storage* cgrad_compute_graph_get_grad_storage(
     const cgrad_compute_graph* graph,
     const uuid_t node_id
 );

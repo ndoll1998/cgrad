@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include "cgrad_status.h"
 
 #define TENSOR_DIM 8
 
@@ -34,7 +35,7 @@ void cgrad_storage_layout_copy(cgrad_storage_layout* dst, const cgrad_storage_la
  * @param ndim Number of dimensions in shape (<= TENSOR_DIM).
  * @return 0 on success, error code otherwise.
  */
-int cgrad_storage_layout_init(cgrad_storage_layout* l, const uint32_t* shape, int ndim);
+cgrad_status cgrad_storage_layout_init(cgrad_storage_layout* l, const uint32_t* shape, int ndim);
 
 // --- Indexing ---
 
@@ -43,14 +44,14 @@ int cgrad_storage_layout_init(cgrad_storage_layout* l, const uint32_t* shape, in
  *        Checks that all indices are within bounds (0 <= idx < shape[i]).
  *        Indices of length ndim are mapped to the last ndim dims; leading indices behave as 0.
  *        For example, indices={2,3}, ndim=2, TENSOR_DIM=4 => layout.shape={1,1,3,4}, indices used as {0,0,2,3}
- *        If any index is out of bounds, returns CGRAD_STORAGE_LAYOUT_ERR_INDEX_OUT_OF_BOUNDS.
+ *        If any index is out of bounds, returns CGRAD_ERR_STORAGE_LAYOUT_INDEX_OUT_OF_BOUNDS.
  * @param layout Pointer to tensor layout (provides shape and strides).
  * @param indices Array of indices (length ndim).
  * @param ndim Number of dimensions in indices (<= TENSOR_DIM).
  * @param out_flat_index Pointer to size_t where the computed flat index will be stored.
- * @return CGRAD_SUCCESS on success, CGRAD_STORAGE_LAYOUT_ERR_INDEX_OUT_OF_BOUNDS if any index is out of bounds.
+ * @return CGRAD_SUCCESS on success, CGRAD_ERR_STORAGE_LAYOUT_INDEX_OUT_OF_BOUNDS if any index is out of bounds.
  */
-int cgrad_storage_layout_flat_index(const cgrad_storage_layout* layout, const uint32_t* indices, int ndim, size_t* out_flat_index);
+cgrad_status cgrad_storage_layout_flat_index(const cgrad_storage_layout* layout, const uint32_t* indices, int ndim, size_t* out_flat_index);
 
 // --- Broadcasting ---
 
@@ -70,7 +71,7 @@ int cgrad_storage_layout_flat_index(const cgrad_storage_layout* layout, const ui
  * @param end_dim End dimension (exclusive).
  * @return 0 on success, -1 on failure.
  */
-int cgrad_storage_layout_broadcast(
+cgrad_status cgrad_storage_layout_broadcast(
     cgrad_storage_layout* l1,
     cgrad_storage_layout* l2,
     int start_dim,
@@ -86,9 +87,9 @@ int cgrad_storage_layout_broadcast(
  * @param layout Pointer to layout.
  * @param perm Permutation array (length ndim).
  * @param ndim Number of dimensions to permute (<= TENSOR_DIM).
- * @return 0 on success, CGRAD_STORAGE_LAYOUT_ERR_DUPLICATE_DIM if a dimension is repeated.
+ * @return 0 on success, CGRAD_ERR_STORAGE_LAYOUT_DUPLICATE_DIM if a dimension is repeated.
  */
-int cgrad_storage_layout_transpose(cgrad_storage_layout* layout, const uint32_t* perm, int ndim);
+cgrad_status cgrad_storage_layout_transpose(cgrad_storage_layout* layout, const uint32_t* perm, int ndim);
 
 // --- Info ---
 
@@ -97,14 +98,14 @@ int cgrad_storage_layout_transpose(cgrad_storage_layout* layout, const uint32_t*
  * @param l Pointer to layout.
  * @return 1 if regular, 0 otherwise.
  */
-int cgrad_storage_layout_is_regular(const cgrad_storage_layout* l);
+cgrad_status cgrad_storage_layout_is_regular(const cgrad_storage_layout* l);
 
 /**
  * @brief Returns 1 if the layout is contiguous, 0 otherwise.
  * @param l Pointer to layout.
  * @return 1 if contiguous, 0 otherwise.
  */
-int cgrad_storage_layout_is_contiguous(const cgrad_storage_layout* l);
+cgrad_status cgrad_storage_layout_is_contiguous(const cgrad_storage_layout* l);
 
 /**
  * @brief Reshape the layout to a new shape (with at most one -1 to infer dimension).
@@ -115,10 +116,10 @@ int cgrad_storage_layout_is_contiguous(const cgrad_storage_layout* l);
  * @param new_shape Array of new dimensions (length ndim, may contain one -1).
  * @param ndim Number of dimensions in new_shape (<= TENSOR_DIM).
  * @return CGRAD_SUCCESS on success,
- *         CGRAD_STORAGE_LAYOUT_ERR_RESHAPE_INVALID_SHAPE if shape is invalid,
- *         CGRAD_STORAGE_LAYOUT_ERR_NOT_REGULAR if layout is not regular.
+ *         CGRAD_ERR_STORAGE_LAYOUT_RESHAPE_INVALID_SHAPE if shape is invalid,
+ *         CGRAD_ERR_STORAGE_LAYOUT_NOT_REGULAR if layout is not regular.
  */
-int cgrad_storage_layout_reshape(cgrad_storage_layout* layout, const int32_t* new_shape, int ndim);
+cgrad_status cgrad_storage_layout_reshape(cgrad_storage_layout* layout, const int32_t* new_shape, int ndim);
 
 /**
  * @brief Print the shape of the layout in the format (d0, d1, ..., dn).
@@ -143,6 +144,6 @@ void cgrad_storage_layout_print_shape(const cgrad_storage_layout* l, int ndim);
  * @param ndim Number of dimensions in mask (<= TENSOR_DIM).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-int cgrad_storage_layout_reduce(cgrad_storage_layout* layout, const uint8_t* mask, int ndim);
+cgrad_status cgrad_storage_layout_reduce(cgrad_storage_layout* layout, const uint8_t* mask, int ndim);
 
 #endif // CGRAD_STORAGE_LAYOUT_H

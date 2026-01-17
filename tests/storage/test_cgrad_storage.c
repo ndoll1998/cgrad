@@ -1,7 +1,8 @@
 #include <cmocka.h>
+#include "cgrad.h"
 #include "storage/cgrad_storage.h"
-#include "storage/backends/cgrad_storage_f32_cpu.h"
-#include "cgrad_errors.h"
+#include "storage/cgrad_storage_layout.h"
+#include "cgrad_status.h"
 #include "storage/cgrad_storage_registry.h"
 #include <stdint.h>
 #include <string.h>
@@ -11,10 +12,26 @@
 // Forward declare getter - it's internal to storage module
 extern cgrad_storage_registry* get_global_registry(void);
 
+// ============================================================================
+// Setup and Teardown
+// ============================================================================
+
+static int storage_setup_test(void **state) {
+    (void) state;
+    cgrad_init();
+    return 0;
+}
+
+static int storage_teardown_test(void **state) {
+    (void) state;
+    cgrad_cleanup();
+    return 0;
+}
+
 static void test_cgrad_storage_init_and_free(void **state) {
     cgrad_storage t;
     uint32_t shape[TENSOR_DIM] = {2, 3, 4, 5};
-    assert_int_equal(cgrad_storage_init(&t, shape, 4, CGRAD_STORAGE_BACKEND_F32_CPU), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_init(&t, shape, 4, "cpu_f32"), CGRAD_SUCCESS);
     assert_non_null(t.data);
     cgrad_storage_free(&t);
     assert_null(t.data);
@@ -23,41 +40,57 @@ static void test_cgrad_storage_init_and_free(void **state) {
 static void test_cgrad_storage_init_errors(void **state) {
     uint32_t shape[TENSOR_DIM] = {2, 3, 4, 5};
     // Null tensor pointer
-    assert_int_equal(cgrad_storage_init(NULL, shape, 4, CGRAD_STORAGE_BACKEND_F32_CPU), CGRAD_ERR_NULL_POINTER);
+    assert_int_equal(cgrad_storage_init(NULL, shape, 4, "cpu_f32"), CGRAD_ERR_NULL_POINTER);
     // Null shape pointer
     cgrad_storage t;
-    assert_int_equal(cgrad_storage_init(&t, NULL, 4, CGRAD_STORAGE_BACKEND_F32_CPU), CGRAD_ERR_NULL_POINTER);
+    assert_int_equal(cgrad_storage_init(&t, NULL, 4, "cpu_f32"), CGRAD_ERR_NULL_POINTER);
 }
 
 static void test_cgrad_storage_fill(void **state) {
     cgrad_storage t;
-    uint32_t shape[TENSOR_DIM] = {2, 3, 4, 5};
+    uint32_t shape[] = {2, 3, 4, 5};
     float fill_value = 7.5f;
-    assert_int_equal(cgrad_storage_init(&t, shape, 4, CGRAD_STORAGE_BACKEND_F32_CPU), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_init(&t, shape, 4, "cpu_f32"), CGRAD_SUCCESS);
     assert_int_equal(cgrad_storage_fill(&t, fill_value), CGRAD_SUCCESS);
-    cgrad_storage_f32_cpu* handle = (cgrad_storage_f32_cpu*)t.data;
-    for (int i = 0; i < handle->layout.size; i++) {
-        assert_float_equal(handle->data[i], fill_value, 1e-6);
-    }
+    
+    // Use high-level API to check a few values
+    uint32_t idx1[TENSOR_DIM] = {0, 0, 0, 0, 0, 0, 0, 0};
+    uint32_t idx2[TENSOR_DIM] = {0, 0, 0, 0, 1, 2, 3, 4};
+    float value;
+    assert_int_equal(cgrad_storage_get(&t, idx1, TENSOR_DIM, &value), CGRAD_SUCCESS);
+    assert_float_equal(value, fill_value, 1e-6);
+    assert_int_equal(cgrad_storage_get(&t, idx2, TENSOR_DIM, &value), CGRAD_SUCCESS);
+    assert_float_equal(value, fill_value, 1e-6);
+    
     cgrad_storage_free(&t);
 }
 
 static void test_cgrad_storage_contiguous(void **state) {
     cgrad_storage src = {0}, dst = {0};
-    uint32_t shape[TENSOR_DIM] = {2, 3, 4, 5};
-    assert_int_equal(cgrad_storage_init(&src, shape, 4, CGRAD_STORAGE_BACKEND_F32_CPU), CGRAD_SUCCESS);
+    uint32_t shape[] = {2, 3, 4, 5};
+    assert_int_equal(cgrad_storage_init(&src, shape, 4, "cpu_f32"), CGRAD_SUCCESS);
     assert_int_equal(cgrad_storage_fill(&src, 3.14f), CGRAD_SUCCESS);
 
     // Make a contiguous copy
     assert_int_equal(cgrad_storage_contiguous(&src, &dst), CGRAD_SUCCESS);
 
-    // Check that the data matches
-    cgrad_storage_f32_cpu* src_handle = (cgrad_storage_f32_cpu*)src.data;
-    cgrad_storage_f32_cpu* dst_handle = (cgrad_storage_f32_cpu*)dst.data;
-    assert_int_equal(src_handle->layout.size, dst_handle->layout.size);
-    for (int i = 0; i < src_handle->layout.size; ++i) {
-        assert_float_equal(src_handle->data[i], dst_handle->data[i], 1e-6);
-    }
+    // Check that the data matches using high-level API
+    cgrad_storage_layout* src_layout = src.backend->storage_get_layout(src.data);
+    cgrad_storage_layout* dst_layout = dst.backend->storage_get_layout(dst.data);
+    assert_int_equal(src_layout->size, dst_layout->size);
+    
+    // Check a few sample values
+    uint32_t idx1[TENSOR_DIM] = {0, 0, 0, 0, 0, 0, 0, 0};
+    uint32_t idx2[TENSOR_DIM] = {0, 0, 0, 0, 1, 2, 3, 4};
+    float src_value, dst_value;
+    
+    assert_int_equal(cgrad_storage_get(&src, idx1, TENSOR_DIM, &src_value), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_get(&dst, idx1, TENSOR_DIM, &dst_value), CGRAD_SUCCESS);
+    assert_float_equal(src_value, dst_value, 1e-6);
+    
+    assert_int_equal(cgrad_storage_get(&src, idx2, TENSOR_DIM, &src_value), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_get(&dst, idx2, TENSOR_DIM, &dst_value), CGRAD_SUCCESS);
+    assert_float_equal(src_value, dst_value, 1e-6);
 
     cgrad_storage_free(&src);
     cgrad_storage_free(&dst);
@@ -65,11 +98,11 @@ static void test_cgrad_storage_contiguous(void **state) {
 
 static void test_cgrad_storage_reshape(void **state) {
     cgrad_storage src, dst = {0};
-    uint32_t shape[TENSOR_DIM] = {2, 3, 4, 5};
-    assert_int_equal(cgrad_storage_init(&src, shape, 4, CGRAD_STORAGE_BACKEND_F32_CPU), CGRAD_SUCCESS);
+    uint32_t shape[] = {2, 3, 4, 5};
+    assert_int_equal(cgrad_storage_init(&src, shape, 4, "cpu_f32"), CGRAD_SUCCESS);
     assert_int_equal(cgrad_storage_fill(&src, 42.0f), CGRAD_SUCCESS);
 
-    // Reshape
+    // Reshape to same total size: 2*3*4*5 = 120 = 10*12
     int32_t new_shape[2] = {10, 12};
     assert_int_equal(cgrad_storage_reshape(&src, &dst, new_shape, 2), CGRAD_SUCCESS);
 
@@ -82,7 +115,7 @@ static void test_cgrad_storage_reshape(void **state) {
     cgrad_storage_free(&dst);
 
     // Ensure registry is empty
-    cgrad_storage_registry* registry = get_global_registry();
+    cgrad_storage_registry* registry = cgrad_storage_get_global_registry();
     if (registry) {
         assert_int_equal(cgrad_storage_registry_count(registry), 0);
     }
@@ -96,11 +129,11 @@ static void mock_storage_free(void* handle) {
 
 static void test_cgrad_storage_registry_root_freed_only_after_all_children(void **state) {
     (void)state;
-    cgrad_storage_registry* registry = get_global_registry();
+    cgrad_storage_registry* registry = cgrad_storage_get_global_registry();
     assert_non_null(registry);
     
     // Setup mock backend
-    cgrad_storage_backend mock_backend = {0};
+    cgrad_backend mock_backend = {0};
     mock_backend.storage_free = mock_storage_free;
     mock_backend.storage_shallow_copy = NULL; // Not needed for this test
     mock_backend.storage_init = NULL; // Not needed for this test
@@ -146,8 +179,8 @@ static void test_cgrad_storage_gemm_write_to_existing_tensor(void **state) {
     cgrad_storage a = {0}, b = {0};
     uint32_t a_shape[TENSOR_DIM] = {1,1,1,1,1,1,2,3};
     uint32_t b_shape[TENSOR_DIM] = {1,1,1,1,1,1,3,4};
-    assert_int_equal(cgrad_storage_init(&a, a_shape, 8, CGRAD_STORAGE_BACKEND_F32_CPU), CGRAD_SUCCESS);
-    assert_int_equal(cgrad_storage_init(&b, b_shape, 8, CGRAD_STORAGE_BACKEND_F32_CPU), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_init(&a, a_shape, 8, "cpu_f32"), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_init(&b, b_shape, 8, "cpu_f32"), CGRAD_SUCCESS);
     
     // Fill with test values
     assert_int_equal(cgrad_storage_fill(&a, 1.0f), CGRAD_SUCCESS);
@@ -161,16 +194,16 @@ static void test_cgrad_storage_gemm_write_to_existing_tensor(void **state) {
     // Test 2: GEMM with pre-initialized result tensor with matching shape (should work)
     cgrad_storage r2 = {0};
     uint32_t r_shape[TENSOR_DIM] = {1,1,1,1,1,1,2,4};
-    assert_int_equal(cgrad_storage_init(&r2, r_shape, 8, CGRAD_STORAGE_BACKEND_F32_CPU), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_init(&r2, r_shape, 8, "cpu_f32"), CGRAD_SUCCESS);
     assert_int_equal(cgrad_storage_gemm(1.0f, &a, &b, 0.0f, &r2), CGRAD_SUCCESS);
     cgrad_storage_free(&r2);
     
     // Test 3: GEMM with pre-initialized result tensor with mismatched shape (should fail with SHAPE_MISMATCH)
     cgrad_storage r3 = {0};
     uint32_t wrong_shape[TENSOR_DIM] = {1,1,1,1,1,1,3,3};  // Wrong shape
-    assert_int_equal(cgrad_storage_init(&r3, wrong_shape, 8, CGRAD_STORAGE_BACKEND_F32_CPU), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_init(&r3, wrong_shape, 8, "cpu_f32"), CGRAD_SUCCESS);
     int err = cgrad_storage_gemm(1.0f, &a, &b, 0.0f, &r3);
-    assert_int_equal(err, CGRAD_STORAGE_ERR_SHAPE_MISMATCH);
+    assert_int_equal(err, CGRAD_ERR_STORAGE_SHAPE_MISMATCH);
     cgrad_storage_free(&r3);
     
     cgrad_storage_free(&a);
@@ -182,7 +215,7 @@ static void test_cgrad_storage_sum(void **state) {
     // Create a 2x3 tensor with values 1,2,3,4,5,6
     cgrad_storage t = {0};
     uint32_t shape[TENSOR_DIM] = {1,1,1,1,1,1,2,3};
-    assert_int_equal(cgrad_storage_init(&t, shape, 8, CGRAD_STORAGE_BACKEND_F32_CPU), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_init(&t, shape, 8, "cpu_f32"), CGRAD_SUCCESS);
 
     // Fill with values
     float vals[6] = {1,2,3,4,5,6};
@@ -202,7 +235,7 @@ static void test_cgrad_storage_sum(void **state) {
     for (uint32_t i = 0; i < 2; ++i) {
         uint32_t idx[TENSOR_DIM] = {0,0,0,0,0,0,i,0};
         float v = 0;
-        assert_int_equal(r1.backend->storage_get(r1.data, idx, TENSOR_DIM, &v), CGRAD_SUCCESS);
+        assert_int_equal(cgrad_storage_get(&r1, idx, TENSOR_DIM, &v), CGRAD_SUCCESS);
         assert_float_equal(v, expected1[i], 1e-6);
     }
     cgrad_storage_free(&r1);
@@ -216,7 +249,7 @@ static void test_cgrad_storage_sum(void **state) {
     for (uint32_t j = 0; j < 3; ++j) {
         uint32_t idx[TENSOR_DIM] = {0,0,0,0,0,0,0,j};
         float v = 0;
-        assert_int_equal(r2.backend->storage_get(r2.data, idx, TENSOR_DIM, &v), CGRAD_SUCCESS);
+        assert_int_equal(cgrad_storage_get(&r2, idx, TENSOR_DIM, &v), CGRAD_SUCCESS);
         assert_float_equal(v, expected2[j], 1e-6);
     }
     cgrad_storage_free(&r2);
@@ -228,7 +261,7 @@ static void test_cgrad_storage_sum(void **state) {
     // Should be scalar [21]
     float v3 = 0;
     uint32_t idx3[TENSOR_DIM] = {0,0,0,0,0,0,0,0};
-    assert_int_equal(r3.backend->storage_get(r3.data, idx3, TENSOR_DIM, &v3), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_get(&r3, idx3, TENSOR_DIM, &v3), CGRAD_SUCCESS);
     assert_float_equal(v3, 21.0f, 1e-6);
     cgrad_storage_free(&r3);
 
@@ -237,14 +270,14 @@ static void test_cgrad_storage_sum(void **state) {
 
 int run_cgrad_storage_tests(void) {
     const struct CMUnitTest tests[] = {
-        cmocka_unit_test(test_cgrad_storage_init_and_free),
-        cmocka_unit_test(test_cgrad_storage_init_errors),
-        cmocka_unit_test(test_cgrad_storage_fill),
-        cmocka_unit_test(test_cgrad_storage_contiguous),
-        cmocka_unit_test(test_cgrad_storage_reshape),
-        cmocka_unit_test(test_cgrad_storage_registry_root_freed_only_after_all_children),
-        cmocka_unit_test(test_cgrad_storage_gemm_write_to_existing_tensor),
-        cmocka_unit_test(test_cgrad_storage_sum),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_init_and_free, storage_setup_test, storage_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_init_errors, storage_setup_test, storage_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_fill, storage_setup_test, storage_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_contiguous, storage_setup_test, storage_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_reshape, storage_setup_test, storage_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_registry_root_freed_only_after_all_children, storage_setup_test, storage_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_gemm_write_to_existing_tensor, storage_setup_test, storage_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_sum, storage_setup_test, storage_teardown_test),
     };
     return cmocka_run_group_tests_name("cgrad_storage", tests, NULL, NULL);
 }

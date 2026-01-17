@@ -1,5 +1,5 @@
 #include "autograd/cgrad_ops.h"
-#include "cgrad_errors.h"
+#include "cgrad_status.h"
 #include "storage/cgrad_storage.h"
 
 /**
@@ -18,7 +18,7 @@ static int axpy_forward(
 ) {
     (void)requires_grad;  // Unused for now
     if (num_inputs != 2) {
-        return CGRAD_GRAPH_ERR_INVALID_OPERATION;
+        return CGRAD_ERR_COMPUTE_GRAPH_INVALID_OPERATION;
     }
     
     // AXPY doesn't need to cache anything for backward pass
@@ -48,7 +48,7 @@ static int add_backward(
     const int* input_requires_grad
 ) {
     if (num_inputs != 2) {
-        return CGRAD_GRAPH_ERR_INVALID_OPERATION;
+        return CGRAD_ERR_COMPUTE_GRAPH_INVALID_OPERATION;
     }
     
     int ret;

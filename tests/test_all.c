@@ -1,7 +1,7 @@
 #define TEST_ALL_MAIN
 #include "storage/test_cgrad_storage_layout.c"
 #include "storage/test_cgrad_storage.c"
-#include "storage/backends/test_cgrad_storage_f32_cpu.c"
+#include "backends/cpu/test_cgrad_backend_cpu_f32.c"
 #include "storage/test_cgrad_storage_registry.c"
 #include "autograd/test_cgrad_compute_graph.c"
 #include "autograd/test_cgrad_tensor.c"
@@ -15,7 +15,7 @@ int main(void) {
     int failed = 0;
     failed |= run_cgrad_storage_layout_tests();
     failed |= run_cgrad_storage_tests();
-    failed |= run_cgrad_storage_f32_cpu_tests();
+    failed |= run_cgrad_backend_cpu_f32_tests();
     failed |= run_cgrad_storage_registry_tests();
     failed |= run_cgrad_compute_graph_tests();
     failed |= run_cgrad_tensor_tests();
