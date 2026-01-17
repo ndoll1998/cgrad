@@ -39,7 +39,7 @@ static void test_op_reduce_sum_forward_all(void **state) {
     uint32_t shape[] = {2, 3};
     cgrad_storage a, b;
     
-    cgrad_storage_init(&a, shape, 2, "f32_cpu");
+    cgrad_storage_init(&a, shape, 2, "cpu_f32");
     cgrad_storage_fill(&a, 2.0f);
     
     // Get the REDUCE_SUM operation descriptor
@@ -81,7 +81,7 @@ static void test_op_reduce_sum_forward_last_axis(void **state) {
     uint32_t shape[] = {2, 3};
     cgrad_storage a, b;
     
-    cgrad_storage_init(&a, shape, 2, "f32_cpu");
+    cgrad_storage_init(&a, shape, 2, "cpu_f32");
     cgrad_storage_fill(&a, 1.0f);
     
     // Get the REDUCE_SUM operation descriptor
@@ -127,7 +127,7 @@ static void test_op_reduce_sum_forward_first_axis(void **state) {
     uint32_t shape[] = {2, 3};
     cgrad_storage a, b;
     
-    cgrad_storage_init(&a, shape, 2, "f32_cpu");
+    cgrad_storage_init(&a, shape, 2, "cpu_f32");
     cgrad_storage_fill(&a, 1.0f);
     
     // Get the REDUCE_SUM operation descriptor
@@ -175,8 +175,8 @@ static void test_op_reduce_sum_backward_all(void **state) {
     cgrad_storage a, b;
     cgrad_storage grad_a, grad_b;
     
-    cgrad_storage_init(&a, shape, 2, "f32_cpu");
-    cgrad_storage_init(&grad_a, shape, 2, "f32_cpu");
+    cgrad_storage_init(&a, shape, 2, "cpu_f32");
+    cgrad_storage_init(&grad_a, shape, 2, "cpu_f32");
     cgrad_storage_fill(&a, 2.0f);
     cgrad_storage_fill(&grad_a, 0.0f);
     
@@ -200,7 +200,7 @@ static void test_op_reduce_sum_backward_all(void **state) {
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Initialize gradient for output (scalar)
-    cgrad_storage_init(&grad_b, shape_reduced, 1, "f32_cpu");
+    cgrad_storage_init(&grad_b, shape_reduced, 1, "cpu_f32");
     cgrad_storage_fill(&grad_b, 1.0f);
     
     // Execute backward pass
@@ -238,8 +238,8 @@ static void test_op_reduce_sum_backward_last_axis(void **state) {
     cgrad_storage a, b;
     cgrad_storage grad_a, grad_b;
     
-    cgrad_storage_init(&a, shape, 2, "f32_cpu");
-    cgrad_storage_init(&grad_a, shape, 2, "f32_cpu");
+    cgrad_storage_init(&a, shape, 2, "cpu_f32");
+    cgrad_storage_init(&grad_a, shape, 2, "cpu_f32");
     cgrad_storage_fill(&a, 1.0f);
     cgrad_storage_fill(&grad_a, 0.0f);
     
@@ -263,7 +263,7 @@ static void test_op_reduce_sum_backward_last_axis(void **state) {
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Initialize gradient for output (reduced shape)
-    cgrad_storage_init(&grad_b, shape_reduced, 2, "f32_cpu");
+    cgrad_storage_init(&grad_b, shape_reduced, 2, "cpu_f32");
     cgrad_storage_fill(&grad_b, 1.0f);
     
     // Execute backward pass
@@ -301,7 +301,7 @@ static void test_op_reduce_sum_backward_no_grad(void **state) {
     cgrad_storage a, b;
     cgrad_storage grad_b;
     
-    cgrad_storage_init(&a, shape, 2, "f32_cpu");
+    cgrad_storage_init(&a, shape, 2, "cpu_f32");
     cgrad_storage_fill(&a, 1.0f);
     
     // Get the REDUCE_SUM operation descriptor
@@ -324,7 +324,7 @@ static void test_op_reduce_sum_backward_no_grad(void **state) {
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Initialize gradient for output
-    cgrad_storage_init(&grad_b, shape_reduced, 1, "f32_cpu");
+    cgrad_storage_init(&grad_b, shape_reduced, 1, "cpu_f32");
     cgrad_storage_fill(&grad_b, 1.0f);
     
     // Execute backward pass with no grad required

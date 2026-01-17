@@ -31,7 +31,7 @@ static int storage_teardown_test(void **state) {
 static void test_cgrad_storage_init_and_free(void **state) {
     cgrad_storage t;
     uint32_t shape[TENSOR_DIM] = {2, 3, 4, 5};
-    assert_int_equal(cgrad_storage_init(&t, shape, 4, "f32_cpu"), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_init(&t, shape, 4, "cpu_f32"), CGRAD_SUCCESS);
     assert_non_null(t.data);
     cgrad_storage_free(&t);
     assert_null(t.data);
@@ -40,17 +40,17 @@ static void test_cgrad_storage_init_and_free(void **state) {
 static void test_cgrad_storage_init_errors(void **state) {
     uint32_t shape[TENSOR_DIM] = {2, 3, 4, 5};
     // Null tensor pointer
-    assert_int_equal(cgrad_storage_init(NULL, shape, 4, "f32_cpu"), CGRAD_ERR_NULL_POINTER);
+    assert_int_equal(cgrad_storage_init(NULL, shape, 4, "cpu_f32"), CGRAD_ERR_NULL_POINTER);
     // Null shape pointer
     cgrad_storage t;
-    assert_int_equal(cgrad_storage_init(&t, NULL, 4, "f32_cpu"), CGRAD_ERR_NULL_POINTER);
+    assert_int_equal(cgrad_storage_init(&t, NULL, 4, "cpu_f32"), CGRAD_ERR_NULL_POINTER);
 }
 
 static void test_cgrad_storage_fill(void **state) {
     cgrad_storage t;
     uint32_t shape[] = {2, 3, 4, 5};
     float fill_value = 7.5f;
-    assert_int_equal(cgrad_storage_init(&t, shape, 4, "f32_cpu"), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_init(&t, shape, 4, "cpu_f32"), CGRAD_SUCCESS);
     assert_int_equal(cgrad_storage_fill(&t, fill_value), CGRAD_SUCCESS);
     
     // Use high-level API to check a few values
@@ -68,7 +68,7 @@ static void test_cgrad_storage_fill(void **state) {
 static void test_cgrad_storage_contiguous(void **state) {
     cgrad_storage src = {0}, dst = {0};
     uint32_t shape[] = {2, 3, 4, 5};
-    assert_int_equal(cgrad_storage_init(&src, shape, 4, "f32_cpu"), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_init(&src, shape, 4, "cpu_f32"), CGRAD_SUCCESS);
     assert_int_equal(cgrad_storage_fill(&src, 3.14f), CGRAD_SUCCESS);
 
     // Make a contiguous copy
@@ -99,7 +99,7 @@ static void test_cgrad_storage_contiguous(void **state) {
 static void test_cgrad_storage_reshape(void **state) {
     cgrad_storage src, dst = {0};
     uint32_t shape[] = {2, 3, 4, 5};
-    assert_int_equal(cgrad_storage_init(&src, shape, 4, "f32_cpu"), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_init(&src, shape, 4, "cpu_f32"), CGRAD_SUCCESS);
     assert_int_equal(cgrad_storage_fill(&src, 42.0f), CGRAD_SUCCESS);
 
     // Reshape to same total size: 2*3*4*5 = 120 = 10*12
@@ -133,7 +133,7 @@ static void test_cgrad_storage_registry_root_freed_only_after_all_children(void 
     assert_non_null(registry);
     
     // Setup mock backend
-    cgrad_storage_backend mock_backend = {0};
+    cgrad_backend mock_backend = {0};
     mock_backend.storage_free = mock_storage_free;
     mock_backend.storage_shallow_copy = NULL; // Not needed for this test
     mock_backend.storage_init = NULL; // Not needed for this test
@@ -179,8 +179,8 @@ static void test_cgrad_storage_gemm_write_to_existing_tensor(void **state) {
     cgrad_storage a = {0}, b = {0};
     uint32_t a_shape[TENSOR_DIM] = {1,1,1,1,1,1,2,3};
     uint32_t b_shape[TENSOR_DIM] = {1,1,1,1,1,1,3,4};
-    assert_int_equal(cgrad_storage_init(&a, a_shape, 8, "f32_cpu"), CGRAD_SUCCESS);
-    assert_int_equal(cgrad_storage_init(&b, b_shape, 8, "f32_cpu"), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_init(&a, a_shape, 8, "cpu_f32"), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_init(&b, b_shape, 8, "cpu_f32"), CGRAD_SUCCESS);
     
     // Fill with test values
     assert_int_equal(cgrad_storage_fill(&a, 1.0f), CGRAD_SUCCESS);
@@ -194,14 +194,14 @@ static void test_cgrad_storage_gemm_write_to_existing_tensor(void **state) {
     // Test 2: GEMM with pre-initialized result tensor with matching shape (should work)
     cgrad_storage r2 = {0};
     uint32_t r_shape[TENSOR_DIM] = {1,1,1,1,1,1,2,4};
-    assert_int_equal(cgrad_storage_init(&r2, r_shape, 8, "f32_cpu"), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_init(&r2, r_shape, 8, "cpu_f32"), CGRAD_SUCCESS);
     assert_int_equal(cgrad_storage_gemm(1.0f, &a, &b, 0.0f, &r2), CGRAD_SUCCESS);
     cgrad_storage_free(&r2);
     
     // Test 3: GEMM with pre-initialized result tensor with mismatched shape (should fail with SHAPE_MISMATCH)
     cgrad_storage r3 = {0};
     uint32_t wrong_shape[TENSOR_DIM] = {1,1,1,1,1,1,3,3};  // Wrong shape
-    assert_int_equal(cgrad_storage_init(&r3, wrong_shape, 8, "f32_cpu"), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_init(&r3, wrong_shape, 8, "cpu_f32"), CGRAD_SUCCESS);
     int err = cgrad_storage_gemm(1.0f, &a, &b, 0.0f, &r3);
     assert_int_equal(err, CGRAD_STORAGE_ERR_SHAPE_MISMATCH);
     cgrad_storage_free(&r3);
@@ -215,7 +215,7 @@ static void test_cgrad_storage_sum(void **state) {
     // Create a 2x3 tensor with values 1,2,3,4,5,6
     cgrad_storage t = {0};
     uint32_t shape[TENSOR_DIM] = {1,1,1,1,1,1,2,3};
-    assert_int_equal(cgrad_storage_init(&t, shape, 8, "f32_cpu"), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_init(&t, shape, 8, "cpu_f32"), CGRAD_SUCCESS);
 
     // Fill with values
     float vals[6] = {1,2,3,4,5,6};

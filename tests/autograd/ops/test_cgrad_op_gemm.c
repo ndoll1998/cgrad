@@ -42,9 +42,9 @@ static void test_op_gemm_forward(void **state) {
     uint32_t shape_c[] = {2, 2};
     cgrad_storage a, b, c;
     
-    cgrad_storage_init(&a, shape_a, 2, "f32_cpu");
-    cgrad_storage_init(&b, shape_b, 2, "f32_cpu");
-    cgrad_storage_init(&c, shape_c, 2, "f32_cpu");
+    cgrad_storage_init(&a, shape_a, 2, "cpu_f32");
+    cgrad_storage_init(&b, shape_b, 2, "cpu_f32");
+    cgrad_storage_init(&c, shape_c, 2, "cpu_f32");
     
     cgrad_storage_fill(&a, 1.0f);
     cgrad_storage_fill(&b, 2.0f);
@@ -98,12 +98,12 @@ static void test_op_gemm_backward_basic(void **state) {
     cgrad_storage a, b, c;
     cgrad_storage grad_a, grad_b, grad_c;
     
-    cgrad_storage_init(&a, shape_a, 2, "f32_cpu");
-    cgrad_storage_init(&b, shape_b, 2, "f32_cpu");
-    cgrad_storage_init(&c, shape_c, 2, "f32_cpu");
-    cgrad_storage_init(&grad_a, shape_a, 2, "f32_cpu");
-    cgrad_storage_init(&grad_b, shape_b, 2, "f32_cpu");
-    cgrad_storage_init(&grad_c, shape_c, 2, "f32_cpu");
+    cgrad_storage_init(&a, shape_a, 2, "cpu_f32");
+    cgrad_storage_init(&b, shape_b, 2, "cpu_f32");
+    cgrad_storage_init(&c, shape_c, 2, "cpu_f32");
+    cgrad_storage_init(&grad_a, shape_a, 2, "cpu_f32");
+    cgrad_storage_init(&grad_b, shape_b, 2, "cpu_f32");
+    cgrad_storage_init(&grad_c, shape_c, 2, "cpu_f32");
     
     cgrad_storage_fill(&a, 1.0f);
     cgrad_storage_fill(&b, 1.0f);
@@ -179,11 +179,11 @@ static void test_op_gemm_backward_one_no_grad(void **state) {
     cgrad_storage a, b, c;
     cgrad_storage grad_b, grad_c;
     
-    cgrad_storage_init(&a, shape_a, 2, "f32_cpu");
-    cgrad_storage_init(&b, shape_b, 2, "f32_cpu");
-    cgrad_storage_init(&c, shape_c, 2, "f32_cpu");
-    cgrad_storage_init(&grad_b, shape_b, 2, "f32_cpu");
-    cgrad_storage_init(&grad_c, shape_c, 2, "f32_cpu");
+    cgrad_storage_init(&a, shape_a, 2, "cpu_f32");
+    cgrad_storage_init(&b, shape_b, 2, "cpu_f32");
+    cgrad_storage_init(&c, shape_c, 2, "cpu_f32");
+    cgrad_storage_init(&grad_b, shape_b, 2, "cpu_f32");
+    cgrad_storage_init(&grad_c, shape_c, 2, "cpu_f32");
     
     cgrad_storage_fill(&a, 1.0f);
     cgrad_storage_fill(&b, 1.0f);
@@ -243,12 +243,12 @@ static void test_op_gemm_backward_square(void **state) {
     cgrad_storage a, b, c;
     cgrad_storage grad_a, grad_b, grad_c;
     
-    cgrad_storage_init(&a, shape, 2, "f32_cpu");
-    cgrad_storage_init(&b, shape, 2, "f32_cpu");
-    cgrad_storage_init(&c, shape, 2, "f32_cpu");
-    cgrad_storage_init(&grad_a, shape, 2, "f32_cpu");
-    cgrad_storage_init(&grad_b, shape, 2, "f32_cpu");
-    cgrad_storage_init(&grad_c, shape, 2, "f32_cpu");
+    cgrad_storage_init(&a, shape, 2, "cpu_f32");
+    cgrad_storage_init(&b, shape, 2, "cpu_f32");
+    cgrad_storage_init(&c, shape, 2, "cpu_f32");
+    cgrad_storage_init(&grad_a, shape, 2, "cpu_f32");
+    cgrad_storage_init(&grad_b, shape, 2, "cpu_f32");
+    cgrad_storage_init(&grad_c, shape, 2, "cpu_f32");
     
     cgrad_storage_fill(&a, 1.0f);
     cgrad_storage_fill(&b, 1.0f);

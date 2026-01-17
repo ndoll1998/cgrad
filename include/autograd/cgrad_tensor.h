@@ -3,8 +3,8 @@
 
 #include <uuid/uuid.h>
 #include "autograd/cgrad_compute_graph.h"
+#include "backends/cgrad_backend.h"
 #include "storage/cgrad_storage_layout.h"
-#include "storage/cgrad_storage_backend.h"
 #include "storage/cgrad_storage_registry.h"
 
 /**
@@ -90,7 +90,7 @@ int cgrad_is_grad_enabled(void);
  * @param tensor Pointer to tensor to initialize.
  * @param shape Array of dimensions (length ndim).
  * @param ndim Number of dimensions (≤ TENSOR_DIM).
- * @param backend_name Which backend to use for storage (e.g., "f32_cpu").
+ * @param backend_name Which backend to use for storage (e.g., "cpu_f32").
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
 int cgrad_tensor_init(

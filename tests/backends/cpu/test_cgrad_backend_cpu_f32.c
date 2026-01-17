@@ -10,16 +10,16 @@
 typedef struct {
     cgrad_storage_layout layout;
     float* data;
-} cgrad_storage_f32_cpu;
+} cgrad_backend_cpu_f32;
 
 #define EPSILON 1e-5
 
-static void test_cgrad_storage_f32_contiguous_swap23(void **state) {
+static void test_cgrad_backend_cpu_f32_contiguous_swap23(void **state) {
     (void)state;
     cgrad_storage t;
     uint32_t shape[] = {2, 3, 4, 5};
-    cgrad_storage_init(&t, shape, 4, "f32_cpu");
-    cgrad_storage_f32_cpu* backend_data = (cgrad_storage_f32_cpu*)t.data;
+    cgrad_storage_init(&t, shape, 4, "cpu_f32");
+    cgrad_backend_cpu_f32* backend_data = (cgrad_backend_cpu_f32*)t.data;
 
     for (int i = 0; i < 2; i++)
       for (int j = 0; j < 3; j++)
@@ -49,12 +49,12 @@ static void test_cgrad_storage_f32_contiguous_swap23(void **state) {
     cgrad_storage_free(&t);
 }
 
-static void test_cgrad_storage_f32_contiguous_swap01(void **state) {
+static void test_cgrad_backend_cpu_f32_contiguous_swap01(void **state) {
     (void)state;
     cgrad_storage t;
     uint32_t shape[] = {2, 3, 4, 5};
-    cgrad_storage_init(&t, shape, 4, "f32_cpu");
-    cgrad_storage_f32_cpu* backend_data = (cgrad_storage_f32_cpu*)t.data;
+    cgrad_storage_init(&t, shape, 4, "cpu_f32");
+    cgrad_backend_cpu_f32* backend_data = (cgrad_backend_cpu_f32*)t.data;
 
     for (int i = 0; i < 2; i++)
       for (int j = 0; j < 3; j++)
@@ -84,7 +84,7 @@ static void test_cgrad_storage_f32_contiguous_swap01(void **state) {
     cgrad_storage_free(&t);
 }
 
-static void test_cgrad_storage_f32_gemm_simple(void **state) {
+static void test_cgrad_backend_cpu_f32_gemm_simple(void **state) {
     (void)state;
     cgrad_storage a, b, c;
     uint32_t shapeA[] = {1, 1, 2, 3};
@@ -93,10 +93,10 @@ static void test_cgrad_storage_f32_gemm_simple(void **state) {
     float dataB[6] = {7, 8, 9, 10, 11, 12};
     float expected[4] = {58, 64, 139, 154};
 
-    cgrad_storage_init(&a, shapeA, 4, "f32_cpu");
-    cgrad_storage_init(&b, shapeB, 4, "f32_cpu");
-    cgrad_storage_f32_cpu* a_data = (cgrad_storage_f32_cpu*)a.data;
-    cgrad_storage_f32_cpu* b_data = (cgrad_storage_f32_cpu*)b.data;
+    cgrad_storage_init(&a, shapeA, 4, "cpu_f32");
+    cgrad_storage_init(&b, shapeB, 4, "cpu_f32");
+    cgrad_backend_cpu_f32* a_data = (cgrad_backend_cpu_f32*)a.data;
+    cgrad_backend_cpu_f32* b_data = (cgrad_backend_cpu_f32*)b.data;
 
     for (int i = 0; i < 6; i++) {
         a_data->data[i] = dataA[i];
@@ -105,8 +105,8 @@ static void test_cgrad_storage_f32_gemm_simple(void **state) {
 
     // Output shape: {1, 1, 2, 2}
     uint32_t shapeC[] = {1, 1, 2, 2};
-    cgrad_storage_init(&c, shapeC, 4, "f32_cpu");
-    cgrad_storage_f32_cpu* c_data = (cgrad_storage_f32_cpu*)c.data;
+    cgrad_storage_init(&c, shapeC, 4, "cpu_f32");
+    cgrad_backend_cpu_f32* c_data = (cgrad_backend_cpu_f32*)c.data;
 
     int err = a.backend->storage_gemm(1.0f, a.data, b.data, 0.0f, c.data);
     assert_int_equal(err, 0);
@@ -120,7 +120,7 @@ static void test_cgrad_storage_f32_gemm_simple(void **state) {
     cgrad_storage_free(&c);
 }
 
-static void test_cgrad_storage_f32_gemm_batched(void **state) {
+static void test_cgrad_backend_cpu_f32_gemm_batched(void **state) {
     (void)state;
     cgrad_storage a, b, c;
     uint32_t shape[] = {1, 2, 2, 2};
@@ -128,10 +128,10 @@ static void test_cgrad_storage_f32_gemm_batched(void **state) {
     float dataA[8] = {1,2,3,4,9,10,11,12};
     float dataB[8] = {5,6,7,8,13,14,15,16};
 
-    cgrad_storage_init(&a, shape, 4, "f32_cpu");
-    cgrad_storage_init(&b, shape, 4, "f32_cpu");
-    cgrad_storage_f32_cpu* a_data = (cgrad_storage_f32_cpu*)a.data;
-    cgrad_storage_f32_cpu* b_data = (cgrad_storage_f32_cpu*)b.data;
+    cgrad_storage_init(&a, shape, 4, "cpu_f32");
+    cgrad_storage_init(&b, shape, 4, "cpu_f32");
+    cgrad_backend_cpu_f32* a_data = (cgrad_backend_cpu_f32*)a.data;
+    cgrad_backend_cpu_f32* b_data = (cgrad_backend_cpu_f32*)b.data;
 
     for (int i = 0; i < 8; i++) {
         a_data->data[i] = dataA[i];
@@ -140,7 +140,7 @@ static void test_cgrad_storage_f32_gemm_batched(void **state) {
 
     // Output shape: {1, 2, 2, 2}
     uint32_t shapeC[] = {1, 2, 2, 2};
-    cgrad_storage_init(&c, shapeC, 4, "f32_cpu");
+    cgrad_storage_init(&c, shapeC, 4, "cpu_f32");
 
     int err = a.backend->storage_gemm(1.0f, a.data, b.data, 0.0f, c.data);
     assert_int_equal(err, 0);
@@ -150,7 +150,7 @@ static void test_cgrad_storage_f32_gemm_batched(void **state) {
     cgrad_storage_free(&c);
 }
 
-static void test_cgrad_storage_f32_gemm_with_transpose(void **state) {
+static void test_cgrad_backend_cpu_f32_gemm_with_transpose(void **state) {
     (void)state;
     cgrad_storage a, b, c;
     uint32_t shapeA[] = {1, 1, 2, 3};
@@ -159,10 +159,10 @@ static void test_cgrad_storage_f32_gemm_with_transpose(void **state) {
     float dataB[6] = {7, 8, 9, 10, 11, 12};
     float expected[9] = {39, 49, 59, 54, 68, 82, 69, 87, 105};
 
-    cgrad_storage_init(&a, shapeA, 4, "f32_cpu");
-    cgrad_storage_init(&b, shapeB, 4, "f32_cpu");
-    cgrad_storage_f32_cpu* a_data = (cgrad_storage_f32_cpu*)a.data;
-    cgrad_storage_f32_cpu* b_data = (cgrad_storage_f32_cpu*)b.data;
+    cgrad_storage_init(&a, shapeA, 4, "cpu_f32");
+    cgrad_storage_init(&b, shapeB, 4, "cpu_f32");
+    cgrad_backend_cpu_f32* a_data = (cgrad_backend_cpu_f32*)a.data;
+    cgrad_backend_cpu_f32* b_data = (cgrad_backend_cpu_f32*)b.data;
 
     for (int i = 0; i < 6; i++) {
         a_data->data[i] = dataA[i];
@@ -175,8 +175,8 @@ static void test_cgrad_storage_f32_gemm_with_transpose(void **state) {
 
     // Output shape: {1, 1, 3, 3}
     uint32_t shapeC[] = {1, 1, 3, 3};
-    cgrad_storage_init(&c, shapeC, 4, "f32_cpu");
-    cgrad_storage_f32_cpu* c_data = (cgrad_storage_f32_cpu*)c.data;
+    cgrad_storage_init(&c, shapeC, 4, "cpu_f32");
+    cgrad_backend_cpu_f32* c_data = (cgrad_backend_cpu_f32*)c.data;
 
     a.backend->storage_gemm(1.0f, a.data, b.data, 0.0f, c.data);
 
@@ -189,14 +189,14 @@ static void test_cgrad_storage_f32_gemm_with_transpose(void **state) {
     cgrad_storage_free(&c);
 }
 
-static void test_cgrad_storage_f32_tensor_add(void **state) {
+static void test_cgrad_backend_cpu_f32_tensor_add(void **state) {
     (void)state;
     cgrad_storage a, b;
     uint32_t shape[] = {2, 3, 4, 1};
-    cgrad_storage_init(&a, shape, 4, "f32_cpu");
-    cgrad_storage_init(&b, shape, 4, "f32_cpu");
-    cgrad_storage_f32_cpu* a_data = (cgrad_storage_f32_cpu*)a.data;
-    cgrad_storage_f32_cpu* b_data = (cgrad_storage_f32_cpu*)b.data;
+    cgrad_storage_init(&a, shape, 4, "cpu_f32");
+    cgrad_storage_init(&b, shape, 4, "cpu_f32");
+    cgrad_backend_cpu_f32* a_data = (cgrad_backend_cpu_f32*)a.data;
+    cgrad_backend_cpu_f32* b_data = (cgrad_backend_cpu_f32*)b.data;
 
     // Fill a and b with known values
     for (int i = 0; i < a_data->layout.size; i++) {
@@ -217,13 +217,13 @@ static void test_cgrad_storage_f32_tensor_add(void **state) {
     cgrad_storage_free(&b);
 }
 
-static void test_cgrad_storage_f32_add_with_transposed_inputs(void **state) {
+static void test_cgrad_backend_cpu_f32_add_with_transposed_inputs(void **state) {
     (void)state;
     cgrad_storage a, b;
-    cgrad_storage_init(&a, (uint32_t[]){2, 3, 4, 1}, 4, "f32_cpu");
-    cgrad_storage_init(&b, (uint32_t[]){3, 2, 4, 1}, 4, "f32_cpu");
-    cgrad_storage_f32_cpu* a_data = (cgrad_storage_f32_cpu*)a.data;
-    cgrad_storage_f32_cpu* b_data = (cgrad_storage_f32_cpu*)b.data;
+    cgrad_storage_init(&a, (uint32_t[]){2, 3, 4, 1}, 4, "cpu_f32");
+    cgrad_storage_init(&b, (uint32_t[]){3, 2, 4, 1}, 4, "cpu_f32");
+    cgrad_backend_cpu_f32* a_data = (cgrad_backend_cpu_f32*)a.data;
+    cgrad_backend_cpu_f32* b_data = (cgrad_backend_cpu_f32*)b.data;
 
     // Fill a and b with known values
     for (int i = 0; i < a_data->layout.size; i++) {
@@ -258,7 +258,7 @@ static void test_cgrad_storage_f32_add_with_transposed_inputs(void **state) {
     cgrad_storage_free(&b);
 }
 
-static void test_cgrad_storage_f32_gemm_with_transposed_inputs(void **state) {
+static void test_cgrad_backend_cpu_f32_gemm_with_transposed_inputs(void **state) {
     (void)state;
     uint32_t shapeA[] = {1, 1, 2, 3};
     uint32_t shapeB[] = {1, 1, 3, 2};
@@ -267,10 +267,10 @@ static void test_cgrad_storage_f32_gemm_with_transposed_inputs(void **state) {
     float expected[9] = {39, 49, 59, 54, 68, 82, 69, 87, 105};
 
     cgrad_storage a, b, c;
-    cgrad_storage_init(&a, shapeA, 4, "f32_cpu");
-    cgrad_storage_init(&b, shapeB, 4, "f32_cpu");
-    cgrad_storage_f32_cpu* a_data = (cgrad_storage_f32_cpu*)a.data;
-    cgrad_storage_f32_cpu* b_data = (cgrad_storage_f32_cpu*)b.data;
+    cgrad_storage_init(&a, shapeA, 4, "cpu_f32");
+    cgrad_storage_init(&b, shapeB, 4, "cpu_f32");
+    cgrad_backend_cpu_f32* a_data = (cgrad_backend_cpu_f32*)a.data;
+    cgrad_backend_cpu_f32* b_data = (cgrad_backend_cpu_f32*)b.data;
 
     for (int i = 0; i < 6; i++) {
         a_data->data[i] = dataA[i];
@@ -284,8 +284,8 @@ static void test_cgrad_storage_f32_gemm_with_transposed_inputs(void **state) {
 
     // Output shape: {1, 1, 3, 3}
     uint32_t shapeC[] = {1, 1, 3, 3};
-    cgrad_storage_init(&c, shapeC, 4, "f32_cpu");
-    cgrad_storage_f32_cpu* c_data = (cgrad_storage_f32_cpu*)c.data;
+    cgrad_storage_init(&c, shapeC, 4, "cpu_f32");
+    cgrad_backend_cpu_f32* c_data = (cgrad_backend_cpu_f32*)c.data;
 
     int err = a.backend->storage_gemm(1.0f, a.data, b.data, 0.0f, c.data);
     assert_int_equal(err, 0);
@@ -300,22 +300,22 @@ static void test_cgrad_storage_f32_gemm_with_transposed_inputs(void **state) {
     cgrad_storage_free(&c);
 }
 
-int run_cgrad_storage_f32_cpu_tests(void) {
+int run_cgrad_backend_cpu_f32_tests(void) {
     const struct CMUnitTest tests[] = {
-        cmocka_unit_test(test_cgrad_storage_f32_contiguous_swap23),
-        cmocka_unit_test(test_cgrad_storage_f32_contiguous_swap01),
-        cmocka_unit_test(test_cgrad_storage_f32_gemm_simple),
-        cmocka_unit_test(test_cgrad_storage_f32_gemm_batched),
-        cmocka_unit_test(test_cgrad_storage_f32_gemm_with_transpose),
-        cmocka_unit_test(test_cgrad_storage_f32_tensor_add),
-        cmocka_unit_test(test_cgrad_storage_f32_add_with_transposed_inputs),
-        cmocka_unit_test(test_cgrad_storage_f32_gemm_with_transposed_inputs),
+        cmocka_unit_test(test_cgrad_backend_cpu_f32_contiguous_swap23),
+        cmocka_unit_test(test_cgrad_backend_cpu_f32_contiguous_swap01),
+        cmocka_unit_test(test_cgrad_backend_cpu_f32_gemm_simple),
+        cmocka_unit_test(test_cgrad_backend_cpu_f32_gemm_batched),
+        cmocka_unit_test(test_cgrad_backend_cpu_f32_gemm_with_transpose),
+        cmocka_unit_test(test_cgrad_backend_cpu_f32_tensor_add),
+        cmocka_unit_test(test_cgrad_backend_cpu_f32_add_with_transposed_inputs),
+        cmocka_unit_test(test_cgrad_backend_cpu_f32_gemm_with_transposed_inputs),
     };
-    return cmocka_run_group_tests_name("cgrad_storage_f32_cpu", tests, NULL, NULL);
+    return cmocka_run_group_tests_name("cgrad_backend_cpu_f32", tests, NULL, NULL);
 }
 
 #ifndef TEST_ALL_MAIN
 int main(void) {
-    return run_cgrad_storage_f32_cpu_tests();
+    return run_cgrad_backend_cpu_f32_tests();
 }
 #endif

@@ -1,24 +1,28 @@
-#ifndef CGRAD_STORAGE_BACKEND_H
-#define CGRAD_STORAGE_BACKEND_H
+#ifndef CGRAD_BACKEND_H
+#define CGRAD_BACKEND_H
 
+#include "storage/cgrad_storage_layout.h"
+#include "uthash.h"
 #include <stdint.h>
 #include <stddef.h>
-#include "storage/cgrad_storage_layout.h"
 
 /**
- * @brief Enum for backend types.
+ * @file cgrad_backend.h
+ * @brief Backend interface for storage operations.
+ * 
+ * This header defines the backend interface that all storage backends must implement.
+ * Backends are responsible for managing data storage and performing operations on that data.
  */
-typedef enum {
-    CGRAD_STORAGE_BACKEND_F32_CPU = 0,
-} cgrad_storage_backend_type;
 
 /**
  * @brief Backend interface for storage operations.
  * 
  * Function pointers are grouped by logical operation type for clarity and consistency.
+ * The struct is designed to be hashable directly using uthash, with the name field
+ * serving as the hash key.
  */
-typedef struct cgrad_storage_backend {
-    const char* name;                /**< Backend name (e.g., "f32_cpu") */
+typedef struct cgrad_backend {
+    const char* name;                /**< Backend name (e.g., "cpu_f32") - hash key */
 
     /**
      * @brief Size of the backend-specific storage handle in bytes.
@@ -112,44 +116,12 @@ typedef struct cgrad_storage_backend {
      */
     void (*storage_print_data)(const void* t);
 
-    // Add more ops as needed (e.g., build_batch_array, ptr, set, contiguous, etc.)
-} cgrad_storage_backend;
+    /**
+     * @brief uthash handle for direct hashing of backend structs.
+     * This allows backends to be stored directly in the hash table without
+     * requiring a separate wrapper struct.
+     */
+    UT_hash_handle hh;
+} cgrad_backend;
 
-/**
- * @brief Register a backend in the global registry.
- * @param backend Pointer to backend to register.
- * @return 0 on success, -1 on error.
- */
-int cgrad_register_backend(cgrad_storage_backend* backend);
-
-/**
- * @brief Get the backend for a given backend name.
- * @param name Backend name (e.g., "f32_cpu").
- * @return Pointer to the backend, or NULL if not found.
- */
-cgrad_storage_backend* cgrad_get_backend(const char* name);
-
-// ============================================================================
-// Global Backend Registry Management
-// ============================================================================
-
-/**
- * @brief Initialize the global backend registry.
- * 
- * This function initializes the global backend registry.
- * It should be called once during library initialization.
- * The backend registry starts as NULL and is ready for backend registrations.
- * 
- * @return CGRAD_SUCCESS on success, error code otherwise.
- */
-int cgrad_backend_init_global_registry(void);
-
-/**
- * @brief Cleanup the backend registry.
- * 
- * This function frees all resources associated with the backend registry.
- * It should be called once during library cleanup.
- */
-void cgrad_backend_cleanup_global_registry(void);
-
-#endif // CGRAD_STORAGE_BACKEND_H
+#endif // CGRAD_BACKEND_H

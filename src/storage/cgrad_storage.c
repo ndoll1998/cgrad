@@ -1,5 +1,6 @@
-#include "storage/cgrad_storage.h"
 #include "cgrad_errors.h"
+#include "backends/cgrad_backend_registry.h"
+#include "storage/cgrad_storage.h"
 #include "storage/cgrad_storage_layout.h"
 #include "storage/cgrad_storage_registry.h"
 #include <stdlib.h>
@@ -118,7 +119,7 @@ int cgrad_storage_init(cgrad_storage* t, const uint32_t* shape, int ndim, const 
     if (!t || !shape) return CGRAD_ERR_NULL_POINTER;
 
     // Get backend
-    cgrad_storage_backend* backend = cgrad_get_backend(backend_name);
+    cgrad_backend* backend = cgrad_get_backend(backend_name);
     if (!backend) return CGRAD_STORAGE_ERR_INVALID_BACKEND;
 
     // Allocate tensor handle using the backend's handle size

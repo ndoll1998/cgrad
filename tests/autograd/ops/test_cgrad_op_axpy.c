@@ -39,9 +39,9 @@ static void test_op_axpy_forward(void **state) {
     uint32_t shape[] = {2, 2};
     cgrad_storage a, b, c;
     
-    cgrad_storage_init(&a, shape, 2, "f32_cpu");
-    cgrad_storage_init(&b, shape, 2, "f32_cpu");
-    cgrad_storage_init(&c, shape, 2, "f32_cpu");
+    cgrad_storage_init(&a, shape, 2, "cpu_f32");
+    cgrad_storage_init(&b, shape, 2, "cpu_f32");
+    cgrad_storage_init(&c, shape, 2, "cpu_f32");
     
     cgrad_storage_fill(&a, 2.0f);
     cgrad_storage_fill(&b, 3.0f);
@@ -90,12 +90,12 @@ static void test_op_axpy_backward_basic(void **state) {
     cgrad_storage a, b, c;
     cgrad_storage grad_a, grad_b, grad_c;
     
-    cgrad_storage_init(&a, shape, 2, "f32_cpu");
-    cgrad_storage_init(&b, shape, 2, "f32_cpu");
-    cgrad_storage_init(&c, shape, 2, "f32_cpu");
-    cgrad_storage_init(&grad_a, shape, 2, "f32_cpu");
-    cgrad_storage_init(&grad_b, shape, 2, "f32_cpu");
-    cgrad_storage_init(&grad_c, shape, 2, "f32_cpu");
+    cgrad_storage_init(&a, shape, 2, "cpu_f32");
+    cgrad_storage_init(&b, shape, 2, "cpu_f32");
+    cgrad_storage_init(&c, shape, 2, "cpu_f32");
+    cgrad_storage_init(&grad_a, shape, 2, "cpu_f32");
+    cgrad_storage_init(&grad_b, shape, 2, "cpu_f32");
+    cgrad_storage_init(&grad_c, shape, 2, "cpu_f32");
     
     cgrad_storage_fill(&a, 2.0f);
     cgrad_storage_fill(&b, 3.0f);
@@ -158,11 +158,11 @@ static void test_op_axpy_backward_one_no_grad(void **state) {
     cgrad_storage a, b, c;
     cgrad_storage grad_b, grad_c;
     
-    cgrad_storage_init(&a, shape, 2, "f32_cpu");
-    cgrad_storage_init(&b, shape, 2, "f32_cpu");
-    cgrad_storage_init(&c, shape, 2, "f32_cpu");
-    cgrad_storage_init(&grad_b, shape, 2, "f32_cpu");
-    cgrad_storage_init(&grad_c, shape, 2, "f32_cpu");
+    cgrad_storage_init(&a, shape, 2, "cpu_f32");
+    cgrad_storage_init(&b, shape, 2, "cpu_f32");
+    cgrad_storage_init(&c, shape, 2, "cpu_f32");
+    cgrad_storage_init(&grad_b, shape, 2, "cpu_f32");
+    cgrad_storage_init(&grad_c, shape, 2, "cpu_f32");
     
     cgrad_storage_fill(&a, 2.0f);
     cgrad_storage_fill(&b, 3.0f);
@@ -221,12 +221,12 @@ static void test_op_axpy_backward_accumulation(void **state) {
     cgrad_storage a, b, c;
     cgrad_storage grad_a, grad_b, grad_c;
     
-    cgrad_storage_init(&a, shape, 2, "f32_cpu");
-    cgrad_storage_init(&b, shape, 2, "f32_cpu");
-    cgrad_storage_init(&c, shape, 2, "f32_cpu");
-    cgrad_storage_init(&grad_a, shape, 2, "f32_cpu");
-    cgrad_storage_init(&grad_b, shape, 2, "f32_cpu");
-    cgrad_storage_init(&grad_c, shape, 2, "f32_cpu");
+    cgrad_storage_init(&a, shape, 2, "cpu_f32");
+    cgrad_storage_init(&b, shape, 2, "cpu_f32");
+    cgrad_storage_init(&c, shape, 2, "cpu_f32");
+    cgrad_storage_init(&grad_a, shape, 2, "cpu_f32");
+    cgrad_storage_init(&grad_b, shape, 2, "cpu_f32");
+    cgrad_storage_init(&grad_c, shape, 2, "cpu_f32");
     
     cgrad_storage_fill(&a, 1.0f);
     cgrad_storage_fill(&b, 2.0f);

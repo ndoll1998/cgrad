@@ -5,7 +5,7 @@
 #include <graphviz/cgraph.h>
 #include "storage/cgrad_storage_layout.h"
 #include "storage/cgrad_storage.h"
-#include "storage/cgrad_storage_backend.h"
+#include "backends/cgrad_backend.h"
 #include "uthash.h"
 
 #define MAX_NODE_INPUTS 16
@@ -98,7 +98,7 @@ typedef struct cgrad_graph_node {
     cgrad_storage* storage;            /**< For leaf: materialized eager storage; for ops: NULL or cached */
     cgrad_storage* grad_storage;       /**< Cached gradient (NULL if not computed) */
     void* ctx;                         /**< Operation context for caching intermediate results (NULL by default) */
-    const char* backend_name;          /**< Backend name of the node (e.g., "f32_cpu") */
+    const char* backend_name;          /**< Backend name of the node (e.g., "cpu_f32") */
     int ref_count;                     /**< Reference count for memory management */
     int requires_grad;                 /**< 1 if gradients should be computed, 0 otherwise */
     UT_hash_handle hh;                 /**< Hash handle for uthash */

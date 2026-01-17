@@ -29,8 +29,8 @@ int main() {
     uint32_t shape_B[] = {4, 2};  // 4x2 matrix
     
     // Create tensors
-    cgrad_tensor_init(&A, shape_A, 2, "f32_cpu");
-    cgrad_tensor_init(&B, shape_B, 2, "f32_cpu");
+    cgrad_tensor_init(&A, shape_A, 2, "cpu_f32");
+    cgrad_tensor_init(&B, shape_B, 2, "cpu_f32");
     
     // Fill with random values
     cgrad_tensor_fill_rand(&A);

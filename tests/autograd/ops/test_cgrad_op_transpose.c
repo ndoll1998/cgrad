@@ -39,7 +39,7 @@ static void test_op_transpose_forward(void **state) {
     uint32_t shape[] = {2, 3};
     cgrad_storage a, b;
     
-    cgrad_storage_init(&a, shape, 2, "f32_cpu");
+    cgrad_storage_init(&a, shape, 2, "cpu_f32");
     cgrad_storage_fill(&a, 1.0f);
     
     // Get the TRANSPOSE operation descriptor
@@ -85,8 +85,8 @@ static void test_op_transpose_backward_basic(void **state) {
     cgrad_storage a, b;
     cgrad_storage grad_a, grad_b;
     
-    cgrad_storage_init(&a, shape, 2, "f32_cpu");
-    cgrad_storage_init(&grad_a, shape, 2, "f32_cpu");
+    cgrad_storage_init(&a, shape, 2, "cpu_f32");
+    cgrad_storage_init(&grad_a, shape, 2, "cpu_f32");
     cgrad_storage_fill(&a, 1.0f);
     cgrad_storage_fill(&grad_a, 0.0f);
     
@@ -110,7 +110,7 @@ static void test_op_transpose_backward_basic(void **state) {
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Initialize gradient for output (transposed shape)
-    cgrad_storage_init(&grad_b, shape_t, 2, "f32_cpu");
+    cgrad_storage_init(&grad_b, shape_t, 2, "cpu_f32");
     cgrad_storage_fill(&grad_b, 1.0f);
     
     // Execute backward pass
@@ -149,7 +149,7 @@ static void test_op_transpose_backward_no_grad(void **state) {
     cgrad_storage a, b;
     cgrad_storage grad_b;
     
-    cgrad_storage_init(&a, shape, 2, "f32_cpu");
+    cgrad_storage_init(&a, shape, 2, "cpu_f32");
     cgrad_storage_fill(&a, 1.0f);
     
     // Get the TRANSPOSE operation descriptor
@@ -172,7 +172,7 @@ static void test_op_transpose_backward_no_grad(void **state) {
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Initialize gradient for output
-    cgrad_storage_init(&grad_b, shape_t, 2, "f32_cpu");
+    cgrad_storage_init(&grad_b, shape_t, 2, "cpu_f32");
     cgrad_storage_fill(&grad_b, 1.0f);
     
     // Execute backward pass with no grad required
@@ -198,8 +198,8 @@ static void test_op_transpose_backward_double(void **state) {
     cgrad_storage a, b, c;
     cgrad_storage grad_a, grad_b, grad_c;
     
-    cgrad_storage_init(&a, shape, 2, "f32_cpu");
-    cgrad_storage_init(&grad_a, shape, 2, "f32_cpu");
+    cgrad_storage_init(&a, shape, 2, "cpu_f32");
+    cgrad_storage_init(&grad_a, shape, 2, "cpu_f32");
     cgrad_storage_fill(&a, 1.0f);
     cgrad_storage_fill(&grad_a, 0.0f);
     
@@ -228,8 +228,8 @@ static void test_op_transpose_backward_double(void **state) {
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Initialize gradients
-    cgrad_storage_init(&grad_b, shape_t, 2, "f32_cpu");
-    cgrad_storage_init(&grad_c, shape, 2, "f32_cpu");
+    cgrad_storage_init(&grad_b, shape_t, 2, "cpu_f32");
+    cgrad_storage_init(&grad_c, shape, 2, "cpu_f32");
     cgrad_storage_fill(&grad_b, 0.0f);
     cgrad_storage_fill(&grad_c, 1.0f);
     

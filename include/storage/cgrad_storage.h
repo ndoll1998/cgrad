@@ -1,7 +1,7 @@
 #ifndef CGRAD_STORAGE_H
 #define CGRAD_STORAGE_H
 
-#include "storage/cgrad_storage_backend.h"
+#include "backends/cgrad_backend.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <uuid/uuid.h>
@@ -11,7 +11,7 @@
  */
 typedef struct cgrad_storage {
     uuid_t uuid;                        /**< Unique identifier for this storage */
-    cgrad_storage_backend* backend;     /**< Pointer to backend ops */
+    cgrad_backend* backend;     /**< Pointer to backend ops */
     void* data;                         /**< Backend-specific storage object (e.g., cgrad_tensor_f32*) */
 } cgrad_storage;
 
@@ -24,7 +24,7 @@ typedef struct cgrad_storage {
  * @param t Pointer to tensor to initialize.
  * @param shape Array of dimensions (length ndim).
  * @param ndim Number of dimensions in shape (≤ MAX_TENSOR_DIM).
- * @param backend_name Backend name to use (e.g., "f32_cpu").
+ * @param backend_name Backend name to use (e.g., "cpu_f32").
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
 int cgrad_storage_init(cgrad_storage* t, const uint32_t* shape, int ndim, const char* backend_name);

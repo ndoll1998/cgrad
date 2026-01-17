@@ -37,7 +37,7 @@ static void test_cgrad_tensor_init(void **state) {
     cgrad_tensor tensor;
     uint32_t shape[] = {2, 3};
     
-    int ret = cgrad_tensor_init(&tensor, shape, 2, "f32_cpu");
+    int ret = cgrad_tensor_init(&tensor, shape, 2, "cpu_f32");
     
     assert_int_equal(ret, CGRAD_SUCCESS);
     // Shape is stored in last dimensions of TENSOR_DIM (8)
@@ -55,7 +55,7 @@ static void test_cgrad_tensor_fill(void **state) {
     cgrad_tensor tensor;
     uint32_t shape[] = {2, 2};
     
-    cgrad_tensor_init(&tensor, shape, 2, "f32_cpu");
+    cgrad_tensor_init(&tensor, shape, 2, "cpu_f32");
     
     int ret = cgrad_tensor_fill(&tensor, 3.14f);
     assert_int_equal(ret, CGRAD_SUCCESS);
@@ -76,8 +76,8 @@ static void test_cgrad_tensor_add(void **state) {
     cgrad_tensor a, b, c;
     uint32_t shape[] = {2, 2};
     
-    cgrad_tensor_init(&a, shape, 2, "f32_cpu");
-    cgrad_tensor_init(&b, shape, 2, "f32_cpu");
+    cgrad_tensor_init(&a, shape, 2, "cpu_f32");
+    cgrad_tensor_init(&b, shape, 2, "cpu_f32");
     
     cgrad_tensor_fill(&a, 1.0f);
     cgrad_tensor_fill(&b, 2.0f);
@@ -112,8 +112,8 @@ static void test_cgrad_tensor_sub(void **state) {
     cgrad_tensor a, b, c;
     uint32_t shape[] = {2, 2};
     
-    cgrad_tensor_init(&a, shape, 2, "f32_cpu");
-    cgrad_tensor_init(&b, shape, 2, "f32_cpu");
+    cgrad_tensor_init(&a, shape, 2, "cpu_f32");
+    cgrad_tensor_init(&b, shape, 2, "cpu_f32");
     
     cgrad_tensor_fill(&a, 5.0f);
     cgrad_tensor_fill(&b, 2.0f);
@@ -143,8 +143,8 @@ static void test_cgrad_tensor_gemm(void **state) {
     uint32_t shape_a[] = {2, 3};
     uint32_t shape_b[] = {3, 2};
     
-    cgrad_tensor_init(&a, shape_a, 2, "f32_cpu");
-    cgrad_tensor_init(&b, shape_b, 2, "f32_cpu");
+    cgrad_tensor_init(&a, shape_a, 2, "cpu_f32");
+    cgrad_tensor_init(&b, shape_b, 2, "cpu_f32");
     
     cgrad_tensor_fill(&a, 1.0f);
     cgrad_tensor_fill(&b, 2.0f);
@@ -179,7 +179,7 @@ static void test_cgrad_tensor_transpose(void **state) {
     cgrad_tensor a, b;
     uint32_t shape[] = {2, 3};
     
-    cgrad_tensor_init(&a, shape, 2, "f32_cpu");
+    cgrad_tensor_init(&a, shape, 2, "cpu_f32");
     cgrad_tensor_fill(&a, 1.0f);
     
     uint32_t perm[] = {1, 0};
@@ -204,7 +204,7 @@ static void test_cgrad_tensor_reshape(void **state) {
     cgrad_tensor a, b;
     uint32_t shape[] = {2, 3};
     
-    cgrad_tensor_init(&a, shape, 2, "f32_cpu");
+    cgrad_tensor_init(&a, shape, 2, "cpu_f32");
     cgrad_tensor_fill(&a, 1.0f);
     
     int32_t new_shape[] = {3, 2};
@@ -229,7 +229,7 @@ static void test_cgrad_tensor_reduce_sum(void **state) {
     cgrad_tensor a, b;
     uint32_t shape[] = {2, 3};
     
-    cgrad_tensor_init(&a, shape, 2, "f32_cpu");
+    cgrad_tensor_init(&a, shape, 2, "cpu_f32");
     cgrad_tensor_fill(&a, 1.0f);
     
     // Reduce along axis 0
@@ -256,9 +256,9 @@ static void test_complex_graph(void **state) {
     cgrad_tensor a, b, c, d, e;
     uint32_t shape[] = {2, 2};
     
-    cgrad_tensor_init(&a, shape, 2, "f32_cpu");
-    cgrad_tensor_init(&b, shape, 2, "f32_cpu");
-    cgrad_tensor_init(&c, shape, 2, "f32_cpu");
+    cgrad_tensor_init(&a, shape, 2, "cpu_f32");
+    cgrad_tensor_init(&b, shape, 2, "cpu_f32");
+    cgrad_tensor_init(&c, shape, 2, "cpu_f32");
     
     cgrad_tensor_fill(&a, 5.0f);
     cgrad_tensor_fill(&b, 3.0f);
@@ -289,8 +289,8 @@ static void test_execution_caching(void **state) {
     cgrad_tensor a, b, c;
     uint32_t shape[] = {2, 2};
     
-    cgrad_tensor_init(&a, shape, 2, "f32_cpu");
-    cgrad_tensor_init(&b, shape, 2, "f32_cpu");
+    cgrad_tensor_init(&a, shape, 2, "cpu_f32");
+    cgrad_tensor_init(&b, shape, 2, "cpu_f32");
     
     cgrad_tensor_fill(&a, 1.0f);
     cgrad_tensor_fill(&b, 2.0f);
@@ -330,15 +330,15 @@ static void test_disconnected_components(void **state) {
     uint32_t shape[] = {2, 2};
     
     // Component 1
-    cgrad_tensor_init(&a1, shape, 2, "f32_cpu");
-    cgrad_tensor_init(&b1, shape, 2, "f32_cpu");
+    cgrad_tensor_init(&a1, shape, 2, "cpu_f32");
+    cgrad_tensor_init(&b1, shape, 2, "cpu_f32");
     cgrad_tensor_fill(&a1, 1.0f);
     cgrad_tensor_fill(&b1, 2.0f);
     cgrad_tensor_add(&a1, &b1, &c1);
     
     // Component 2 (completely disconnected from component 1)
-    cgrad_tensor_init(&a2, shape, 2, "f32_cpu");
-    cgrad_tensor_init(&b2, shape, 2, "f32_cpu");
+    cgrad_tensor_init(&a2, shape, 2, "cpu_f32");
+    cgrad_tensor_init(&b2, shape, 2, "cpu_f32");
     cgrad_tensor_fill(&a2, 10.0f);
     cgrad_tensor_fill(&b2, 20.0f);
     cgrad_tensor_add(&a2, &b2, &c2);
@@ -378,7 +378,7 @@ static void test_cgrad_tensor_from_storage(void **state) {
     cgrad_tensor a;
     uint32_t shape[] = {2, 3};
     
-    int ret = cgrad_tensor_init(&a, shape, 2, "f32_cpu");
+    int ret = cgrad_tensor_init(&a, shape, 2, "cpu_f32");
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     ret = cgrad_tensor_fill_rand(&a);
@@ -415,8 +415,8 @@ static void test_cgrad_tensor_get_gradient(void **state) {
     cgrad_tensor a, b, c;
     uint32_t shape[] = {2, 2};
     
-    cgrad_tensor_init(&a, shape, 2, "f32_cpu");
-    cgrad_tensor_init(&b, shape, 2, "f32_cpu");
+    cgrad_tensor_init(&a, shape, 2, "cpu_f32");
+    cgrad_tensor_init(&b, shape, 2, "cpu_f32");
     
     cgrad_tensor_fill(&a, 2.0f);
     cgrad_tensor_fill(&b, 3.0f);
@@ -471,8 +471,8 @@ static void test_cgrad_tensor_gradient_gemm(void **state) {
     uint32_t shape_a[] = {2, 3};
     uint32_t shape_b[] = {3, 2};
     
-    cgrad_tensor_init(&a, shape_a, 2, "f32_cpu");
-    cgrad_tensor_init(&b, shape_b, 2, "f32_cpu");
+    cgrad_tensor_init(&a, shape_a, 2, "cpu_f32");
+    cgrad_tensor_init(&b, shape_b, 2, "cpu_f32");
     
     cgrad_tensor_fill(&a, 1.0f);
     cgrad_tensor_fill(&b, 2.0f);
@@ -526,8 +526,8 @@ static void test_cgrad_tensor_get(void **state) {
     cgrad_tensor a, b, c;
     uint32_t shape[] = {2, 2};
     
-    cgrad_tensor_init(&a, shape, 2, "f32_cpu");
-    cgrad_tensor_init(&b, shape, 2, "f32_cpu");
+    cgrad_tensor_init(&a, shape, 2, "cpu_f32");
+    cgrad_tensor_init(&b, shape, 2, "cpu_f32");
     
     cgrad_tensor_fill(&a, 3.0f);
     cgrad_tensor_fill(&b, 2.0f);
@@ -561,7 +561,7 @@ static void test_cgrad_tensor_get_leaf(void **state) {
     cgrad_tensor a;
     uint32_t shape[] = {3, 3};
     
-    cgrad_tensor_init(&a, shape, 2, "f32_cpu");
+    cgrad_tensor_init(&a, shape, 2, "cpu_f32");
     cgrad_tensor_fill(&a, 7.5f);
     
     // Get value from leaf node (already materialized)
@@ -584,8 +584,8 @@ static void test_cgrad_tensor_get_complex(void **state) {
     cgrad_tensor a, b, c;
     uint32_t shape[] = {2, 2};
     
-    cgrad_tensor_init(&a, shape, 2, "f32_cpu");
-    cgrad_tensor_init(&b, shape, 2, "f32_cpu");
+    cgrad_tensor_init(&a, shape, 2, "cpu_f32");
+    cgrad_tensor_init(&b, shape, 2, "cpu_f32");
     
     cgrad_tensor_fill(&a, 10.0f);
     cgrad_tensor_fill(&b, 3.0f);
@@ -619,7 +619,7 @@ static void test_cgrad_gradient_mode_default(void **state) {
     cgrad_tensor a;
     uint32_t shape[] = {2, 2};
     
-    int ret = cgrad_tensor_init(&a, shape, 2, "f32_cpu");
+    int ret = cgrad_tensor_init(&a, shape, 2, "cpu_f32");
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     int requires_grad;
@@ -640,7 +640,7 @@ static void test_cgrad_gradient_mode_disable(void **state) {
     cgrad_tensor a;
     uint32_t shape[] = {2, 2};
     
-    ret = cgrad_tensor_init(&a, shape, 2, "f32_cpu");
+    ret = cgrad_tensor_init(&a, shape, 2, "cpu_f32");
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     int requires_grad;
@@ -662,7 +662,7 @@ static void test_cgrad_gradient_mode_toggle(void **state) {
     // Create tensor with gradients enabled
     cgrad_tensor a;
     uint32_t shape[] = {2, 2};
-    int ret = cgrad_tensor_init(&a, shape, 2, "f32_cpu");
+    int ret = cgrad_tensor_init(&a, shape, 2, "cpu_f32");
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     int requires_grad;
@@ -677,7 +677,7 @@ static void test_cgrad_gradient_mode_toggle(void **state) {
     
     // Create tensor with gradients disabled
     cgrad_tensor b;
-    ret = cgrad_tensor_init(&b, shape, 2, "f32_cpu");
+    ret = cgrad_tensor_init(&b, shape, 2, "cpu_f32");
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     ret = cgrad_tensor_get_requires_grad(&b, &requires_grad);
@@ -691,7 +691,7 @@ static void test_cgrad_gradient_mode_toggle(void **state) {
     
     // Create tensor with gradients re-enabled
     cgrad_tensor c;
-    ret = cgrad_tensor_init(&c, shape, 2, "f32_cpu");
+    ret = cgrad_tensor_init(&c, shape, 2, "cpu_f32");
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     ret = cgrad_tensor_get_requires_grad(&c, &requires_grad);
@@ -709,7 +709,7 @@ static void test_cgrad_gradient_mode_manual_override(void **state) {
     // Create tensor - should have requires_grad=0
     cgrad_tensor a;
     uint32_t shape[] = {2, 2};
-    ret = cgrad_tensor_init(&a, shape, 2, "f32_cpu");
+    ret = cgrad_tensor_init(&a, shape, 2, "cpu_f32");
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     int requires_grad;
@@ -741,9 +741,9 @@ static void test_cgrad_gradient_mode_inference(void **state) {
     cgrad_tensor a, b, c;
     uint32_t shape[] = {2, 2};
     
-    ret = cgrad_tensor_init(&a, shape, 2, "f32_cpu");
+    ret = cgrad_tensor_init(&a, shape, 2, "cpu_f32");
     assert_int_equal(ret, CGRAD_SUCCESS);
-    ret = cgrad_tensor_init(&b, shape, 2, "f32_cpu");
+    ret = cgrad_tensor_init(&b, shape, 2, "cpu_f32");
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     cgrad_tensor_fill(&a, 3.0f);
@@ -791,8 +791,8 @@ static void test_cgrad_tensor_zero_grad_specific(void **state) {
     cgrad_tensor a, b, c;
     uint32_t shape[] = {2, 2};
     
-    cgrad_tensor_init(&a, shape, 2, "f32_cpu");
-    cgrad_tensor_init(&b, shape, 2, "f32_cpu");
+    cgrad_tensor_init(&a, shape, 2, "cpu_f32");
+    cgrad_tensor_init(&b, shape, 2, "cpu_f32");
     
     cgrad_tensor_fill(&a, 2.0f);
     cgrad_tensor_fill(&b, 3.0f);
@@ -871,7 +871,7 @@ static void test_cgrad_tensor_zero_grad_no_gradient(void **state) {
     cgrad_tensor a;
     uint32_t shape[] = {2, 2};
     
-    cgrad_tensor_init(&a, shape, 2, "f32_cpu");
+    cgrad_tensor_init(&a, shape, 2, "cpu_f32");
     cgrad_tensor_fill(&a, 5.0f);
     
     // Try to zero gradient when it doesn't exist - should succeed (no-op)

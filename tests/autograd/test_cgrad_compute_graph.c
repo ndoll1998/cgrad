@@ -58,7 +58,7 @@ static void test_cgrad_compute_graph_add_leaf_node(void **state) {
     
     // Create storage
     cgrad_storage* storage = (cgrad_storage*)malloc(sizeof(cgrad_storage));
-    cgrad_storage_init(storage, shape, 2, "f32_cpu");
+    cgrad_storage_init(storage, shape, 2, "cpu_f32");
     
     // Add leaf node
     uuid_t node_id;
@@ -95,12 +95,12 @@ static void test_cgrad_compute_graph_add_op_node(void **state) {
     cgrad_storage_layout_init(&layout, shape, 2);
     
     cgrad_storage* storage1 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
-    cgrad_storage_init(storage1, shape, 2, "f32_cpu");
+    cgrad_storage_init(storage1, shape, 2, "cpu_f32");
     uuid_t leaf1_id;
     cgrad_compute_graph_add_leaf(&graph, &layout, storage1, leaf1_id);
     
     cgrad_storage* storage2 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
-    cgrad_storage_init(storage2, shape, 2, "f32_cpu");
+    cgrad_storage_init(storage2, shape, 2, "cpu_f32");
     uuid_t leaf2_id;
     cgrad_compute_graph_add_leaf(&graph, &layout, storage2, leaf2_id);
     
@@ -152,7 +152,7 @@ static void test_cgrad_compute_graph_dot_export(void **state) {
     cgrad_storage_layout_init(&layout, shape, 2);
     
     cgrad_storage* storage = (cgrad_storage*)malloc(sizeof(cgrad_storage));
-    cgrad_storage_init(storage, shape, 2, "f32_cpu");
+    cgrad_storage_init(storage, shape, 2, "cpu_f32");
     uuid_t leaf_id;
     cgrad_compute_graph_add_leaf(&graph, &layout, storage, leaf_id);
     
@@ -180,7 +180,7 @@ static void test_cgrad_compute_graph_backend_type_tracking(void **state) {
     
     // Create leaf node with F32_CPU backend
     cgrad_storage* storage = (cgrad_storage*)malloc(sizeof(cgrad_storage));
-    cgrad_storage_init(storage, shape, 2, "f32_cpu");
+    cgrad_storage_init(storage, shape, 2, "cpu_f32");
     uuid_t leaf_id;
     int ret = cgrad_compute_graph_add_leaf(&graph, &layout, storage, leaf_id);
     assert_int_equal(ret, CGRAD_SUCCESS);
@@ -189,7 +189,7 @@ static void test_cgrad_compute_graph_backend_type_tracking(void **state) {
     cgrad_graph_node* node;
     ret = cgrad_compute_graph_get_node(&graph, leaf_id, &node);
     assert_int_equal(ret, CGRAD_SUCCESS);
-    assert_string_equal(node->backend_name, "f32_cpu");
+    assert_string_equal(node->backend_name, "cpu_f32");
     
     cgrad_compute_graph_free(&graph);
 }
@@ -210,12 +210,12 @@ static void test_cgrad_compute_graph_backend_consistency_same_backend(void **sta
     cgrad_storage_layout_init(&layout, shape, 2);
     
     cgrad_storage* storage1 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
-    cgrad_storage_init(storage1, shape, 2, "f32_cpu");
+    cgrad_storage_init(storage1, shape, 2, "cpu_f32");
     uuid_t leaf1_id;
     cgrad_compute_graph_add_leaf(&graph, &layout, storage1, leaf1_id);
     
     cgrad_storage* storage2 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
-    cgrad_storage_init(storage2, shape, 2, "f32_cpu");
+    cgrad_storage_init(storage2, shape, 2, "cpu_f32");
     uuid_t leaf2_id;
     cgrad_compute_graph_add_leaf(&graph, &layout, storage2, leaf2_id);
     
@@ -234,7 +234,7 @@ static void test_cgrad_compute_graph_backend_consistency_same_backend(void **sta
     cgrad_graph_node* op_node;
     ret = cgrad_compute_graph_get_node(&graph, op_node_id, &op_node);
     assert_int_equal(ret, CGRAD_SUCCESS);
-    assert_string_equal(op_node->backend_name, "f32_cpu");
+    assert_string_equal(op_node->backend_name, "cpu_f32");
     
     cgrad_compute_graph_free(&graph);
 }
@@ -259,7 +259,7 @@ static void test_cgrad_compute_graph_refcount_leaf_node(void **state) {
     
     // Create storage
     cgrad_storage* storage = (cgrad_storage*)malloc(sizeof(cgrad_storage));
-    cgrad_storage_init(storage, shape, 2, "f32_cpu");
+    cgrad_storage_init(storage, shape, 2, "cpu_f32");
     
     // Add leaf node
     uuid_t node_id;
@@ -306,7 +306,7 @@ static void test_cgrad_compute_graph_refcount_increment_decrement(void **state) 
     
     // Create storage
     cgrad_storage* storage = (cgrad_storage*)malloc(sizeof(cgrad_storage));
-    cgrad_storage_init(storage, shape, 2, "f32_cpu");
+    cgrad_storage_init(storage, shape, 2, "cpu_f32");
     
     // Add leaf node
     uuid_t node_id;
@@ -360,12 +360,12 @@ static void test_cgrad_compute_graph_refcount_operation_nodes(void **state) {
     cgrad_storage_layout_init(&layout, shape, 2);
     
     cgrad_storage* storage1 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
-    cgrad_storage_init(storage1, shape, 2, "f32_cpu");
+    cgrad_storage_init(storage1, shape, 2, "cpu_f32");
     uuid_t leaf1_id;
     cgrad_compute_graph_add_leaf(&graph, &layout, storage1, leaf1_id);
     
     cgrad_storage* storage2 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
-    cgrad_storage_init(storage2, shape, 2, "f32_cpu");
+    cgrad_storage_init(storage2, shape, 2, "cpu_f32");
     uuid_t leaf2_id;
     cgrad_compute_graph_add_leaf(&graph, &layout, storage2, leaf2_id);
     
@@ -431,12 +431,12 @@ static void test_cgrad_compute_graph_refcount_shared_subgraph(void **state) {
     cgrad_storage_layout_init(&layout, shape, 2);
     
     cgrad_storage* storage1 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
-    cgrad_storage_init(storage1, shape, 2, "f32_cpu");
+    cgrad_storage_init(storage1, shape, 2, "cpu_f32");
     uuid_t leaf1_id;
     cgrad_compute_graph_add_leaf(&graph, &layout, storage1, leaf1_id);
     
     cgrad_storage* storage2 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
-    cgrad_storage_init(storage2, shape, 2, "f32_cpu");
+    cgrad_storage_init(storage2, shape, 2, "cpu_f32");
     uuid_t leaf2_id;
     cgrad_compute_graph_add_leaf(&graph, &layout, storage2, leaf2_id);
     
@@ -496,12 +496,12 @@ static void test_cgrad_compute_graph_refcount_complex_graph(void **state) {
     cgrad_storage_layout_init(&layout, shape, 2);
     
     cgrad_storage* storage1 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
-    cgrad_storage_init(storage1, shape, 2, "f32_cpu");
+    cgrad_storage_init(storage1, shape, 2, "cpu_f32");
     uuid_t a_id;
     cgrad_compute_graph_add_leaf(&graph, &layout, storage1, a_id);
     
     cgrad_storage* storage2 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
-    cgrad_storage_init(storage2, shape, 2, "f32_cpu");
+    cgrad_storage_init(storage2, shape, 2, "cpu_f32");
     uuid_t b_id;
     cgrad_compute_graph_add_leaf(&graph, &layout, storage2, b_id);
     
@@ -552,7 +552,7 @@ static void test_cgrad_compute_graph_backward_requires_grad_default(void **state
     cgrad_storage_layout_init(&layout, shape, 2);
     
     cgrad_storage* storage = (cgrad_storage*)malloc(sizeof(cgrad_storage));
-    cgrad_storage_init(storage, shape, 2, "f32_cpu");
+    cgrad_storage_init(storage, shape, 2, "cpu_f32");
     
     uuid_t node_id;
     int ret = cgrad_compute_graph_add_leaf(&graph, &layout, storage, node_id);
@@ -582,7 +582,7 @@ static void test_cgrad_compute_graph_backward_requires_grad_set(void **state) {
     cgrad_storage_layout_init(&layout, shape, 2);
     
     cgrad_storage* storage = (cgrad_storage*)malloc(sizeof(cgrad_storage));
-    cgrad_storage_init(storage, shape, 2, "f32_cpu");
+    cgrad_storage_init(storage, shape, 2, "cpu_f32");
     
     uuid_t node_id;
     cgrad_compute_graph_add_leaf(&graph, &layout, storage, node_id);
@@ -620,12 +620,12 @@ static void test_cgrad_compute_graph_backward_requires_grad_inheritance(void **s
     
     // Create two leaf nodes
     cgrad_storage* storage1 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
-    cgrad_storage_init(storage1, shape, 2, "f32_cpu");
+    cgrad_storage_init(storage1, shape, 2, "cpu_f32");
     uuid_t leaf1_id;
     cgrad_compute_graph_add_leaf(&graph, &layout, storage1, leaf1_id);
     
     cgrad_storage* storage2 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
-    cgrad_storage_init(storage2, shape, 2, "f32_cpu");
+    cgrad_storage_init(storage2, shape, 2, "cpu_f32");
     uuid_t leaf2_id;
     cgrad_compute_graph_add_leaf(&graph, &layout, storage2, leaf2_id);
     
@@ -666,12 +666,12 @@ static void test_cgrad_compute_graph_backward_requires_forward(void **state) {
     cgrad_storage_layout_init(&layout, shape, 2);
     
     cgrad_storage* storage1 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
-    cgrad_storage_init(storage1, shape, 2, "f32_cpu");
+    cgrad_storage_init(storage1, shape, 2, "cpu_f32");
     uuid_t leaf1_id;
     cgrad_compute_graph_add_leaf(&graph, &layout, storage1, leaf1_id);
     
     cgrad_storage* storage2 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
-    cgrad_storage_init(storage2, shape, 2, "f32_cpu");
+    cgrad_storage_init(storage2, shape, 2, "cpu_f32");
     uuid_t leaf2_id;
     cgrad_compute_graph_add_leaf(&graph, &layout, storage2, leaf2_id);
     
@@ -706,7 +706,7 @@ static void test_cgrad_compute_graph_backward_grad_storage_init(void **state) {
     cgrad_storage_layout_init(&layout, shape, 2);
     
     cgrad_storage* storage = (cgrad_storage*)malloc(sizeof(cgrad_storage));
-    cgrad_storage_init(storage, shape, 2, "f32_cpu");
+    cgrad_storage_init(storage, shape, 2, "cpu_f32");
     
     uuid_t node_id;
     cgrad_compute_graph_add_leaf(&graph, &layout, storage, node_id);
@@ -734,13 +734,13 @@ static void test_cgrad_compute_graph_backward_zero_grad(void **state) {
     cgrad_storage_layout_init(&layout, shape, 2);
     
     cgrad_storage* storage1 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
-    cgrad_storage_init(storage1, shape, 2, "f32_cpu");
+    cgrad_storage_init(storage1, shape, 2, "cpu_f32");
     cgrad_storage_fill(storage1, 1.0f);
     uuid_t leaf1_id;
     cgrad_compute_graph_add_leaf(&graph, &layout, storage1, leaf1_id);
     
     cgrad_storage* storage2 = (cgrad_storage*)malloc(sizeof(cgrad_storage));
-    cgrad_storage_init(storage2, shape, 2, "f32_cpu");
+    cgrad_storage_init(storage2, shape, 2, "cpu_f32");
     cgrad_storage_fill(storage2, 2.0f);
     uuid_t leaf2_id;
     cgrad_compute_graph_add_leaf(&graph, &layout, storage2, leaf2_id);

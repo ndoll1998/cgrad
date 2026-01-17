@@ -1,8 +1,8 @@
 #include "cgrad.h"
 #include "cgrad_errors.h"
 #include "autograd/cgrad_tensor.h"
+#include "backends/cgrad_backend_registry.h"
 #include "storage/cgrad_storage_registry.h"
-#include "storage/cgrad_storage_backend.h"
 #include <stdlib.h>
 #include <stdio.h>
 
