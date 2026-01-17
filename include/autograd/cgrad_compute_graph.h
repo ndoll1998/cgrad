@@ -384,7 +384,7 @@ cgrad_status cgrad_compute_graph_set_requires_grad(
  * @param node_id Node identifier.
  * @return Const pointer to storage, or NULL if not computed.
  */
-const cgrad_storage* cgrad_compute_graph_get_storage(
+cgrad_storage* cgrad_compute_graph_get_storage(
     const cgrad_compute_graph* graph,
     const uuid_t node_id
 );
@@ -398,7 +398,7 @@ const cgrad_storage* cgrad_compute_graph_get_storage(
  * @param node_id Node identifier.
  * @return Const pointer to gradient storage, or NULL if not available.
  */
-const cgrad_storage* cgrad_compute_graph_get_grad_storage(
+cgrad_storage* cgrad_compute_graph_get_grad_storage(
     const cgrad_compute_graph* graph,
     const uuid_t node_id
 );

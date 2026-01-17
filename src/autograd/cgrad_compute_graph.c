@@ -1064,7 +1064,7 @@ cgrad_status cgrad_compute_graph_free_node(cgrad_compute_graph* graph, cgrad_gra
     return CGRAD_SUCCESS;
 }
 
-const cgrad_storage* cgrad_compute_graph_get_storage(
+cgrad_storage* cgrad_compute_graph_get_storage(
     const cgrad_compute_graph* graph,
     const uuid_t node_id
 ) {
@@ -1081,7 +1081,7 @@ const cgrad_storage* cgrad_compute_graph_get_storage(
     return node->storage;
 }
 
-const cgrad_storage* cgrad_compute_graph_get_grad_storage(
+cgrad_storage* cgrad_compute_graph_get_grad_storage(
     const cgrad_compute_graph* graph,
     const uuid_t node_id
 ) {

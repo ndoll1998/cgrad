@@ -61,7 +61,7 @@ static void test_cgrad_tensor_fill(void **state) {
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Get storage and verify
-    const cgrad_storage* storage = cgrad_tensor_get_storage(&tensor);
+    cgrad_storage* storage = cgrad_tensor_get_storage(&tensor);
     assert_non_null(storage);
 }
 
@@ -272,7 +272,7 @@ static void test_complex_graph(void **state) {
     ret = cgrad_tensor_execute(&d);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
-    const cgrad_storage* result = cgrad_tensor_get_storage(&d);
+    cgrad_storage* result = cgrad_tensor_get_storage(&d);
     assert_non_null(result);
     
     // Expected: 5 + 3 = 8
@@ -301,14 +301,14 @@ static void test_execution_caching(void **state) {
     int ret = cgrad_tensor_execute(&c);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
-    const cgrad_storage* result1 = cgrad_tensor_get_storage(&c);
+    cgrad_storage* result1 = cgrad_tensor_get_storage(&c);
     assert_non_null(result1);
     
     // Execute again - should use cached result
     ret = cgrad_tensor_execute(&c);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
-    const cgrad_storage* result2 = cgrad_tensor_get_storage(&c);
+    cgrad_storage* result2 = cgrad_tensor_get_storage(&c);
     assert_non_null(result2);
     
     // Should be the same storage pointer (cached)
@@ -348,11 +348,11 @@ static void test_disconnected_components(void **state) {
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // c1 should be materialized
-    const cgrad_storage* storage_c1 = cgrad_tensor_get_storage(&c1);
+    cgrad_storage* storage_c1 = cgrad_tensor_get_storage(&c1);
     assert_non_null(storage_c1);
     
     // c2 should NOT be materialized (still lazy)
-    const cgrad_storage* storage_c2 = cgrad_tensor_get_storage(&c2);
+    cgrad_storage* storage_c2 = cgrad_tensor_get_storage(&c2);
     assert_null(storage_c2);
     
     // Now execute c2
@@ -385,7 +385,7 @@ static void test_cgrad_tensor_from_storage(void **state) {
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Get its storage
-    const cgrad_storage* storage = cgrad_tensor_get_storage(&a);
+    cgrad_storage* storage = cgrad_tensor_get_storage(&a);
     assert_non_null(storage);
 
     // Create a new tensor from the same storage
@@ -398,7 +398,7 @@ static void test_cgrad_tensor_from_storage(void **state) {
     assert_int_equal(tensor.layout.shape[TENSOR_DIM - 1], 3);
 
     // Verify we can get the storage back
-    const cgrad_storage* retrieved = cgrad_tensor_get_storage(&tensor);
+    cgrad_storage* retrieved = cgrad_tensor_get_storage(&tensor);
     assert_non_null(retrieved);
 
     // TODO: make sure the data matches
@@ -450,7 +450,7 @@ static void test_cgrad_tensor_get_gradient(void **state) {
     ret = cgrad_tensor_execute(&grad_a);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
-    const cgrad_storage* grad_storage = cgrad_tensor_get_storage(&grad_a);
+    cgrad_storage* grad_storage = cgrad_tensor_get_storage(&grad_a);
     assert_non_null(grad_storage);
     
     // Try to get gradient of b (should fail - requires_grad=False)
@@ -511,7 +511,7 @@ static void test_cgrad_tensor_gradient_gemm(void **state) {
     ret = cgrad_tensor_execute(&grad_a);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
-    const cgrad_storage* grad_storage = cgrad_tensor_get_storage(&grad_a);
+    cgrad_storage* grad_storage = cgrad_tensor_get_storage(&grad_a);
     assert_non_null(grad_storage);
 }
 

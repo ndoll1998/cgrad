@@ -311,7 +311,7 @@ cgrad_status cgrad_tensor_execute(cgrad_tensor* tensor);
  * @param tensor Tensor to get storage from.
  * @return Const pointer to storage, or NULL if not computed.
  */
-const cgrad_storage* cgrad_tensor_get_storage(const cgrad_tensor* tensor);
+cgrad_storage* cgrad_tensor_get_storage(const cgrad_tensor* tensor);
 
 /**
  * @brief Get the gradient storage of a tensor.
@@ -322,7 +322,7 @@ const cgrad_storage* cgrad_tensor_get_storage(const cgrad_tensor* tensor);
  * @param tensor Tensor to get gradient storage from.
  * @return Const pointer to gradient storage, or NULL if not available.
  */
-const cgrad_storage* cgrad_tensor_get_grad_storage(const cgrad_tensor* tensor);
+cgrad_storage* cgrad_tensor_get_grad_storage(const cgrad_tensor* tensor);
 
 /**
  * @brief Get a value from a tensor at the given indices.

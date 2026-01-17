@@ -551,7 +551,7 @@ cgrad_status cgrad_tensor_execute(cgrad_tensor* tensor) {
     return cgrad_compute_graph_forward(graph, tensor->node_id);
 }
 
-const cgrad_storage* cgrad_tensor_get_storage(const cgrad_tensor* tensor) {
+cgrad_storage* cgrad_tensor_get_storage(const cgrad_tensor* tensor) {
     if (tensor == NULL) {
         return NULL;
     }
@@ -564,7 +564,7 @@ const cgrad_storage* cgrad_tensor_get_storage(const cgrad_tensor* tensor) {
     return cgrad_compute_graph_get_storage(graph, tensor->node_id);
 }
 
-const cgrad_storage* cgrad_tensor_get_grad_storage(const cgrad_tensor* tensor) {
+cgrad_storage* cgrad_tensor_get_grad_storage(const cgrad_tensor* tensor) {
     if (tensor == NULL) {
         return NULL;
     }
