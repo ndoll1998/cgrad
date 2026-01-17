@@ -183,5 +183,36 @@ size_t cgrad_storage_registry_record_count(const cgrad_storage_registry_record* 
  */
 void cgrad_storage_registry_record_remove(cgrad_storage_registry_record* record, const cgrad_storage* t);
 
+// ============================================================================
+// Global Storage Registry Management
+// ============================================================================
+
+/**
+ * @brief Initialize the global storage registry.
+ * 
+ * This function allocates and initializes the global storage registry.
+ * It should be called once during library initialization.
+ * 
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_storage_init_global_registry(void);
+
+/**
+ * @brief Cleanup the global storage registry.
+ * 
+ * This function frees all resources associated with the global storage registry.
+ * It should be called once during library cleanup.
+ */
+void cgrad_storage_cleanup_global_registry(void);
+
+/**
+ * @brief Get the global storage registry.
+ * 
+ * Returns a pointer to the global storage registry. The registry must have been
+ * initialized with cgrad_storage_init_global_registry() before calling this function.
+ * 
+ * @return Pointer to the global storage registry, or NULL if not initialized.
+ */
+cgrad_storage_registry* cgrad_storage_get_global_registry(void);
 
 #endif // CGRAD_STORAGE_REGISTRY_H

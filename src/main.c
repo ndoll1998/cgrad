@@ -14,6 +14,7 @@
  * 5. Prints the gradient of A
  */
 int main() {
+    
     printf("========================================\n");
     printf("Autograd Demo: Matrix Multiplication\n");
     printf("========================================\n\n");
@@ -82,7 +83,7 @@ int main() {
     int ret = cgrad_tensor_backward(&loss);
     if (ret != 0) {
         printf("Error: Backward pass failed with code %d\n", ret);
-        cgrad_tensor_cleanup_global_graph();
+        cgrad_cleanup();
         return 1;
     }
     
@@ -119,7 +120,7 @@ int main() {
     // Cleanup
     // ========================================================================
     printf("--- Cleanup ---\n");
-    cgrad_tensor_cleanup_global_graph();
+    cgrad_cleanup();
     printf("All resources freed.\n");
 
     printf("\n========================================\n");

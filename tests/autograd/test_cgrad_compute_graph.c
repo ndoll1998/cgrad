@@ -1,4 +1,5 @@
 #include <stdarg.h>
+#include "cgrad.h"
 #include <stddef.h>
 #include <setjmp.h>
 #include <cmocka.h>
@@ -10,6 +11,22 @@
 // ============================================================================
 // Test: Graph Creation
 // ============================================================================
+
+// ============================================================================
+// Setup and Teardown
+// ============================================================================
+
+static int graph_setup_test(void **state) {
+    (void) state;
+    cgrad_init();
+    return 0;
+}
+
+static int graph_teardown_test(void **state) {
+    (void) state;
+    cgrad_cleanup();
+    return 0;
+}
 
 static void test_cgrad_compute_graph_create(void **state) {
     (void) state;
@@ -763,23 +780,23 @@ static void test_cgrad_compute_graph_backward_zero_grad(void **state) {
 
 int run_cgrad_compute_graph_tests(void) {
     const struct CMUnitTest tests[] = {
-        cmocka_unit_test(test_cgrad_compute_graph_create),
-        cmocka_unit_test(test_cgrad_compute_graph_add_leaf_node),
-        cmocka_unit_test(test_cgrad_compute_graph_add_op_node),
-        cmocka_unit_test(test_cgrad_compute_graph_dot_export),
-        cmocka_unit_test(test_cgrad_compute_graph_backend_type_tracking),
-        cmocka_unit_test(test_cgrad_compute_graph_backend_consistency_same_backend),
-        cmocka_unit_test(test_cgrad_compute_graph_refcount_leaf_node),
-        cmocka_unit_test(test_cgrad_compute_graph_refcount_increment_decrement),
-        cmocka_unit_test(test_cgrad_compute_graph_refcount_operation_nodes),
-        cmocka_unit_test(test_cgrad_compute_graph_refcount_shared_subgraph),
-        cmocka_unit_test(test_cgrad_compute_graph_refcount_complex_graph),
-        cmocka_unit_test(test_cgrad_compute_graph_backward_requires_grad_default),
-        cmocka_unit_test(test_cgrad_compute_graph_backward_requires_grad_set),
-        cmocka_unit_test(test_cgrad_compute_graph_backward_requires_grad_inheritance),
-        cmocka_unit_test(test_cgrad_compute_graph_backward_requires_forward),
-        cmocka_unit_test(test_cgrad_compute_graph_backward_grad_storage_init),
-        cmocka_unit_test(test_cgrad_compute_graph_backward_zero_grad),
+        cmocka_unit_test_setup_teardown(test_cgrad_compute_graph_create, graph_setup_test, graph_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_compute_graph_add_leaf_node, graph_setup_test, graph_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_compute_graph_add_op_node, graph_setup_test, graph_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_compute_graph_dot_export, graph_setup_test, graph_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_compute_graph_backend_type_tracking, graph_setup_test, graph_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_compute_graph_backend_consistency_same_backend, graph_setup_test, graph_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_compute_graph_refcount_leaf_node, graph_setup_test, graph_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_compute_graph_refcount_increment_decrement, graph_setup_test, graph_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_compute_graph_refcount_operation_nodes, graph_setup_test, graph_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_compute_graph_refcount_shared_subgraph, graph_setup_test, graph_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_compute_graph_refcount_complex_graph, graph_setup_test, graph_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_compute_graph_backward_requires_grad_default, graph_setup_test, graph_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_compute_graph_backward_requires_grad_set, graph_setup_test, graph_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_compute_graph_backward_requires_grad_inheritance, graph_setup_test, graph_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_compute_graph_backward_requires_forward, graph_setup_test, graph_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_compute_graph_backward_grad_storage_init, graph_setup_test, graph_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_compute_graph_backward_zero_grad, graph_setup_test, graph_teardown_test),
     };
     
     return cmocka_run_group_tests_name("cgrad_compute_graph", tests, NULL, NULL);

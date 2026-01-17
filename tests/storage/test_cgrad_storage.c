@@ -1,4 +1,5 @@
 #include <cmocka.h>
+#include "cgrad.h"
 #include "storage/cgrad_storage.h"
 #include "storage/cgrad_storage_layout.h"
 #include "cgrad_errors.h"
@@ -10,6 +11,22 @@
 
 // Forward declare getter - it's internal to storage module
 extern cgrad_storage_registry* get_global_registry(void);
+
+// ============================================================================
+// Setup and Teardown
+// ============================================================================
+
+static int storage_setup_test(void **state) {
+    (void) state;
+    cgrad_init();
+    return 0;
+}
+
+static int storage_teardown_test(void **state) {
+    (void) state;
+    cgrad_cleanup();
+    return 0;
+}
 
 static void test_cgrad_storage_init_and_free(void **state) {
     cgrad_storage t;
@@ -98,7 +115,7 @@ static void test_cgrad_storage_reshape(void **state) {
     cgrad_storage_free(&dst);
 
     // Ensure registry is empty
-    cgrad_storage_registry* registry = get_global_registry();
+    cgrad_storage_registry* registry = cgrad_storage_get_global_registry();
     if (registry) {
         assert_int_equal(cgrad_storage_registry_count(registry), 0);
     }
@@ -112,7 +129,7 @@ static void mock_storage_free(void* handle) {
 
 static void test_cgrad_storage_registry_root_freed_only_after_all_children(void **state) {
     (void)state;
-    cgrad_storage_registry* registry = get_global_registry();
+    cgrad_storage_registry* registry = cgrad_storage_get_global_registry();
     assert_non_null(registry);
     
     // Setup mock backend
@@ -253,14 +270,14 @@ static void test_cgrad_storage_sum(void **state) {
 
 int run_cgrad_storage_tests(void) {
     const struct CMUnitTest tests[] = {
-        cmocka_unit_test(test_cgrad_storage_init_and_free),
-        cmocka_unit_test(test_cgrad_storage_init_errors),
-        cmocka_unit_test(test_cgrad_storage_fill),
-        cmocka_unit_test(test_cgrad_storage_contiguous),
-        cmocka_unit_test(test_cgrad_storage_reshape),
-        cmocka_unit_test(test_cgrad_storage_registry_root_freed_only_after_all_children),
-        cmocka_unit_test(test_cgrad_storage_gemm_write_to_existing_tensor),
-        cmocka_unit_test(test_cgrad_storage_sum),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_init_and_free, storage_setup_test, storage_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_init_errors, storage_setup_test, storage_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_fill, storage_setup_test, storage_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_contiguous, storage_setup_test, storage_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_reshape, storage_setup_test, storage_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_registry_root_freed_only_after_all_children, storage_setup_test, storage_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_gemm_write_to_existing_tensor, storage_setup_test, storage_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_sum, storage_setup_test, storage_teardown_test),
     };
     return cmocka_run_group_tests_name("cgrad_storage", tests, NULL, NULL);
 }

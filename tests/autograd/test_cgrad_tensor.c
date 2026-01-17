@@ -1,4 +1,5 @@
 #include <stdarg.h>
+#include "cgrad.h"
 #include <stddef.h>
 #include <setjmp.h>
 #include <cmocka.h>
@@ -14,10 +15,15 @@
 // Setup and Teardown
 // ============================================================================
 
-static int teardown_test(void **state) {
+static int tensor_setup_test(void **state) {
     (void) state;
-    // Clean up global graph after each test
-    cgrad_tensor_cleanup_global_graph();
+    cgrad_init();
+    return 0;
+}
+
+static int tensor_teardown_test(void **state) {
+    (void) state;
+    cgrad_cleanup();
     return 0;
 }
 
@@ -879,30 +885,30 @@ static void test_cgrad_tensor_zero_grad_no_gradient(void **state) {
 
 int run_cgrad_tensor_tests(void) {
     const struct CMUnitTest tests[] = {
-        cmocka_unit_test_teardown(test_cgrad_tensor_init, teardown_test),
-        cmocka_unit_test_teardown(test_cgrad_tensor_fill, teardown_test),
-        cmocka_unit_test_teardown(test_cgrad_tensor_add, teardown_test),
-        cmocka_unit_test_teardown(test_cgrad_tensor_sub, teardown_test),
-        cmocka_unit_test_teardown(test_cgrad_tensor_gemm, teardown_test),
-        cmocka_unit_test_teardown(test_cgrad_tensor_transpose, teardown_test),
-        cmocka_unit_test_teardown(test_cgrad_tensor_reshape, teardown_test),
-        cmocka_unit_test_teardown(test_cgrad_tensor_reduce_sum, teardown_test),
-        cmocka_unit_test_teardown(test_complex_graph, teardown_test),
-        cmocka_unit_test_teardown(test_execution_caching, teardown_test),
-        cmocka_unit_test_teardown(test_disconnected_components, teardown_test),
-        cmocka_unit_test_teardown(test_cgrad_tensor_from_storage, teardown_test),
-        cmocka_unit_test_teardown(test_cgrad_tensor_get_gradient, teardown_test),
-        cmocka_unit_test_teardown(test_cgrad_tensor_gradient_gemm, teardown_test),
-        cmocka_unit_test_teardown(test_cgrad_tensor_get, teardown_test),
-        cmocka_unit_test_teardown(test_cgrad_tensor_get_leaf, teardown_test),
-        cmocka_unit_test_teardown(test_cgrad_tensor_get_complex, teardown_test),
-        cmocka_unit_test_teardown(test_cgrad_gradient_mode_default, teardown_test),
-        cmocka_unit_test_teardown(test_cgrad_gradient_mode_disable, teardown_test),
-        cmocka_unit_test_teardown(test_cgrad_gradient_mode_toggle, teardown_test),
-        cmocka_unit_test_teardown(test_cgrad_gradient_mode_manual_override, teardown_test),
-        cmocka_unit_test_teardown(test_cgrad_gradient_mode_inference, teardown_test),
-        cmocka_unit_test_teardown(test_cgrad_tensor_zero_grad_specific, teardown_test),
-        cmocka_unit_test_teardown(test_cgrad_tensor_zero_grad_no_gradient, teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_tensor_init, tensor_setup_test, tensor_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_tensor_fill, tensor_setup_test, tensor_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_tensor_add, tensor_setup_test, tensor_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_tensor_sub, tensor_setup_test, tensor_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_tensor_gemm, tensor_setup_test, tensor_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_tensor_transpose, tensor_setup_test, tensor_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_tensor_reshape, tensor_setup_test, tensor_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_tensor_reduce_sum, tensor_setup_test, tensor_teardown_test),
+        cmocka_unit_test_setup_teardown(test_complex_graph, tensor_setup_test, tensor_teardown_test),
+        cmocka_unit_test_setup_teardown(test_execution_caching, tensor_setup_test, tensor_teardown_test),
+        cmocka_unit_test_setup_teardown(test_disconnected_components, tensor_setup_test, tensor_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_tensor_from_storage, tensor_setup_test, tensor_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_tensor_get_gradient, tensor_setup_test, tensor_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_tensor_gradient_gemm, tensor_setup_test, tensor_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_tensor_get, tensor_setup_test, tensor_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_tensor_get_leaf, tensor_setup_test, tensor_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_tensor_get_complex, tensor_setup_test, tensor_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_gradient_mode_default, tensor_setup_test, tensor_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_gradient_mode_disable, tensor_setup_test, tensor_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_gradient_mode_toggle, tensor_setup_test, tensor_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_gradient_mode_manual_override, tensor_setup_test, tensor_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_gradient_mode_inference, tensor_setup_test, tensor_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_tensor_zero_grad_specific, tensor_setup_test, tensor_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_tensor_zero_grad_no_gradient, tensor_setup_test, tensor_teardown_test),
     };
     
     return cmocka_run_group_tests_name("cgrad_tensor", tests, NULL, NULL);

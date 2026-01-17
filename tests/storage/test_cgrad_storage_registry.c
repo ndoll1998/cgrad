@@ -5,11 +5,28 @@
 #include <stdlib.h>
 
 // Forward declare getter - it's internal to storage module
-extern cgrad_storage_registry* get_global_registry(void);
+// Use the public getter function instead of extern
+#include "cgrad.h"
+
+// ============================================================================
+// Setup and Teardown
+// ============================================================================
+
+static int registry_setup_test(void **state) {
+    (void) state;
+    cgrad_init();
+    return 0;
+}
+
+static int registry_teardown_test(void **state) {
+    (void) state;
+    cgrad_cleanup();
+    return 0;
+}
 
 static void test_cgrad_storage_register_root_and_find(void **state) {
     (void)state;
-    cgrad_storage_registry* registry = get_global_registry();
+    cgrad_storage_registry* registry = cgrad_storage_get_global_registry();
     assert_non_null(registry);
     
     cgrad_storage* tensor = (cgrad_storage*)malloc(sizeof(cgrad_storage));
@@ -41,12 +58,11 @@ static void test_cgrad_storage_register_root_and_find(void **state) {
     assert_int_equal(rc, CGRAD_STORAGE_REGISTRY_PARENT_NOT_REGISTERED);
 
     free(tensor);
-    cgrad_storage_cleanup_global_registry();
 }
 
 static void test_cgrad_storage_register_child_and_bucket_sharing(void **state) {
     (void)state;
-    cgrad_storage_registry* registry = get_global_registry();
+    cgrad_storage_registry* registry = cgrad_storage_get_global_registry();
     assert_non_null(registry);
     
     cgrad_storage* root = (cgrad_storage*)malloc(sizeof(cgrad_storage));
@@ -94,12 +110,11 @@ static void test_cgrad_storage_register_child_and_bucket_sharing(void **state) {
 
     free(child);
     free(root);
-    cgrad_storage_cleanup_global_registry();
 }
 
 static void test_cgrad_storage_register_with_unregistered_parent(void **state) {
     (void)state;
-    cgrad_storage_registry* registry = get_global_registry();
+    cgrad_storage_registry* registry = cgrad_storage_get_global_registry();
     assert_non_null(registry);
     
     cgrad_storage* parent = (cgrad_storage*)malloc(sizeof(cgrad_storage));
@@ -115,12 +130,11 @@ static void test_cgrad_storage_register_with_unregistered_parent(void **state) {
 
     free(child);
     free(parent);
-    cgrad_storage_cleanup_global_registry();
 }
 
 static void test_cgrad_storage_register_count(void **state) {
     (void)state;
-    cgrad_storage_registry* registry = get_global_registry();
+    cgrad_storage_registry* registry = cgrad_storage_get_global_registry();
     assert_non_null(registry);
     
     // Should be empty at start
@@ -155,12 +169,11 @@ static void test_cgrad_storage_register_count(void **state) {
 
     free(t1);
     free(t2);
-    cgrad_storage_cleanup_global_registry();
 }
 
 static void test_cgrad_storage_register_idempotency(void **state) {
     (void)state;
-    cgrad_storage_registry* registry = get_global_registry();
+    cgrad_storage_registry* registry = cgrad_storage_get_global_registry();
     assert_non_null(registry);
     
     cgrad_storage* tensor = (cgrad_storage*)malloc(sizeof(cgrad_storage));
@@ -185,18 +198,17 @@ static void test_cgrad_storage_register_idempotency(void **state) {
     assert_int_equal(rc, CGRAD_STORAGE_REGISTRY_PARENT_NOT_REGISTERED);
 
     free(tensor);
-    cgrad_storage_cleanup_global_registry();
 }
 
 static void test_cgrad_storage_registry_tracker_basic(void **state) {
     (void)state;
-    cgrad_storage_registry* registry = get_global_registry();
+    cgrad_storage_registry* registry = cgrad_storage_get_global_registry();
     assert_non_null(registry);
     
     // Start tracking
     cgrad_storage_registry_record* record = cgrad_storage_registry_start_recording(registry);
-assert_non_null(record);
-assert_int_equal(cgrad_storage_registry_record_count(record), 0);
+    assert_non_null(record);
+    assert_int_equal(cgrad_storage_registry_record_count(record), 0);
     
     // Register some storages
     cgrad_storage s1 = {0}, s2 = {0}, s3 = {0};
@@ -237,14 +249,11 @@ assert_int_equal(cgrad_storage_registry_record_count(record), 0);
     cgrad_storage_registry_deregister(registry, &s2);
     cgrad_storage_registry_deregister(registry, &s3);
     cgrad_storage_registry_deregister(registry, &s4);
-    
-    // Cleanup
-    cgrad_storage_cleanup_global_registry();
 }
 
 static void test_cgrad_storage_registry_tracker_nested(void **state) {
     (void)state;
-    cgrad_storage_registry* registry = get_global_registry();
+    cgrad_storage_registry* registry = cgrad_storage_get_global_registry();
     assert_non_null(registry);
     
     // Start first tracker
@@ -296,20 +305,17 @@ static void test_cgrad_storage_registry_tracker_nested(void **state) {
     cgrad_storage_registry_deregister(registry, &s3);
     cgrad_storage_registry_deregister(registry, &s4);
     // No further access to record1->entries or record2->entries after records are stopped
-    
-    // Cleanup
-    cgrad_storage_cleanup_global_registry();
 }
 
 int run_cgrad_storage_registry_tests(void) {
     const struct CMUnitTest tests[] = {
-        cmocka_unit_test(test_cgrad_storage_register_root_and_find),
-        cmocka_unit_test(test_cgrad_storage_register_child_and_bucket_sharing),
-        cmocka_unit_test(test_cgrad_storage_register_with_unregistered_parent),
-        cmocka_unit_test(test_cgrad_storage_register_count),
-        cmocka_unit_test(test_cgrad_storage_register_idempotency),
-        cmocka_unit_test(test_cgrad_storage_registry_tracker_basic),
-        cmocka_unit_test(test_cgrad_storage_registry_tracker_nested),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_register_root_and_find, registry_setup_test, registry_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_register_child_and_bucket_sharing, registry_setup_test, registry_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_register_with_unregistered_parent, registry_setup_test, registry_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_register_count, registry_setup_test, registry_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_register_idempotency, registry_setup_test, registry_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_registry_tracker_basic, registry_setup_test, registry_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_registry_tracker_nested, registry_setup_test, registry_teardown_test),
     };
     return cmocka_run_group_tests_name("cgrad_storage_registry", tests, NULL, NULL);
 }

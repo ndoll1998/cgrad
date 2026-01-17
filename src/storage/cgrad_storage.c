@@ -14,25 +14,27 @@
 static cgrad_storage_registry* g_global_registry = NULL;
 
 /**
- * @brief Get or create the global storage registry.
- * This is exposed for testing purposes.
+ * @brief Initialize the global storage registry.
  */
-cgrad_storage_registry* get_global_registry(void) {
-    if (g_global_registry == NULL) {
-        g_global_registry = (cgrad_storage_registry*)malloc(sizeof(cgrad_storage_registry));
-        if (g_global_registry == NULL) {
-            return NULL;
-        }
-        
-        int err = cgrad_storage_registry_init(g_global_registry);
-        if (err != CGRAD_SUCCESS) {
-            free(g_global_registry);
-            g_global_registry = NULL;
-            return NULL;
-        }
+int cgrad_storage_init_global_registry(void) {
+    if (g_global_registry != NULL) {
+        // Already initialized
+        return CGRAD_SUCCESS;
     }
     
-    return g_global_registry;
+    g_global_registry = (cgrad_storage_registry*)malloc(sizeof(cgrad_storage_registry));
+    if (g_global_registry == NULL) {
+        return CGRAD_STORAGE_REGISTRY_ALLOC_FAILED;
+    }
+    
+    int err = cgrad_storage_registry_init(g_global_registry);
+    if (err != CGRAD_SUCCESS) {
+        free(g_global_registry);
+        g_global_registry = NULL;
+        return err;
+    }
+    
+    return CGRAD_SUCCESS;
 }
 
 /**
@@ -44,6 +46,21 @@ void cgrad_storage_cleanup_global_registry(void) {
         free(g_global_registry);
         g_global_registry = NULL;
     }
+}
+
+/**
+ * @brief Get the global storage registry.
+ */
+cgrad_storage_registry* cgrad_storage_get_global_registry(void) {
+    return g_global_registry;
+}
+
+/**
+ * @brief Get or create the global storage registry (private helper).
+ * This is for internal use only and maintains backward compatibility.
+ */
+static cgrad_storage_registry* get_global_registry(void) {
+    return g_global_registry;
 }
 
 // ============================================================================

@@ -41,29 +41,31 @@ int cgrad_is_grad_enabled(void) {
 static cgrad_compute_graph* g_global_graph = NULL;
 
 /**
- * @brief Get or create the global compute graph.
+ * @brief Initialize the global compute graph.
  */
-static cgrad_compute_graph* get_global_graph(void) {
-    if (g_global_graph == NULL) {
-        g_global_graph = (cgrad_compute_graph*)malloc(sizeof(cgrad_compute_graph));
-        if (g_global_graph == NULL) {
-            return NULL;
-        }
-        
-        int ret = cgrad_compute_graph_create(g_global_graph);
-        if (ret != CGRAD_SUCCESS) {
-            free(g_global_graph);
-            g_global_graph = NULL;
-            return NULL;
-        }
+int cgrad_tensor_init_global_graph(void) {
+    if (g_global_graph != NULL) {
+        // Already initialized
+        return CGRAD_SUCCESS;
     }
     
-    return g_global_graph;
+    g_global_graph = (cgrad_compute_graph*)malloc(sizeof(cgrad_compute_graph));
+    if (g_global_graph == NULL) {
+        return CGRAD_GRAPH_ERR_ALLOC_FAILED;
+    }
+    
+    int ret = cgrad_compute_graph_create(g_global_graph);
+    if (ret != CGRAD_SUCCESS) {
+        free(g_global_graph);
+        g_global_graph = NULL;
+        return ret;
+    }
+    
+    return CGRAD_SUCCESS;
 }
 
 /**
- * @brief Free the global compute graph.
- * This should be called at program shutdown.
+ * @brief Cleanup the global compute graph.
  */
 void cgrad_tensor_cleanup_global_graph(void) {
     if (g_global_graph != NULL) {
@@ -71,6 +73,14 @@ void cgrad_tensor_cleanup_global_graph(void) {
         free(g_global_graph);
         g_global_graph = NULL;
     }
+}
+
+/**
+ * @brief Get or create the global compute graph (private helper).
+ * This is for internal use only and maintains backward compatibility.
+ */
+static cgrad_compute_graph* get_global_graph(void) {
+    return g_global_graph;
 }
 
 // ============================================================================

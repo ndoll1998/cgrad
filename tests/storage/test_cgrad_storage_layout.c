@@ -1,8 +1,29 @@
 #include <cmocka.h>
+#include "cgrad.h"
 #include "storage/cgrad_storage_layout.h"
 #include "cgrad_errors.h"
 #include <stdint.h>
 #include <string.h>
+
+// ============================================================================
+// Setup and Teardown
+// ============================================================================
+
+static int layout_setup_test(void **state) {
+    (void) state;
+    cgrad_init();
+    return 0;
+}
+
+static int layout_teardown_test(void **state) {
+    (void) state;
+    cgrad_cleanup();
+    return 0;
+}
+
+// ============================================================================
+// Tests
+// ============================================================================
 
 static void test_cgrad_storage_layout_init_and_copy(void **state) {
     (void)state;
@@ -328,18 +349,22 @@ static void test_cgrad_storage_layout_reduce(void **state) {
     assert_int_equal(cgrad_storage_layout_reduce(&l, mask1, TENSOR_DIM + 1), CGRAD_STORAGE_LAYOUT_ERR_SHAPE_MISMATCH);
 }
 
+// ============================================================================
+// Test Suite
+// ============================================================================
+
 int run_cgrad_storage_layout_tests(void) {
     const struct CMUnitTest tests[] = {
-        cmocka_unit_test(test_cgrad_storage_layout_init_and_copy),
-        cmocka_unit_test(test_cgrad_storage_layout_flat_index),
-        cmocka_unit_test(test_cgrad_storage_layout_transpose),
-        cmocka_unit_test(test_cgrad_storage_layout_is_contiguous),
-        cmocka_unit_test(test_cgrad_storage_layout_transpose_duplicate_dim),
-        cmocka_unit_test(test_cgrad_storage_layout_is_regular),
-        cmocka_unit_test(test_cgrad_storage_layout_partial_shape_and_index),
-        cmocka_unit_test(test_cgrad_storage_layout_partial_transpose),
-        cmocka_unit_test(test_cgrad_storage_layout_reshape),
-        cmocka_unit_test(test_cgrad_storage_layout_reduce),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_layout_init_and_copy, layout_setup_test, layout_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_layout_flat_index, layout_setup_test, layout_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_layout_transpose, layout_setup_test, layout_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_layout_is_contiguous, layout_setup_test, layout_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_layout_transpose_duplicate_dim, layout_setup_test, layout_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_layout_is_regular, layout_setup_test, layout_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_layout_partial_shape_and_index, layout_setup_test, layout_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_layout_partial_transpose, layout_setup_test, layout_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_layout_reshape, layout_setup_test, layout_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_layout_reduce, layout_setup_test, layout_teardown_test),
     };
     return cmocka_run_group_tests_name("cgrad_storage_layout", tests, NULL, NULL);
 }

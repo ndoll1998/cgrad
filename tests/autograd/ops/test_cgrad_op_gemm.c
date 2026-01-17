@@ -1,4 +1,5 @@
 #include <stdarg.h>
+#include "cgrad.h"
 #include <stddef.h>
 #include <setjmp.h>
 #include <cmocka.h>
@@ -13,41 +14,18 @@
 #define OP_GEMM_EPSILON 1e-4f
 
 // ============================================================================
-// Helper Functions
-// ============================================================================
-
-static float op_gemm_get_storage_value(cgrad_storage* storage, int idx) {
-    // Convert linear index to multi-dimensional indices
-    cgrad_storage_layout* layout = storage->backend->storage_get_layout(storage->data);
-    uint32_t indices[TENSOR_DIM];
-    int remaining = idx;
-    
-    // Calculate strides for row-major order
-    for (int i = TENSOR_DIM - 1; i >= 0; i--) {
-        int stride = 1;
-        for (int j = i + 1; j < TENSOR_DIM; j++) {
-            stride *= layout->shape[j];
-        }
-        indices[i] = remaining / stride;
-        remaining %= stride;
-    }
-    
-    float value;
-    cgrad_storage_get(storage, indices, TENSOR_DIM, &value);
-    return value;
-}
-
-static int op_gemm_approx_equal(float a, float b, float eps) {
-    return fabsf(a - b) < eps;
-}
-
-// ============================================================================
 // Setup and Teardown
 // ============================================================================
 
-static int op_gemm_teardown_test(void **state) {
+static int gemm_setup_test(void **state) {
     (void) state;
-    cgrad_storage_cleanup_global_registry();
+    cgrad_init();
+    return 0;
+}
+
+static int gemm_teardown_test(void **state) {
+    (void) state;
+    cgrad_cleanup();
     return 0;
 }
 
@@ -90,8 +68,15 @@ static void test_op_gemm_forward(void **state) {
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Each element = sum of 3 products of 1*2 = 6
-    for (int i = 0; i < 4; i++) {
-        assert_true(op_gemm_approx_equal(op_gemm_get_storage_value(&c, i), 6.0f, OP_GEMM_EPSILON));
+    // Check all 4 elements of 2x2 result
+    float value;
+    uint32_t idx[2];
+    for (uint32_t i = 0; i < 2; i++) {
+        for (uint32_t j = 0; j < 2; j++) {
+            idx[0] = i; idx[1] = j;
+            cgrad_storage_get(&c, idx, 2, &value);
+            assert_true(fabsf(value - 6.0f) < OP_GEMM_EPSILON);
+        }
     }
     
     cgrad_storage_free(&a);
@@ -153,14 +138,24 @@ static void test_op_gemm_backward_basic(void **state) {
     // For C = A @ B with all 1s:
     // grad_A = grad_C @ B^T, where grad_C is all 1s and B^T is 2x3 of 1s
     // So grad_A should be 2x3 with each element = 2
-    for (int i = 0; i < 6; i++) {
-        assert_true(op_gemm_approx_equal(op_gemm_get_storage_value(&grad_a, i), 2.0f, OP_GEMM_EPSILON));
+    float value;
+    uint32_t idx[2];
+    for (uint32_t i = 0; i < 2; i++) {
+        for (uint32_t j = 0; j < 3; j++) {
+            idx[0] = i; idx[1] = j;
+            cgrad_storage_get(&grad_a, idx, 2, &value);
+            assert_true(fabsf(value - 2.0f) < OP_GEMM_EPSILON);
+        }
     }
     
     // grad_B = A^T @ grad_C, where A^T is 3x2 of 1s and grad_C is 2x2 of 1s
     // So grad_B should be 3x2 with each element = 2
-    for (int i = 0; i < 6; i++) {
-        assert_true(op_gemm_approx_equal(op_gemm_get_storage_value(&grad_b, i), 2.0f, OP_GEMM_EPSILON));
+    for (uint32_t i = 0; i < 3; i++) {
+        for (uint32_t j = 0; j < 2; j++) {
+            idx[0] = i; idx[1] = j;
+            cgrad_storage_get(&grad_b, idx, 2, &value);
+            assert_true(fabsf(value - 2.0f) < OP_GEMM_EPSILON);
+        }
     }
     
     cgrad_storage_free(&a);
@@ -219,9 +214,15 @@ static void test_op_gemm_backward_one_no_grad(void **state) {
     ret = op_desc->backward(inputs, 2, &c, &grad_c, &metadata, ctx, grad_inputs, input_requires_grad);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
-    // b should have gradient
-    for (int i = 0; i < 6; i++) {
-        assert_true(op_gemm_approx_equal(op_gemm_get_storage_value(&grad_b, i), 2.0f, OP_GEMM_EPSILON));
+    // b should have gradient (3x2 with each element = 2)
+    float value;
+    uint32_t idx[2];
+    for (uint32_t i = 0; i < 3; i++) {
+        for (uint32_t j = 0; j < 2; j++) {
+            idx[0] = i; idx[1] = j;
+            cgrad_storage_get(&grad_b, idx, 2, &value);
+            assert_true(fabsf(value - 2.0f) < OP_GEMM_EPSILON);
+        }
     }
     
     cgrad_storage_free(&a);
@@ -281,9 +282,16 @@ static void test_op_gemm_backward_square(void **state) {
     
     // For 3x3 matrices of 1s:
     // grad_A = grad_C @ B^T = 3x3 of 1s @ 3x3 of 1s = 3x3 of 3s
-    for (int i = 0; i < 9; i++) {
-        assert_true(op_gemm_approx_equal(op_gemm_get_storage_value(&grad_a, i), 3.0f, OP_GEMM_EPSILON));
-        assert_true(op_gemm_approx_equal(op_gemm_get_storage_value(&grad_b, i), 3.0f, OP_GEMM_EPSILON));
+    float value;
+    uint32_t idx[2];
+    for (uint32_t i = 0; i < 3; i++) {
+        for (uint32_t j = 0; j < 3; j++) {
+            idx[0] = i; idx[1] = j;
+            cgrad_storage_get(&grad_a, idx, 2, &value);
+            assert_true(fabsf(value - 3.0f) < OP_GEMM_EPSILON);
+            cgrad_storage_get(&grad_b, idx, 2, &value);
+            assert_true(fabsf(value - 3.0f) < OP_GEMM_EPSILON);
+        }
     }
     
     cgrad_storage_free(&a);
@@ -300,10 +308,10 @@ static void test_op_gemm_backward_square(void **state) {
 
 int run_cgrad_op_gemm_tests(void) {
     const struct CMUnitTest tests[] = {
-        cmocka_unit_test_teardown(test_op_gemm_forward, op_gemm_teardown_test),
-        cmocka_unit_test_teardown(test_op_gemm_backward_basic, op_gemm_teardown_test),
-        cmocka_unit_test_teardown(test_op_gemm_backward_one_no_grad, op_gemm_teardown_test),
-        cmocka_unit_test_teardown(test_op_gemm_backward_square, op_gemm_teardown_test),
+        cmocka_unit_test_setup_teardown(test_op_gemm_forward, gemm_setup_test, gemm_teardown_test),
+        cmocka_unit_test_setup_teardown(test_op_gemm_backward_basic, gemm_setup_test, gemm_teardown_test),
+        cmocka_unit_test_setup_teardown(test_op_gemm_backward_one_no_grad, gemm_setup_test, gemm_teardown_test),
+        cmocka_unit_test_setup_teardown(test_op_gemm_backward_square, gemm_setup_test, gemm_teardown_test),
     };
     
     return cmocka_run_group_tests_name("cgrad_op_gemm", tests, NULL, NULL);

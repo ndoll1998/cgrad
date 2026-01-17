@@ -142,11 +142,25 @@ int cgrad_tensor_free(cgrad_tensor* tensor);
  */
 int cgrad_tensor_from_storage(cgrad_storage* storage, cgrad_tensor* tensor);
 
+// ============================================================================
+// Global Compute Graph Management
+// ============================================================================
+
+/**
+ * @brief Initialize the global compute graph.
+ * 
+ * This function allocates and initializes the global compute graph.
+ * It should be called once during library initialization.
+ * 
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_tensor_init_global_graph(void);
+
 /**
  * @brief Cleanup the global compute graph.
  * 
- * This should be called at program shutdown to free all graph resources.
- * After calling this, no tensor operations should be performed.
+ * This function frees all resources associated with the global compute graph.
+ * It should be called once during library cleanup.
  */
 void cgrad_tensor_cleanup_global_graph(void);
 

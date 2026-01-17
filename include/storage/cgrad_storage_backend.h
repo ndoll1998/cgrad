@@ -129,10 +129,27 @@ int cgrad_register_backend(cgrad_storage_backend* backend);
  */
 cgrad_storage_backend* cgrad_get_backend(const char* name);
 
+// ============================================================================
+// Global Backend Registry Management
+// ============================================================================
+
+/**
+ * @brief Initialize the global backend registry.
+ * 
+ * This function initializes the global backend registry.
+ * It should be called once during library initialization.
+ * The backend registry starts as NULL and is ready for backend registrations.
+ * 
+ * @return CGRAD_SUCCESS on success, error code otherwise.
+ */
+int cgrad_backend_init_global_registry(void);
+
 /**
  * @brief Cleanup the backend registry.
- * Should be called at program shutdown.
+ * 
+ * This function frees all resources associated with the backend registry.
+ * It should be called once during library cleanup.
  */
-void cgrad_cleanup_backend_registry(void);
+void cgrad_backend_cleanup_global_registry(void);
 
 #endif // CGRAD_STORAGE_BACKEND_H

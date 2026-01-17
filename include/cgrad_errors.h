@@ -4,11 +4,6 @@
 /**
  * @file cgrad_errors.h
  * @brief Error code definitions for the cgrad tensor library.
- *
- * Error codes are grouped by subsystem:
- * - General tensor errors: -1000s
- * - Layout/broadcasting errors: -1500s
- * - Backend-specific errors: -2000s and above
  * 
  * All error codes are negative; CGRAD_SUCCESS is 0.
  */
@@ -19,6 +14,7 @@
 // General errors
 #define CGRAD_ERR_NOT_IMPLEMENTED                       -1001
 #define CGRAD_ERR_NULL_POINTER                          -1002
+#define CGRAD_ERR_NOT_INITIALIZED                       -1003
 
 // Storage errors
 #define CGRAD_STORAGE_ERR_BACKEND_MISMATCH              -1101

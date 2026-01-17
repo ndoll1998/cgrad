@@ -1,4 +1,5 @@
 #include <stdarg.h>
+#include "cgrad.h"
 #include <stddef.h>
 #include <setjmp.h>
 #include <cmocka.h>
@@ -13,41 +14,18 @@
 #define OP_REDUCE_SUM_EPSILON 1e-4f
 
 // ============================================================================
-// Helper Functions
-// ============================================================================
-
-static float op_reduce_sum_get_storage_value(cgrad_storage* storage, int idx) {
-    // Convert linear index to multi-dimensional indices
-    cgrad_storage_layout* layout = storage->backend->storage_get_layout(storage->data);
-    uint32_t indices[TENSOR_DIM];
-    int remaining = idx;
-    
-    // Calculate strides for row-major order
-    for (int i = TENSOR_DIM - 1; i >= 0; i--) {
-        int stride = 1;
-        for (int j = i + 1; j < TENSOR_DIM; j++) {
-            stride *= layout->shape[j];
-        }
-        indices[i] = remaining / stride;
-        remaining %= stride;
-    }
-    
-    float value;
-    cgrad_storage_get(storage, indices, TENSOR_DIM, &value);
-    return value;
-}
-
-static int op_reduce_sum_approx_equal(float a, float b, float eps) {
-    return fabsf(a - b) < eps;
-}
-
-// ============================================================================
 // Setup and Teardown
 // ============================================================================
 
-static int op_reduce_sum_teardown_test(void **state) {
+static int reduce_sum_setup_test(void **state) {
     (void) state;
-    cgrad_storage_cleanup_global_registry();
+    cgrad_init();
+    return 0;
+}
+
+static int reduce_sum_teardown_test(void **state) {
+    (void) state;
+    cgrad_cleanup();
     return 0;
 }
 
@@ -83,8 +61,11 @@ static void test_op_reduce_sum_forward_all(void **state) {
     int ret = op_desc->forward(inputs, 1, &metadata, &b, &ctx, 1);
     assert_int_equal(ret, CGRAD_SUCCESS);
     
-    // 2 * 3 * 2.0 = 12.0
-    assert_true(op_reduce_sum_approx_equal(op_reduce_sum_get_storage_value(&b, 0), 12.0f, OP_REDUCE_SUM_EPSILON));
+    // 2 * 3 * 2.0 = 12.0 (scalar result)
+    float value;
+    uint32_t idx[1] = {0};
+    cgrad_storage_get(&b, idx, 1, &value);
+    assert_true(fabsf(value - 12.0f) < OP_REDUCE_SUM_EPSILON);
     
     cgrad_storage_free(&a);
     cgrad_storage_free(&b);
@@ -124,8 +105,13 @@ static void test_op_reduce_sum_forward_last_axis(void **state) {
     
     // Each row sums to 3.0 (3 elements * 1.0)
     // Result shape should be (2, 1)
-    assert_true(op_reduce_sum_approx_equal(op_reduce_sum_get_storage_value(&b, 0), 3.0f, OP_REDUCE_SUM_EPSILON));
-    assert_true(op_reduce_sum_approx_equal(op_reduce_sum_get_storage_value(&b, 1), 3.0f, OP_REDUCE_SUM_EPSILON));
+    float value;
+    uint32_t idx[2];
+    for (uint32_t i = 0; i < 2; i++) {
+        idx[0] = i; idx[1] = 0;
+        cgrad_storage_get(&b, idx, 2, &value);
+        assert_true(fabsf(value - 3.0f) < OP_REDUCE_SUM_EPSILON);
+    }
     
     cgrad_storage_free(&a);
     cgrad_storage_free(&b);
@@ -165,8 +151,12 @@ static void test_op_reduce_sum_forward_first_axis(void **state) {
     
     // Each column sums to 2.0 (2 elements * 1.0)
     // Result shape should be (1, 3)
-    for (int i = 0; i < 3; i++) {
-        assert_true(op_reduce_sum_approx_equal(op_reduce_sum_get_storage_value(&b, i), 2.0f, OP_REDUCE_SUM_EPSILON));
+    float value;
+    uint32_t idx[2];
+    for (uint32_t j = 0; j < 3; j++) {
+        idx[0] = 0; idx[1] = j;
+        cgrad_storage_get(&b, idx, 2, &value);
+        assert_true(fabsf(value - 2.0f) < OP_REDUCE_SUM_EPSILON);
     }
     
     cgrad_storage_free(&a);
@@ -220,8 +210,14 @@ static void test_op_reduce_sum_backward_all(void **state) {
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // For b = sum(a): db/da = 1 for all elements
-    for (int i = 0; i < 6; i++) {
-        assert_true(op_reduce_sum_approx_equal(op_reduce_sum_get_storage_value(&grad_a, i), 1.0f, OP_REDUCE_SUM_EPSILON));
+    float value;
+    uint32_t idx[2];
+    for (uint32_t i = 0; i < 2; i++) {
+        for (uint32_t j = 0; j < 3; j++) {
+            idx[0] = i; idx[1] = j;
+            cgrad_storage_get(&grad_a, idx, 2, &value);
+            assert_true(fabsf(value - 1.0f) < OP_REDUCE_SUM_EPSILON);
+        }
     }
     
     cgrad_storage_free(&a);
@@ -277,8 +273,14 @@ static void test_op_reduce_sum_backward_last_axis(void **state) {
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // Gradient should be broadcast back: all elements get 1.0
-    for (int i = 0; i < 6; i++) {
-        assert_true(op_reduce_sum_approx_equal(op_reduce_sum_get_storage_value(&grad_a, i), 1.0f, OP_REDUCE_SUM_EPSILON));
+    float value;
+    uint32_t idx[2];
+    for (uint32_t i = 0; i < 2; i++) {
+        for (uint32_t j = 0; j < 3; j++) {
+            idx[0] = i; idx[1] = j;
+            cgrad_storage_get(&grad_a, idx, 2, &value);
+            assert_true(fabsf(value - 1.0f) < OP_REDUCE_SUM_EPSILON);
+        }
     }
     
     cgrad_storage_free(&a);
@@ -342,12 +344,12 @@ static void test_op_reduce_sum_backward_no_grad(void **state) {
 
 int run_cgrad_op_reduce_sum_tests(void) {
     const struct CMUnitTest tests[] = {
-        cmocka_unit_test_teardown(test_op_reduce_sum_forward_all, op_reduce_sum_teardown_test),
-        cmocka_unit_test_teardown(test_op_reduce_sum_forward_last_axis, op_reduce_sum_teardown_test),
-        cmocka_unit_test_teardown(test_op_reduce_sum_forward_first_axis, op_reduce_sum_teardown_test),
-        cmocka_unit_test_teardown(test_op_reduce_sum_backward_all, op_reduce_sum_teardown_test),
-        cmocka_unit_test_teardown(test_op_reduce_sum_backward_last_axis, op_reduce_sum_teardown_test),
-        cmocka_unit_test_teardown(test_op_reduce_sum_backward_no_grad, op_reduce_sum_teardown_test),
+        cmocka_unit_test_setup_teardown(test_op_reduce_sum_forward_all, reduce_sum_setup_test, reduce_sum_teardown_test),
+        cmocka_unit_test_setup_teardown(test_op_reduce_sum_forward_last_axis, reduce_sum_setup_test, reduce_sum_teardown_test),
+        cmocka_unit_test_setup_teardown(test_op_reduce_sum_forward_first_axis, reduce_sum_setup_test, reduce_sum_teardown_test),
+        cmocka_unit_test_setup_teardown(test_op_reduce_sum_backward_all, reduce_sum_setup_test, reduce_sum_teardown_test),
+        cmocka_unit_test_setup_teardown(test_op_reduce_sum_backward_last_axis, reduce_sum_setup_test, reduce_sum_teardown_test),
+        cmocka_unit_test_setup_teardown(test_op_reduce_sum_backward_no_grad, reduce_sum_setup_test, reduce_sum_teardown_test),
     };
     
     return cmocka_run_group_tests_name("cgrad_op_reduce_sum", tests, NULL, NULL);

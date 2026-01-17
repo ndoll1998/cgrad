@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <math.h>
 
+#include "cgrad.h"
 #include "autograd/cgrad_ops.h"
 #include "cgrad_errors.h"
 #include "storage/cgrad_storage.h"
@@ -13,41 +14,18 @@
 #define OP_AXPY_EPSILON 1e-4f
 
 // ============================================================================
-// Helper Functions
-// ============================================================================
-
-static float op_axpy_get_storage_value(cgrad_storage* storage, int idx) {
-    // Convert linear index to multi-dimensional indices
-    cgrad_storage_layout* layout = storage->backend->storage_get_layout(storage->data);
-    uint32_t indices[TENSOR_DIM];
-    int remaining = idx;
-    
-    // Calculate strides for row-major order
-    for (int i = TENSOR_DIM - 1; i >= 0; i--) {
-        int stride = 1;
-        for (int j = i + 1; j < TENSOR_DIM; j++) {
-            stride *= layout->shape[j];
-        }
-        indices[i] = remaining / stride;
-        remaining %= stride;
-    }
-    
-    float value;
-    cgrad_storage_get(storage, indices, TENSOR_DIM, &value);
-    return value;
-}
-
-static int op_axpy_approx_equal(float a, float b, float eps) {
-    return fabsf(a - b) < eps;
-}
-
-// ============================================================================
 // Setup and Teardown
 // ============================================================================
 
-static int op_axpy_teardown_test(void **state) {
+static int axpy_setup_test(void **state) {
     (void) state;
-    cgrad_storage_cleanup_global_registry();
+    cgrad_init();
+    return 0;
+}
+
+static int axpy_teardown_test(void **state) {
+    (void) state;
+    cgrad_cleanup();
     return 0;
 }
 
@@ -86,8 +64,14 @@ static void test_op_axpy_forward(void **state) {
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // 2 + 3 = 5
-    for (int i = 0; i < 4; i++) {
-        assert_true(op_axpy_approx_equal(op_axpy_get_storage_value(&c, i), 5.0f, OP_AXPY_EPSILON));
+    float value;
+    uint32_t idx[2];
+    for (uint32_t i = 0; i < 2; i++) {
+        for (uint32_t j = 0; j < 2; j++) {
+            idx[0] = i; idx[1] = j;
+            cgrad_storage_get(&c, idx, 2, &value);
+            assert_true(fabsf(value - 5.0f) < OP_AXPY_EPSILON);
+        }
     }
     
     cgrad_storage_free(&a);
@@ -143,9 +127,16 @@ static void test_op_axpy_backward_basic(void **state) {
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // For c = a + b: dc/da = 1, dc/db = 1
-    for (int i = 0; i < 4; i++) {
-        assert_true(op_axpy_approx_equal(op_axpy_get_storage_value(&grad_a, i), 1.0f, OP_AXPY_EPSILON));
-        assert_true(op_axpy_approx_equal(op_axpy_get_storage_value(&grad_b, i), 1.0f, OP_AXPY_EPSILON));
+    float value;
+    uint32_t idx[2];
+    for (uint32_t i = 0; i < 2; i++) {
+        for (uint32_t j = 0; j < 2; j++) {
+            idx[0] = i; idx[1] = j;
+            cgrad_storage_get(&grad_a, idx, 2, &value);
+            assert_true(fabsf(value - 1.0f) < OP_AXPY_EPSILON);
+            cgrad_storage_get(&grad_b, idx, 2, &value);
+            assert_true(fabsf(value - 1.0f) < OP_AXPY_EPSILON);
+        }
     }
     
     cgrad_storage_free(&a);
@@ -202,8 +193,14 @@ static void test_op_axpy_backward_one_no_grad(void **state) {
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // b should have gradient
-    for (int i = 0; i < 4; i++) {
-        assert_true(op_axpy_approx_equal(op_axpy_get_storage_value(&grad_b, i), 1.0f, OP_AXPY_EPSILON));
+    float value;
+    uint32_t idx[2];
+    for (uint32_t i = 0; i < 2; i++) {
+        for (uint32_t j = 0; j < 2; j++) {
+            idx[0] = i; idx[1] = j;
+            cgrad_storage_get(&grad_b, idx, 2, &value);
+            assert_true(fabsf(value - 1.0f) < OP_AXPY_EPSILON);
+        }
     }
     
     cgrad_storage_free(&a);
@@ -261,9 +258,16 @@ static void test_op_axpy_backward_accumulation(void **state) {
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // For c = a + b: dc/da = 1, dc/db = 1
-    for (int i = 0; i < 4; i++) {
-        assert_true(op_axpy_approx_equal(op_axpy_get_storage_value(&grad_a, i), 1.0f, OP_AXPY_EPSILON));
-        assert_true(op_axpy_approx_equal(op_axpy_get_storage_value(&grad_b, i), 1.0f, OP_AXPY_EPSILON));
+    float value;
+    uint32_t idx[2];
+    for (uint32_t i = 0; i < 2; i++) {
+        for (uint32_t j = 0; j < 2; j++) {
+            idx[0] = i; idx[1] = j;
+            cgrad_storage_get(&grad_a, idx, 2, &value);
+            assert_true(fabsf(value - 1.0f) < OP_AXPY_EPSILON);
+            cgrad_storage_get(&grad_b, idx, 2, &value);
+            assert_true(fabsf(value - 1.0f) < OP_AXPY_EPSILON);
+        }
     }
     
     cgrad_storage_free(&a);
@@ -280,10 +284,10 @@ static void test_op_axpy_backward_accumulation(void **state) {
 
 int run_cgrad_op_axpy_tests(void) {
     const struct CMUnitTest tests[] = {
-        cmocka_unit_test_teardown(test_op_axpy_forward, op_axpy_teardown_test),
-        cmocka_unit_test_teardown(test_op_axpy_backward_basic, op_axpy_teardown_test),
-        cmocka_unit_test_teardown(test_op_axpy_backward_one_no_grad, op_axpy_teardown_test),
-        cmocka_unit_test_teardown(test_op_axpy_backward_accumulation, op_axpy_teardown_test),
+        cmocka_unit_test_setup_teardown(test_op_axpy_forward, axpy_setup_test, axpy_teardown_test),
+        cmocka_unit_test_setup_teardown(test_op_axpy_backward_basic, axpy_setup_test, axpy_teardown_test),
+        cmocka_unit_test_setup_teardown(test_op_axpy_backward_one_no_grad, axpy_setup_test, axpy_teardown_test),
+        cmocka_unit_test_setup_teardown(test_op_axpy_backward_accumulation, axpy_setup_test, axpy_teardown_test),
     };
     
     return cmocka_run_group_tests_name("cgrad_op_axpy", tests, NULL, NULL);

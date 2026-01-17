@@ -1,4 +1,5 @@
 #include <stdarg.h>
+#include "cgrad.h"
 #include <stddef.h>
 #include <setjmp.h>
 #include <cmocka.h>
@@ -13,42 +14,18 @@
 #define OP_RESHAPE_EPSILON 1e-4f
 
 // ============================================================================
-// Helper Functions
-// ============================================================================
-
-static float op_reshape_get_storage_value(cgrad_storage* storage, int idx) {
-    // Convert linear index to multi-dimensional indices
-    // For simplicity, assume TENSOR_DIM=4 and use the storage's layout
-    cgrad_storage_layout* layout = storage->backend->storage_get_layout(storage->data);
-    uint32_t indices[TENSOR_DIM];
-    int remaining = idx;
-    
-    // Calculate strides for row-major order
-    for (int i = TENSOR_DIM - 1; i >= 0; i--) {
-        int stride = 1;
-        for (int j = i + 1; j < TENSOR_DIM; j++) {
-            stride *= layout->shape[j];
-        }
-        indices[i] = remaining / stride;
-        remaining %= stride;
-    }
-    
-    float value;
-    cgrad_storage_get(storage, indices, TENSOR_DIM, &value);
-    return value;
-}
-
-static int op_reshape_approx_equal(float a, float b, float eps) {
-    return fabsf(a - b) < eps;
-}
-
-// ============================================================================
 // Setup and Teardown
 // ============================================================================
 
-static int op_reshape_teardown_test(void **state) {
+static int reshape_setup_test(void **state) {
     (void) state;
-    cgrad_storage_cleanup_global_registry();
+    cgrad_init();
+    return 0;
+}
+
+static int reshape_teardown_test(void **state) {
+    (void) state;
+    cgrad_cleanup();
     return 0;
 }
 
@@ -144,8 +121,14 @@ static void test_op_reshape_backward_basic(void **state) {
     
     // Gradient should be reshaped back to original shape
     // All gradients should be 1.0
-    for (int i = 0; i < 6; i++) {
-        assert_true(op_reshape_approx_equal(op_reshape_get_storage_value(&grad_a, i), 1.0f, OP_RESHAPE_EPSILON));
+    float value;
+    uint32_t idx[2];
+    for (uint32_t i = 0; i < 2; i++) {
+        for (uint32_t j = 0; j < 3; j++) {
+            idx[0] = i; idx[1] = j;
+            cgrad_storage_get(&grad_a, idx, 2, &value);
+            assert_true(fabsf(value - 1.0f) < OP_RESHAPE_EPSILON);
+        }
     }
     
     cgrad_storage_free(&a);
@@ -249,8 +232,14 @@ static void test_op_reshape_backward_flatten(void **state) {
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // All gradients should be 1.0
-    for (int i = 0; i < 6; i++) {
-        assert_true(op_reshape_approx_equal(op_reshape_get_storage_value(&grad_a, i), 1.0f, OP_RESHAPE_EPSILON));
+    float value;
+    uint32_t idx[2];
+    for (uint32_t i = 0; i < 2; i++) {
+        for (uint32_t j = 0; j < 3; j++) {
+            idx[0] = i; idx[1] = j;
+            cgrad_storage_get(&grad_a, idx, 2, &value);
+            assert_true(fabsf(value - 1.0f) < OP_RESHAPE_EPSILON);
+        }
     }
     
     cgrad_storage_free(&a);
@@ -323,8 +312,14 @@ static void test_op_reshape_backward_double(void **state) {
     assert_int_equal(ret, CGRAD_SUCCESS);
     
     // All gradients should be 1.0
-    for (int i = 0; i < 6; i++) {
-        assert_true(op_reshape_approx_equal(op_reshape_get_storage_value(&grad_a, i), 1.0f, OP_RESHAPE_EPSILON));
+    float value;
+    uint32_t idx[2];
+    for (uint32_t i = 0; i < 2; i++) {
+        for (uint32_t j = 0; j < 3; j++) {
+            idx[0] = i; idx[1] = j;
+            cgrad_storage_get(&grad_a, idx, 2, &value);
+            assert_true(fabsf(value - 1.0f) < OP_RESHAPE_EPSILON);
+        }
     }
     
     cgrad_storage_free(&a);
@@ -341,11 +336,11 @@ static void test_op_reshape_backward_double(void **state) {
 
 int run_cgrad_op_reshape_tests(void) {
     const struct CMUnitTest tests[] = {
-        cmocka_unit_test_teardown(test_op_reshape_forward, op_reshape_teardown_test),
-        cmocka_unit_test_teardown(test_op_reshape_backward_basic, op_reshape_teardown_test),
-        cmocka_unit_test_teardown(test_op_reshape_backward_no_grad, op_reshape_teardown_test),
-        cmocka_unit_test_teardown(test_op_reshape_backward_flatten, op_reshape_teardown_test),
-        cmocka_unit_test_teardown(test_op_reshape_backward_double, op_reshape_teardown_test),
+        cmocka_unit_test_setup_teardown(test_op_reshape_forward, reshape_setup_test, reshape_teardown_test),
+        cmocka_unit_test_setup_teardown(test_op_reshape_backward_basic, reshape_setup_test, reshape_teardown_test),
+        cmocka_unit_test_setup_teardown(test_op_reshape_backward_no_grad, reshape_setup_test, reshape_teardown_test),
+        cmocka_unit_test_setup_teardown(test_op_reshape_backward_flatten, reshape_setup_test, reshape_teardown_test),
+        cmocka_unit_test_setup_teardown(test_op_reshape_backward_double, reshape_setup_test, reshape_teardown_test),
     };
     
     return cmocka_run_group_tests_name("cgrad_op_reshape", tests, NULL, NULL);
