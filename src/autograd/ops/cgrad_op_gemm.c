@@ -9,7 +9,7 @@
  * Computes: output = A @ B
  * No context is needed - we use input storages directly in backward.
  */
-static int gemm_forward(
+int cgrad_op_gemm_forward(
     cgrad_storage** inputs,
     int num_inputs,
     const cgrad_op_metadata* metadata,
@@ -38,7 +38,7 @@ static int gemm_forward(
  *   grad_A += grad_C @ B^T
  *   grad_B += A^T @ grad_C
  */
-static int gemm_backward(
+int cgrad_op_gemm_backward(
     cgrad_storage** inputs,
     int num_inputs,
     cgrad_storage* output,
@@ -81,11 +81,3 @@ static int gemm_backward(
     
     return CGRAD_SUCCESS;
 }
-
-const cgrad_op_descriptor cgrad_op_gemm_descriptor = {
-    .type = CGRAD_OP_GEMM,
-    .name = "GEMM",
-    .forward = gemm_forward,
-    .backward = gemm_backward,
-    .free_ctx = NULL
-};

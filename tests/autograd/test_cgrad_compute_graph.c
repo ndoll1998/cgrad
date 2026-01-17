@@ -6,6 +6,7 @@
 #include <stdlib.h>
 
 #include "autograd/cgrad_compute_graph.h"
+#include "autograd/cgrad_ops.h"
 #include "cgrad_status.h"
 
 // ============================================================================
@@ -71,7 +72,7 @@ static void test_cgrad_compute_graph_add_leaf_node(void **state) {
     ret = cgrad_compute_graph_get_node(&graph, node_id, &node);
     assert_int_equal(ret, CGRAD_SUCCESS);
     assert_non_null(node);
-    assert_int_equal(node->op_info.type, CGRAD_OP_NONE);
+    assert_null(node->op_info.descriptor);  // Leaf nodes have NULL descriptor
     // Shape is stored in last dimensions of TENSOR_DIM (8)
     assert_int_equal(node->layout.shape[TENSOR_DIM - 2], 2);
     assert_int_equal(node->layout.shape[TENSOR_DIM - 1], 3);
@@ -106,7 +107,7 @@ static void test_cgrad_compute_graph_add_op_node(void **state) {
     
     // Add operation node (ADD)
     cgrad_op_info op_info;
-    op_info.type = CGRAD_OP_AXPY;
+    op_info.descriptor = &cgrad_op_axpy;
     
     uuid_t input_ids[] = {0};
     uuid_copy(input_ids[0], leaf1_id);
@@ -123,7 +124,7 @@ static void test_cgrad_compute_graph_add_op_node(void **state) {
     cgrad_graph_node* op_node;
     ret = cgrad_compute_graph_get_node(&graph, op_node_id, &op_node);
     assert_int_equal(ret, CGRAD_SUCCESS);
-    assert_int_equal(op_node->op_info.type, CGRAD_OP_AXPY);
+    assert_ptr_equal(op_node->op_info.descriptor, &cgrad_op_axpy);
     
     // Verify inputs
     uuid_t retrieved_inputs[16];
@@ -221,7 +222,7 @@ static void test_cgrad_compute_graph_backend_consistency_same_backend(void **sta
     
     // Add operation node - should succeed with same backend
     cgrad_op_info op_info;
-    op_info.type = CGRAD_OP_AXPY;
+    op_info.descriptor = &cgrad_op_axpy;
     uuid_t input_ids[2];
     uuid_copy(input_ids[0], leaf1_id);
     uuid_copy(input_ids[1], leaf2_id);
@@ -379,7 +380,7 @@ static void test_cgrad_compute_graph_refcount_operation_nodes(void **state) {
     
     // Add operation node (ADD)
     cgrad_op_info op_info;
-    op_info.type = CGRAD_OP_AXPY;
+    op_info.descriptor = &cgrad_op_axpy;
     uuid_t input_ids[2];
     uuid_copy(input_ids[0], leaf1_id);
     uuid_copy(input_ids[1], leaf2_id);
@@ -442,7 +443,7 @@ static void test_cgrad_compute_graph_refcount_shared_subgraph(void **state) {
     
     // c = a + b
     cgrad_op_info op_info;
-    op_info.type = CGRAD_OP_AXPY;
+    op_info.descriptor = &cgrad_op_axpy;
     uuid_t input_ids[2];
     uuid_copy(input_ids[0], leaf1_id);
     uuid_copy(input_ids[1], leaf2_id);
@@ -507,7 +508,7 @@ static void test_cgrad_compute_graph_refcount_complex_graph(void **state) {
     
     // c = a + b
     cgrad_op_info add_op;
-    add_op.type = CGRAD_OP_AXPY;
+    add_op.descriptor = &cgrad_op_axpy;
     uuid_t input_ids[2];
     uuid_copy(input_ids[0], a_id);
     uuid_copy(input_ids[1], b_id);
@@ -634,7 +635,7 @@ static void test_cgrad_compute_graph_backward_requires_grad_inheritance(void **s
     
     // Add operation - should inherit requires_grad from leaf2
     cgrad_op_info op_info;
-    op_info.type = CGRAD_OP_AXPY;
+    op_info.descriptor = &cgrad_op_axpy;
     uuid_t input_ids[2];
     uuid_copy(input_ids[0], leaf1_id);
     uuid_copy(input_ids[1], leaf2_id);
@@ -676,7 +677,7 @@ static void test_cgrad_compute_graph_backward_requires_forward(void **state) {
     cgrad_compute_graph_add_leaf(&graph, &layout, storage2, leaf2_id);
     
     cgrad_op_info op_info;
-    op_info.type = CGRAD_OP_AXPY;
+    op_info.descriptor = &cgrad_op_axpy;
     uuid_t input_ids[2];
     uuid_copy(input_ids[0], leaf1_id);
     uuid_copy(input_ids[1], leaf2_id);
@@ -746,7 +747,7 @@ static void test_cgrad_compute_graph_backward_zero_grad(void **state) {
     cgrad_compute_graph_add_leaf(&graph, &layout, storage2, leaf2_id);
     
     cgrad_op_info op_info;
-    op_info.type = CGRAD_OP_AXPY;
+    op_info.descriptor = &cgrad_op_axpy;
     uuid_t input_ids[2];
     uuid_copy(input_ids[0], leaf1_id);
     uuid_copy(input_ids[1], leaf2_id);

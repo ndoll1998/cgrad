@@ -9,7 +9,7 @@
  * Computes: output = transpose(input, perm)
  * No context is needed for backward pass.
  */
-static int transpose_forward(
+int cgrad_op_transpose_forward(
     cgrad_storage** inputs,
     int num_inputs,
     const cgrad_op_metadata* metadata,
@@ -38,7 +38,7 @@ static int transpose_forward(
  * For B = transpose(A, perm):
  *   grad_A += transpose(grad_B, inverse_perm)
  */
-static int transpose_backward(
+int cgrad_op_transpose_backward(
     cgrad_storage** inputs,
     int num_inputs,
     cgrad_storage* output,
@@ -82,10 +82,3 @@ static int transpose_backward(
     return ret;
 }
 
-const cgrad_op_descriptor cgrad_op_transpose_descriptor = {
-    .type = CGRAD_OP_TRANSPOSE,
-    .name = "TRANSPOSE",
-    .forward = transpose_forward,
-    .backward = transpose_backward,
-    .free_ctx = NULL
-};

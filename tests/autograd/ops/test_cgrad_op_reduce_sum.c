@@ -43,7 +43,7 @@ static void test_op_reduce_sum_forward_all(void **state) {
     cgrad_storage_fill(&a, 2.0f);
     
     // Get the REDUCE_SUM operation descriptor
-    const cgrad_op_descriptor* op_desc = cgrad_get_op_descriptor(CGRAD_OP_REDUCE_SUM);
+    const cgrad_op_descriptor* op_desc = &cgrad_op_reduce_sum;
     assert_non_null(op_desc);
     
     // Prepare inputs
@@ -85,7 +85,7 @@ static void test_op_reduce_sum_forward_last_axis(void **state) {
     cgrad_storage_fill(&a, 1.0f);
     
     // Get the REDUCE_SUM operation descriptor
-    const cgrad_op_descriptor* op_desc = cgrad_get_op_descriptor(CGRAD_OP_REDUCE_SUM);
+    const cgrad_op_descriptor* op_desc = &cgrad_op_reduce_sum;
     assert_non_null(op_desc);
     
     // Prepare inputs
@@ -131,7 +131,7 @@ static void test_op_reduce_sum_forward_first_axis(void **state) {
     cgrad_storage_fill(&a, 1.0f);
     
     // Get the REDUCE_SUM operation descriptor
-    const cgrad_op_descriptor* op_desc = cgrad_get_op_descriptor(CGRAD_OP_REDUCE_SUM);
+    const cgrad_op_descriptor* op_desc = &cgrad_op_reduce_sum;
     assert_non_null(op_desc);
     
     // Prepare inputs
@@ -181,7 +181,7 @@ static void test_op_reduce_sum_backward_all(void **state) {
     cgrad_storage_fill(&grad_a, 0.0f);
     
     // Get the REDUCE_SUM operation descriptor
-    const cgrad_op_descriptor* op_desc = cgrad_get_op_descriptor(CGRAD_OP_REDUCE_SUM);
+    const cgrad_op_descriptor* op_desc = &cgrad_op_reduce_sum;
     assert_non_null(op_desc);
     
     // Prepare inputs
@@ -244,7 +244,7 @@ static void test_op_reduce_sum_backward_last_axis(void **state) {
     cgrad_storage_fill(&grad_a, 0.0f);
     
     // Get the REDUCE_SUM operation descriptor
-    const cgrad_op_descriptor* op_desc = cgrad_get_op_descriptor(CGRAD_OP_REDUCE_SUM);
+    const cgrad_op_descriptor* op_desc = &cgrad_op_reduce_sum;
     assert_non_null(op_desc);
     
     // Prepare inputs
@@ -305,7 +305,7 @@ static void test_op_reduce_sum_backward_no_grad(void **state) {
     cgrad_storage_fill(&a, 1.0f);
     
     // Get the REDUCE_SUM operation descriptor
-    const cgrad_op_descriptor* op_desc = cgrad_get_op_descriptor(CGRAD_OP_REDUCE_SUM);
+    const cgrad_op_descriptor* op_desc = &cgrad_op_reduce_sum;
     assert_non_null(op_desc);
     
     // Prepare inputs
