@@ -441,7 +441,7 @@ cgrad_status cgrad_storage_axpy(
         }
     }
     
-    if (uuid_compare(y_bcast.uuid, r->uuid) != 0) {
+    if (uuid_compare(y->uuid, r->uuid) != 0) {
         // y and r are different tensors, copy y to r
         err = y_bcast.backend->storage_contiguous(y_bcast.data, r->data);
         if (err != CGRAD_SUCCESS) {
