@@ -210,7 +210,7 @@ static void test_cgrad_storage_gemm_write_to_existing_tensor(void **state) {
     cgrad_storage_free(&b);
 }
 
-static void test_cgrad_storage_sum(void **state) {
+static void test_cgrad_storage_reduce(void **state) {
     (void)state;
     // Create a 2x3 tensor with values 1,2,3,4,5,6
     cgrad_storage t = {0};
@@ -229,7 +229,7 @@ static void test_cgrad_storage_sum(void **state) {
     // Sum over axis 1 (columns): mask = [0,1] (right-aligned)
     uint8_t mask1[2] = {0,1};
     cgrad_storage r1 = {0};
-    assert_int_equal(cgrad_storage_sum(&t, mask1, 2, &r1), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_reduce(1.0f, &t, mask1, 2, 0.0f, &r1), CGRAD_SUCCESS);
     // Should be shape [2,1], values [6,15]
     float expected1[2] = {6,15};
     for (uint32_t i = 0; i < 2; ++i) {
@@ -243,7 +243,7 @@ static void test_cgrad_storage_sum(void **state) {
     // Sum over axis 0 (rows): mask = [1,0] (right-aligned)
     uint8_t mask2[2] = {1,0};
     cgrad_storage r2 = {0};
-    assert_int_equal(cgrad_storage_sum(&t, mask2, 2, &r2), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_reduce(1.0f, &t, mask2, 2, 0.0f, &r2), CGRAD_SUCCESS);
     // Should be shape [1,3], values [5,7,9]
     float expected2[3] = {5,7,9};
     for (uint32_t j = 0; j < 3; ++j) {
@@ -257,7 +257,7 @@ static void test_cgrad_storage_sum(void **state) {
     // Sum over all axes: mask = [1,1]
     uint8_t mask3[2] = {1,1};
     cgrad_storage r3 = {0};
-    assert_int_equal(cgrad_storage_sum(&t, mask3, 2, &r3), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_reduce(1.0f, &t, mask3, 2, 0.0f, &r3), CGRAD_SUCCESS);
     // Should be scalar [21]
     float v3 = 0;
     uint32_t idx3[TENSOR_DIM] = {0,0,0,0,0,0,0,0};
@@ -277,7 +277,7 @@ int run_cgrad_storage_tests(void) {
         cmocka_unit_test_setup_teardown(test_cgrad_storage_reshape, storage_setup_test, storage_teardown_test),
         cmocka_unit_test_setup_teardown(test_cgrad_storage_registry_root_freed_only_after_all_children, storage_setup_test, storage_teardown_test),
         cmocka_unit_test_setup_teardown(test_cgrad_storage_gemm_write_to_existing_tensor, storage_setup_test, storage_teardown_test),
-        cmocka_unit_test_setup_teardown(test_cgrad_storage_sum, storage_setup_test, storage_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_reduce, storage_setup_test, storage_teardown_test),
     };
     return cmocka_run_group_tests_name("cgrad_storage", tests, NULL, NULL);
 }

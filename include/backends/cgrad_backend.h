@@ -73,9 +73,8 @@ typedef struct cgrad_backend {
      * @param alpha Scaling factor for x.
      * @param x First input storage (read-only).
      * @param y Second input storage (modified in-place).
-     * @param unused Unused parameter (for interface compatibility).
      */
-    int  (*storage_axpy)(float alpha, void* x, void* y, void* unused);
+    int  (*storage_axpy)(float alpha, void* x, void* y);
 
     /**
      * @brief Perform batched matrix multiplication (GEMM) on two storages.

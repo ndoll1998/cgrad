@@ -24,7 +24,7 @@ static cgrad_status cgrad_backend_cpu_f32_fill_rand(void* t);
 static cgrad_status cgrad_backend_cpu_f32_shallow_copy(const void* src, void* dst);
 static cgrad_status cgrad_backend_cpu_f32_contiguous(const void* src, void* dst);
 static void cgrad_backend_cpu_f32_free(void* t);
-static cgrad_status cgrad_backend_cpu_f32_axpy(float alpha, void* x, void* y, void* unused);
+static cgrad_status cgrad_backend_cpu_f32_axpy(float alpha, void* x, void* y);
 static cgrad_status cgrad_backend_cpu_f32_gemm(float alpha, void* a, void* b, float beta, void* c);
 static cgrad_storage_layout* cgrad_backend_cpu_f32_get_layout(void* t);
 static void cgrad_backend_cpu_f32_print_data(const void* t);
@@ -68,7 +68,7 @@ static int helper_cgrad_backend_cpu_f32_build_batch_array(const cgrad_backend_cp
     // fill array
     uint32_t indices[TENSOR_DIM] = {0};
     #pragma omp parallel for
-    for (int i = 0; i < batch_size; i++) {
+    for (size_t i = 0; i < batch_size; i++) {
         size_t rem = i;
         // Compute multi-dimensional index for the batch dims in the current layout
         // The remaining ndims are set to 0
@@ -76,7 +76,6 @@ static int helper_cgrad_backend_cpu_f32_build_batch_array(const cgrad_backend_cp
             indices[d] = rem % t->layout.shape[d];
             rem /= t->layout.shape[d];
         }
-        
         // compute the flat index of to find the data pointer
         size_t idx = 0;
         int err = cgrad_storage_layout_flat_index(&t->layout, indices, TENSOR_DIM, &idx);
@@ -233,7 +232,7 @@ static void cgrad_backend_cpu_f32_free(void* t) {
     }
 }
 
-static cgrad_status cgrad_backend_cpu_f32_axpy(float alpha, void* x, void* y, void* unused) {
+static cgrad_status cgrad_backend_cpu_f32_axpy(float alpha, void* x, void* y) {
     const cgrad_backend_cpu_f32* x_tensor = (const cgrad_backend_cpu_f32*)x;
     cgrad_backend_cpu_f32* y_tensor = (cgrad_backend_cpu_f32*)y;
     

@@ -110,14 +110,20 @@ cgrad_status cgrad_storage_fill_rand(cgrad_storage* t);
 // --- Math Ops ---
 
 /**
- * @brief Sum a tensor over specified axes using reshape and GEMM with a tensor of all ones.
+ * @brief Reduce a tensor over specified axes using reshape and GEMM with a tensor of all ones.
+ *        Computes r = alpha * reduce(a) + beta * r, where reduce(a) sums over the masked axes.
+ * 
+ * Computes: r = alpha * sum(a, axes) + beta * r
+ * 
+ * @param alpha Scaling factor for the reduced tensor.
  * @param a Input tensor.
  * @param mask Right-aligned mask (length ndim) indicating which axes to sum (1=sum, 0=keep).
  * @param ndim Number of dimensions in mask (≤ TENSOR_DIM).
- * @param r Output tensor (initialized inside function).
+ * @param beta Scaling factor for the current values in r.
+ * @param r Output tensor (initialized inside function if r->data is NULL).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-cgrad_status cgrad_storage_sum(const cgrad_storage* a, const uint8_t* mask, int ndim, cgrad_storage* r);
+cgrad_status cgrad_storage_reduce(float alpha, const cgrad_storage* a, const uint8_t* mask, int ndim, float beta, cgrad_storage* r);
 
 /**
  * @brief Perform batched matrix multiplication (GEMM) on two tensors.

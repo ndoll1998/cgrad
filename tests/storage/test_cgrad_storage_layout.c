@@ -349,6 +349,133 @@ static void test_cgrad_storage_layout_reduce(void **state) {
     assert_int_equal(cgrad_storage_layout_reduce(&l, mask1, TENSOR_DIM + 1), CGRAD_ERR_STORAGE_LAYOUT_SHAPE_MISMATCH);
 }
 
+static void test_cgrad_storage_layout_broadcast(void **state) {
+    (void)state;
+    cgrad_storage_layout l1, l2;
+    
+    // Test 1: Broadcast compatible shapes (1, 4) and (3, 4)
+    uint32_t shape1[2] = {1, 4};
+    uint32_t shape2[2] = {3, 4};
+    assert_int_equal(cgrad_storage_layout_init(&l1, shape1, 2), 0);
+    assert_int_equal(cgrad_storage_layout_init(&l2, shape2, 2), 0);
+    
+    uint32_t l1_size_before = l1.size;
+    uint32_t l2_size_before = l2.size;
+    assert_int_equal(l1_size_before, 4);  // 1 * 4
+    assert_int_equal(l2_size_before, 12); // 3 * 4
+    
+    assert_int_equal(cgrad_storage_layout_broadcast(&l1, &l2, TENSOR_DIM - 2, TENSOR_DIM), CGRAD_SUCCESS);
+    
+    // After broadcast, both should have shape (3, 4)
+    assert_int_equal(l1.shape[TENSOR_DIM - 2], 3);
+    assert_int_equal(l1.shape[TENSOR_DIM - 1], 4);
+    assert_int_equal(l2.shape[TENSOR_DIM - 2], 3);
+    assert_int_equal(l2.shape[TENSOR_DIM - 1], 4);
+    
+    // l1's stride for dim -2 should be 0 (broadcasting)
+    assert_int_equal(l1.strides[TENSOR_DIM - 2], 0);
+    assert_int_equal(l1.strides[TENSOR_DIM - 1], 1);
+    
+    // l2's strides should remain unchanged
+    assert_int_equal(l2.strides[TENSOR_DIM - 2], 4);
+    assert_int_equal(l2.strides[TENSOR_DIM - 1], 1);
+    
+    // Size should be updated for both layouts
+    assert_int_equal(l1.size, 12); // 3 * 4 (broadcasted)
+    assert_int_equal(l2.size, 12); // 3 * 4 (unchanged)
+    
+    // Test 2: Broadcast (3, 1) and (3, 4)
+    uint32_t shape3[2] = {3, 1};
+    uint32_t shape4[2] = {3, 4};
+    assert_int_equal(cgrad_storage_layout_init(&l1, shape3, 2), 0);
+    assert_int_equal(cgrad_storage_layout_init(&l2, shape4, 2), 0);
+    
+    assert_int_equal(l1.size, 3);  // 3 * 1
+    assert_int_equal(l2.size, 12); // 3 * 4
+    
+    assert_int_equal(cgrad_storage_layout_broadcast(&l1, &l2, TENSOR_DIM - 2, TENSOR_DIM), CGRAD_SUCCESS);
+    
+    // After broadcast, both should have shape (3, 4)
+    assert_int_equal(l1.shape[TENSOR_DIM - 2], 3);
+    assert_int_equal(l1.shape[TENSOR_DIM - 1], 4);
+    assert_int_equal(l2.shape[TENSOR_DIM - 2], 3);
+    assert_int_equal(l2.shape[TENSOR_DIM - 1], 4);
+    
+    // l1's stride for dim -1 should be 0 (broadcasting)
+    assert_int_equal(l1.strides[TENSOR_DIM - 1], 0);
+    
+    // Size should be updated
+    assert_int_equal(l1.size, 12); // 3 * 4 (broadcasted)
+    assert_int_equal(l2.size, 12); // 3 * 4 (unchanged)
+    
+    // Test 3: Broadcast (1, 1) and (3, 4)
+    uint32_t shape5[2] = {1, 1};
+    uint32_t shape6[2] = {3, 4};
+    assert_int_equal(cgrad_storage_layout_init(&l1, shape5, 2), 0);
+    assert_int_equal(cgrad_storage_layout_init(&l2, shape6, 2), 0);
+    
+    assert_int_equal(l1.size, 1);  // 1 * 1
+    assert_int_equal(l2.size, 12); // 3 * 4
+    
+    assert_int_equal(cgrad_storage_layout_broadcast(&l1, &l2, TENSOR_DIM - 2, TENSOR_DIM), CGRAD_SUCCESS);
+    
+    // After broadcast, both should have shape (3, 4)
+    assert_int_equal(l1.shape[TENSOR_DIM - 2], 3);
+    assert_int_equal(l1.shape[TENSOR_DIM - 1], 4);
+    
+    // Both strides should be 0 for l1 (broadcasting in both dims)
+    assert_int_equal(l1.strides[TENSOR_DIM - 2], 0);
+    assert_int_equal(l1.strides[TENSOR_DIM - 1], 0);
+    
+    // Size should be updated
+    assert_int_equal(l1.size, 12); // 3 * 4 (broadcasted)
+    assert_int_equal(l2.size, 12); // 3 * 4 (unchanged)
+    
+    // Test 4: Broadcast full TENSOR_DIM
+    uint32_t shape7[TENSOR_DIM];
+    uint32_t shape8[TENSOR_DIM];
+    for (int i = 0; i < TENSOR_DIM; i++) {
+        shape7[i] = (i % 2 == 0) ? 1 : (i + 2);
+        shape8[i] = i + 2;
+    }
+    assert_int_equal(cgrad_storage_layout_init(&l1, shape7, TENSOR_DIM), 0);
+    assert_int_equal(cgrad_storage_layout_init(&l2, shape8, TENSOR_DIM), 0);
+    
+    uint32_t expected_size = 1;
+    for (int i = 0; i < TENSOR_DIM; i++) {
+        expected_size *= shape8[i];
+    }
+    
+    assert_int_equal(cgrad_storage_layout_broadcast(&l1, &l2, 0, TENSOR_DIM), CGRAD_SUCCESS);
+    
+    // After broadcast, l1 should have same shape as l2
+    for (int i = 0; i < TENSOR_DIM; i++) {
+        assert_int_equal(l1.shape[i], shape8[i]);
+        assert_int_equal(l2.shape[i], shape8[i]);
+    }
+    
+    // Size should be updated
+    assert_int_equal(l1.size, expected_size);
+    assert_int_equal(l2.size, expected_size);
+    
+    // Test 5: Error - incompatible shapes (2, 4) and (3, 4)
+    uint32_t shape9[2] = {2, 4};
+    uint32_t shape10[2] = {3, 4};
+    assert_int_equal(cgrad_storage_layout_init(&l1, shape9, 2), 0);
+    assert_int_equal(cgrad_storage_layout_init(&l2, shape10, 2), 0);
+    
+    assert_int_equal(cgrad_storage_layout_broadcast(&l1, &l2, TENSOR_DIM - 2, TENSOR_DIM), CGRAD_ERR_STORAGE_LAYOUT_BROADCAST);
+    
+    // Test 6: Error - NULL pointer
+    assert_int_equal(cgrad_storage_layout_broadcast(NULL, &l2, 0, TENSOR_DIM), CGRAD_ERR_STORAGE_LAYOUT_NULL_POINTER);
+    assert_int_equal(cgrad_storage_layout_broadcast(&l1, NULL, 0, TENSOR_DIM), CGRAD_ERR_STORAGE_LAYOUT_NULL_POINTER);
+    
+    // Test 7: Error - invalid dimensions
+    assert_int_equal(cgrad_storage_layout_broadcast(&l1, &l2, -1, TENSOR_DIM), CGRAD_ERR_STORAGE_LAYOUT_SHAPE_MISMATCH);
+    assert_int_equal(cgrad_storage_layout_broadcast(&l1, &l2, 0, TENSOR_DIM + 1), CGRAD_ERR_STORAGE_LAYOUT_SHAPE_MISMATCH);
+    assert_int_equal(cgrad_storage_layout_broadcast(&l1, &l2, 5, 3), CGRAD_ERR_STORAGE_LAYOUT_SHAPE_MISMATCH);
+}
+
 // ============================================================================
 // Test Suite
 // ============================================================================
@@ -365,6 +492,7 @@ int run_cgrad_storage_layout_tests(void) {
         cmocka_unit_test_setup_teardown(test_cgrad_storage_layout_partial_transpose, layout_setup_test, layout_teardown_test),
         cmocka_unit_test_setup_teardown(test_cgrad_storage_layout_reshape, layout_setup_test, layout_teardown_test),
         cmocka_unit_test_setup_teardown(test_cgrad_storage_layout_reduce, layout_setup_test, layout_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_layout_broadcast, layout_setup_test, layout_teardown_test),
     };
     return cmocka_run_group_tests_name("cgrad_storage_layout", tests, NULL, NULL);
 }

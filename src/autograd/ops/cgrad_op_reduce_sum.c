@@ -24,10 +24,12 @@ int cgrad_op_reduce_sum_forward(
     
     *ctx = NULL;
     
-    return cgrad_storage_sum(
+    return cgrad_storage_reduce(
+        1.0f,
         inputs[0],
         metadata->reduce_sum.mask,
         metadata->reduce_sum.ndim,
+        0.0f,
         output
     );
 }
@@ -85,10 +87,8 @@ int cgrad_op_reduce_sum_backward(
     err = grad_inputs[0]->backend->storage_axpy(
         1.0f,
         grad_out_bcast.data,
-        grad_inputs[0]->data,
         grad_inputs[0]->data
     );
     
     return err;
 }
-

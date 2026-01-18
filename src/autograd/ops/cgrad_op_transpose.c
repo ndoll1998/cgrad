@@ -74,7 +74,6 @@ int cgrad_op_transpose_backward(
     ret = grad_inputs[0]->backend->storage_axpy(
         1.0f,
         grad_input.data,
-        grad_inputs[0]->data,
         grad_inputs[0]->data
     );
     cgrad_storage_free(&grad_input);
