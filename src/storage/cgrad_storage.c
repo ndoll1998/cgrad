@@ -340,7 +340,7 @@ cgrad_status cgrad_storage_gemm(
         }
     }
 
-    err = a->backend->storage_gemm(alpha, a->data, b->data, beta, r->data);
+    err = a->backend->storage_gemm(alpha, a_bcast.data, b_bcast.data, beta, r->data);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
         cgrad_storage_free_all_from_record(storage_record);
@@ -404,7 +404,7 @@ cgrad_status cgrad_storage_axpy(
         cgrad_storage_free_all_from_record(storage_record);
         return err;
     }
-
+    
     // check if r is initialized, if not initialize it
     if (!r->data) {
         const uint32_t* shape = x_bcast.backend->storage_get_layout(x_bcast.data)->shape;
@@ -441,7 +441,7 @@ cgrad_status cgrad_storage_axpy(
         }
     }
     
-    if (uuid_compare(y_bcast.uuid, r->uuid) != 0) {
+    if (uuid_compare(y->uuid, r->uuid) != 0) {
         // y and r are different tensors, copy y to r
         err = y_bcast.backend->storage_contiguous(y_bcast.data, r->data);
         if (err != CGRAD_SUCCESS) {
@@ -451,7 +451,7 @@ cgrad_status cgrad_storage_axpy(
         }
     }
     
-    err = x->backend->storage_axpy(alpha, x_bcast.data, r->data, NULL);
+    err = x->backend->storage_axpy(alpha, x_bcast.data, r->data);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
         cgrad_storage_free_all_from_record(storage_record);
@@ -615,17 +615,25 @@ cgrad_status cgrad_storage_transpose(const cgrad_storage* src, cgrad_storage* ds
 }
 
 /**
- * @brief Sum a tensor over specified axes using reshape and GEMM with a tensor of all ones.
+ * @brief Reduce a tensor over specified axes using reshape and GEMM with a tensor of all ones.
+ *        Computes r = alpha * reduce(a) + beta * r, where reduce(a) sums over the masked axes.
+ * 
+ * Formula: r = alpha * sum(a, axes) + beta * r
+ * 
+ * @param alpha Scaling factor for the reduced tensor.
  * @param a Input tensor.
  * @param mask Right-aligned mask (length ndim) indicating which axes to sum (1=sum, 0=keep).
  * @param ndim Number of dimensions in mask (≤ TENSOR_DIM).
- * @param r Output tensor (initialized inside function).
+ * @param beta Scaling factor for the current values in r.
+ * @param r Output tensor (initialized inside function if r->data is NULL).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-cgrad_status cgrad_storage_sum(
+cgrad_status cgrad_storage_reduce(
+    float alpha,
     const cgrad_storage* a,
     const uint8_t* mask,
     int ndim,
+    float beta,
     cgrad_storage* r
 ) {
     if (!a || !mask || !r) return CGRAD_ERR_NULL_POINTER;
@@ -633,15 +641,15 @@ cgrad_status cgrad_storage_sum(
 
     // track all storages created here
     cgrad_storage_registry_record* storage_record = cgrad_storage_start_recording();
-    
+
     // get the layout of storage a
     const cgrad_storage_layout* layout = a->backend->storage_get_layout(a->data);
-    
+
     // Compute the target shape using layout reduce
     cgrad_storage_layout target_layout = *layout;
     int err = cgrad_storage_layout_reduce(&target_layout, mask, ndim);
     if (err != CGRAD_SUCCESS) return err;
-    
+
     // Convert to int32_t for reshape
     int32_t target_shape[TENSOR_DIM];
     for (int i = 0; i < TENSOR_DIM; ++i) {
@@ -725,9 +733,15 @@ cgrad_status cgrad_storage_sum(
         return err;
     }
     
+    if (r->data) {
+        cgrad_storage_stop_recording(storage_record);
+        cgrad_storage_free_all_from_record(storage_record);
+        return CGRAD_ERR_NOT_IMPLEMENTED;
+    }
+
     // Compute sum via GEMM
     cgrad_storage r_mat = {0};
-    err = cgrad_storage_gemm(1.0f, &a_reshaped, &ones, 0.0f, &r_mat);
+    err = cgrad_storage_gemm(alpha, &a_reshaped, &ones, beta, &r_mat);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
         cgrad_storage_free_all_from_record(storage_record);

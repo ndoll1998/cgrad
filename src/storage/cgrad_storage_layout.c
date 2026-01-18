@@ -153,6 +153,15 @@ cgrad_status cgrad_storage_layout_broadcast(
             return CGRAD_ERR_STORAGE_LAYOUT_BROADCAST_SHAPE_MISMATCH;
         }
     }
+    
+    // Recalculate size for both layouts
+    l1->size = 1;
+    l2->size = 1;
+    for (int i = 0; i < TENSOR_DIM; i++) {
+        l1->size *= l1->shape[i];
+        l2->size *= l2->shape[i];
+    }
+    
     return CGRAD_SUCCESS;
 }
 
