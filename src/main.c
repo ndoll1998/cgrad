@@ -1,5 +1,6 @@
 #include "cgrad.h"
 #include "storage/cgrad_storage.h"
+#include "optim/cgrad_sgd.h"
 #include <stdio.h>
 #include <stdint.h>
 #include <math.h>
@@ -12,7 +13,7 @@
  * 2. Performs 20 iterations of gradient descent:
  *    - Computes loss = sum(A @ B)
  *    - Computes gradients via backpropagation
- *    - Updates A using gradient descent: A = A - learning_rate * dL/dA
+ *    - Updates A using stochastic gradient descent optimizer
  * 3. Prints iteration, loss, and gradient norm at each step
  */
 int main() {
@@ -46,19 +47,40 @@ int main() {
     printf("Matrix B: 4x2, requires_grad=False\n\n");
     
     // ========================================================================
-    // Gradient Descent Loop: 20 iterations
+    // Initialize SGD Optimizer
     // ========================================================================
-    printf("--- Starting Gradient Descent (20 iterations) ---\n");
+    printf("--- Initializing SGD Optimizer ---\n");
+
+    const float learning_rate = 0.1f;
+    const float momentum = 0.0f;
+
+    cgrad_tensor* parameters[] = {&A};
+    cgrad_optimizer optimizer;
+
+    cgrad_status status = cgrad_sgd_init(&optimizer, parameters, 1, learning_rate, momentum);
+    if (status != CGRAD_SUCCESS) {
+        printf("Error: Failed to initialize SGD optimizer\n");
+        cgrad_cleanup();
+        return 1;
+    }
+    
+    printf("SGD Optimizer initialized with learning_rate=%.2f, momentum=%.2f\n\n", learning_rate, momentum);
+    
+    // ========================================================================
+    // Gradient Descent Loop: 50 iterations
+    // ========================================================================
+    printf("--- Starting Gradient Descent (50 iterations) ---\n");
     printf("%-6s %-12s\n", "Iter", "Loss");
     printf("%-6s %-12s\n", "----", "----");
     
-    const float learning_rate = 0.1f;
-    const int num_iterations = 50;
+    const int num_iterations = 20;
     
     for (int iter = 0; iter < num_iterations; iter++) {
 
-        // zero gradient of A
-        cgrad_tensor_zero_grad(&A);
+        // ====================================================================
+        // Zero Gradients using Optimizer
+        // ====================================================================
+        cgrad_optimizer_zero_grad(&optimizer);
 
         // ====================================================================
         // Forward Pass: Compute loss = sum(A @ B)
@@ -75,8 +97,7 @@ int main() {
         
         // Get loss value
         float loss_value = 0.0f;
-        uint32_t scalar_idx[] = {0, 0, 0, 0, 0, 0, 0, 0};
-        cgrad_storage_get(cgrad_tensor_get_storage(&loss), scalar_idx, 8, &loss_value);
+        cgrad_storage_get(cgrad_tensor_get_storage(&loss), (uint32_t[]){0}, 1, &loss_value);
         
         // ====================================================================
         // Backward Pass: Compute gradients
@@ -84,28 +105,24 @@ int main() {
         int ret = cgrad_tensor_backward(&loss);
         if (ret != 0) {
             printf("Error: Backward pass failed at iteration %d\n", iter);
+            cgrad_optimizer_free(&optimizer);
             cgrad_cleanup();
             return 1;
         }
-        
-        // ====================================================================
-        // Compute gradient norm for monitoring
-        // ====================================================================
-        cgrad_tensor grad_A;
-        ret = cgrad_tensor_get_gradient(&A, &grad_A);
         
         // Print iteration info
         printf("%-6d %-12.6f\n", iter + 1, loss_value);
         
         // ====================================================================
-        // Gradient Descent Update: A = A - learning_rate * dL/dA
+        // Optimizer Step: Update parameters using SGD
         // ====================================================================
-        cgrad_storage_axpy(
-            -learning_rate,
-            cgrad_tensor_get_grad_storage(&A),
-            cgrad_tensor_get_storage(&A),
-            cgrad_tensor_get_storage(&A)
-        );
+        status = cgrad_optimizer_step(&optimizer);
+        if (status != CGRAD_SUCCESS) {
+            printf("Error: Optimizer step failed at iteration %d\n", iter);
+            cgrad_optimizer_free(&optimizer);
+            cgrad_cleanup();
+            return 1;
+        }
     }
     
     printf("\n");
@@ -116,6 +133,7 @@ int main() {
     // Cleanup
     // ========================================================================
     printf("--- Cleanup ---\n");
+    cgrad_optimizer_free(&optimizer);
     cgrad_cleanup();
     printf("All resources freed.\n");
 
