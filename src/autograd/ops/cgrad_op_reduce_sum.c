@@ -62,33 +62,11 @@ int cgrad_op_reduce_sum_backward(
         return CGRAD_SUCCESS;
     }
     
-    // For reduce_sum backward, we need to broadcast grad_output to the original shape
-    // and add it to grad_inputs[0].
-    // 
-    // The grad_output has shape with 1s where we summed, and grad_inputs[0] has the
-    // original shape. We use storage_add which broadcasts automatically.
-    //
-    // However, storage_add doesn't support writing to existing tensor yet.
-    // So we manually broadcast by using the backend's storage_add with broadcasting.
-    
-    // Create a shallow copy of grad_output for broadcasting
-    cgrad_storage grad_out_bcast;
-    int err = cgrad_storage_shallow_copy(grad_output, &grad_out_bcast);
-    if (err != CGRAD_SUCCESS) return err;
-    
-    // Broadcast the layout to match grad_inputs[0]
-    cgrad_storage_layout* grad_out_layout = grad_out_bcast.backend->storage_get_layout(grad_out_bcast.data);
-    cgrad_storage_layout* grad_in_layout = grad_inputs[0]->backend->storage_get_layout(grad_inputs[0]->data);
-    
-    err = cgrad_storage_layout_broadcast(grad_out_layout, grad_in_layout, 0, TENSOR_DIM);
-    if (err != CGRAD_SUCCESS) return err;
-    
-    // Now add: grad_inputs[0] += grad_out_bcast
-    err = grad_inputs[0]->backend->storage_axpy(
+    // accumulate gradient
+    return cgrad_storage_axpy(
         1.0f,
-        grad_out_bcast.data,
-        grad_inputs[0]->data
+        grad_output,
+        grad_inputs[0],
+        grad_inputs[0]
     );
-    
-    return err;
 }

@@ -2,6 +2,7 @@
 #include "cgrad_status.h"
 #include "storage/cgrad_storage.h"
 #include "storage/cgrad_storage_layout.h"
+#include "storage/cgrad_storage_registry.h"
 
 /**
  * @brief Forward pass for reshape.
@@ -66,18 +67,29 @@ int cgrad_op_reshape_backward(
         orig_shape[k] = (int32_t)input_layout->shape[k];
     }
     
+    // record all storages created here
+    cgrad_storage_registry_record* storage_record = cgrad_storage_start_recording();
+    
     // Reshape gradient back to original shape
     cgrad_storage grad_input = {0};
     ret = cgrad_storage_reshape(grad_output, &grad_input, orig_shape, TENSOR_DIM);
-    if (ret != CGRAD_SUCCESS) return ret;
+    if (ret != CGRAD_SUCCESS) {
+        cgrad_storage_stop_recording(storage_record);
+        cgrad_storage_free_all_from_record(storage_record);
+        return ret;
+    }
     
     // Accumulate: grad_A = grad_A + grad_input
-    ret = grad_inputs[0]->backend->storage_axpy(
+    ret = cgrad_storage_axpy(
         1.0f,
-        grad_input.data,
-        grad_inputs[0]->data
+        &grad_input,
+        grad_inputs[0],
+        grad_inputs[0]
     );
-    cgrad_storage_free(&grad_input);
+
+    // cleanup
+    cgrad_storage_stop_recording(storage_record);
+    cgrad_storage_free_all_from_record(storage_record);
     
     return ret;
 }
