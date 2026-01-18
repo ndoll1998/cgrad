@@ -3,8 +3,6 @@
 #include "storage/cgrad_storage.h"
 #include "storage/cgrad_storage_registry.h"
 
-#include <stdio.h>
-
 /**
  * @brief Helper function to update gradient with optional broadcasting reduction.
  * 

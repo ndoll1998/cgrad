@@ -68,7 +68,7 @@ static int helper_cgrad_backend_cpu_f32_build_batch_array(const cgrad_backend_cp
     // fill array
     uint32_t indices[TENSOR_DIM] = {0};
     #pragma omp parallel for
-    for (int i = 0; i < batch_size; i++) {
+    for (size_t i = 0; i < batch_size; i++) {
         size_t rem = i;
         // Compute multi-dimensional index for the batch dims in the current layout
         // The remaining ndims are set to 0
@@ -76,7 +76,6 @@ static int helper_cgrad_backend_cpu_f32_build_batch_array(const cgrad_backend_cp
             indices[d] = rem % t->layout.shape[d];
             rem /= t->layout.shape[d];
         }
-        
         // compute the flat index of to find the data pointer
         size_t idx = 0;
         int err = cgrad_storage_layout_flat_index(&t->layout, indices, TENSOR_DIM, &idx);

@@ -340,7 +340,7 @@ cgrad_status cgrad_storage_gemm(
         }
     }
 
-    err = a->backend->storage_gemm(alpha, a->data, b->data, beta, r->data);
+    err = a->backend->storage_gemm(alpha, a_bcast.data, b_bcast.data, beta, r->data);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
         cgrad_storage_free_all_from_record(storage_record);
