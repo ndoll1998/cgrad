@@ -287,7 +287,7 @@ static void test_sgd_multiple_parameters(void **state) {
     cgrad_tensor param1, param2, param3;
     cgrad_tensor_init(&param1, (uint32_t[]){2}, 1, "cpu_f32");
     cgrad_tensor_init(&param2, (uint32_t[]){2}, 1, "cpu_f32");
-    cgrad_tensor_init(&param3, (uint32_t[]){2}, 1, "cpu_f32");
+    cgrad_tensor_init(&param3, (uint32_t[]){2, 2}, 2, "cpu_f32");
     
     cgrad_tensor_fill(&param1, 1.0f);
     cgrad_tensor_fill(&param2, 2.0f);
@@ -308,10 +308,10 @@ static void test_sgd_multiple_parameters(void **state) {
     cgrad_tensor_add(&sum1, &param3, &sum2);
     
     uint8_t reduce_mask1[] = {1};
-    uint8_t reduce_mask2[] = {1};
+    uint8_t reduce_mask2[] = {1, 1};
     cgrad_tensor reduced1, reduced2;
     cgrad_tensor_reduce_sum(&sum1, reduce_mask1, 1, &reduced1);
-    cgrad_tensor_reduce_sum(&sum2, reduce_mask2, 1, &reduced2);
+    cgrad_tensor_reduce_sum(&sum2, reduce_mask2, 2, &reduced2);
     cgrad_tensor_add(&reduced1, &reduced2, &loss);
     
     // Backward and step
@@ -322,7 +322,7 @@ static void test_sgd_multiple_parameters(void **state) {
     float val1, val2, val3;
     cgrad_tensor_get(&param1, (uint32_t[]){0}, 1, &val1);
     cgrad_tensor_get(&param2, (uint32_t[]){0}, 1, &val2);
-    cgrad_tensor_get(&param3, (uint32_t[]){0}, 1, &val3);
+    cgrad_tensor_get(&param3, (uint32_t[]){0, 0}, 2, &val3);
     
     // All gradients should be non-zero, so all parameters should have changed
     assert_true(fabs(val1 - 1.0f) > EPSILON);
