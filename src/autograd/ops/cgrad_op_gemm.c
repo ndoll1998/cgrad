@@ -78,7 +78,7 @@ static cgrad_status cgrad_op_gemm_compute_and_accumulate_gradient(
         err = cgrad_storage_gemm(alpha, lhs, rhs, 0.0f, &grad_contrib);
         if (err != CGRAD_SUCCESS) {
             cgrad_storage_stop_recording(storage_record);
-            cgrad_storage_free_all_from_record(storage_record);
+            cgrad_storage_free_record(storage_record);
             return err;
         }
         
@@ -86,7 +86,7 @@ static cgrad_status cgrad_op_gemm_compute_and_accumulate_gradient(
         err = cgrad_storage_reduce(1.0, &grad_contrib, reduction_mask, TENSOR_DIM, 0.0f, &grad_reduced);
         if (err != CGRAD_SUCCESS) {
             cgrad_storage_stop_recording(storage_record);
-            cgrad_storage_free_all_from_record(storage_record);
+            cgrad_storage_free_record(storage_record);
             return err;
         }
         
@@ -99,7 +99,7 @@ static cgrad_status cgrad_op_gemm_compute_and_accumulate_gradient(
     
     // cleanup
     cgrad_storage_stop_recording(storage_record);
-    cgrad_storage_free_all_from_record(storage_record);
+    cgrad_storage_free_record(storage_record);
 
     return err;
 }
@@ -144,7 +144,7 @@ int cgrad_op_gemm_backward(
         ret = cgrad_storage_transpose(inputs[1], &b_transposed, perm, 2);
         if (ret != CGRAD_SUCCESS) {
             cgrad_storage_stop_recording(storage_record);
-            cgrad_storage_free_all_from_record(storage_record);
+            cgrad_storage_free_record(storage_record);
             return ret;
         }
         
@@ -152,7 +152,7 @@ int cgrad_op_gemm_backward(
         ret = cgrad_op_gemm_compute_and_accumulate_gradient(1.0f, grad_output, &b_transposed, grad_inputs[0]);
         
         cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
+        cgrad_storage_free_record(storage_record);
         
         if (ret != CGRAD_SUCCESS) return ret;
     }
@@ -167,7 +167,7 @@ int cgrad_op_gemm_backward(
         ret = cgrad_storage_transpose(inputs[0], &a_transposed, perm, 2);
         if (ret != CGRAD_SUCCESS) {
             cgrad_storage_stop_recording(storage_record);
-            cgrad_storage_free_all_from_record(storage_record);
+            cgrad_storage_free_record(storage_record);
             return ret;
         }
         
@@ -175,7 +175,7 @@ int cgrad_op_gemm_backward(
         ret = cgrad_op_gemm_compute_and_accumulate_gradient(1.0f, &a_transposed, grad_output, grad_inputs[1]);
         
         cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
+        cgrad_storage_free_record(storage_record);
         
         if (ret != CGRAD_SUCCESS) return ret;
     }

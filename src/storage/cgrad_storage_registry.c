@@ -366,11 +366,9 @@ cgrad_status cgrad_storage_registry_stop_recording(cgrad_storage_registry* regis
     cgrad_storage_registry_record* found = NULL;
     HASH_FIND(hh, registry->active_records, record->record_id, sizeof(uuid_t), found);
     if (!found) {
-        return CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED; // Record not active
-    }
-    
+        return CGRAD_ERR_STORAGE_REGISTRY_RECORD_NOT_FOUND; // Record not active
+    }    
     HASH_DEL(registry->active_records, found);
-    cgrad_storage_registry_record_free(found);
     
     return CGRAD_SUCCESS;
 }
@@ -388,6 +386,7 @@ void cgrad_storage_registry_record_free(cgrad_storage_registry_record* record) {
         free(entry);
     }
     
+    // free record
     free(record);
 }
 

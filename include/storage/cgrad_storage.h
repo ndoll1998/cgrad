@@ -93,7 +93,7 @@ cgrad_status cgrad_storage_stop_recording(struct cgrad_storage_registry_record* 
  * @param record Pointer to the record from cgrad_storage_start_recording.
  * @return CGRAD_SUCCESS if all storages freed successfully, otherwise the first error code encountered.
  */
-cgrad_status cgrad_storage_free_all_from_record(struct cgrad_storage_registry_record* record);
+cgrad_status cgrad_storage_free_record(struct cgrad_storage_registry_record* record);
 
 /**
  * @brief Fill the tensor with a constant value.

@@ -40,7 +40,7 @@ static cgrad_status cgrad_op_axpy_update_gradient(
         cgrad_status err = cgrad_storage_reduce(1.0, grad_output, reduction_mask, TENSOR_DIM, 0.0f, &tmp);
         if (err != CGRAD_SUCCESS) {
             cgrad_storage_stop_recording(storage_record);
-            cgrad_storage_free_all_from_record(storage_record);
+            cgrad_storage_free_record(storage_record);
             return err;
         }
         // use reduced gradient output
@@ -52,7 +52,7 @@ static cgrad_status cgrad_op_axpy_update_gradient(
     
     // cleanup
     cgrad_storage_stop_recording(storage_record);
-    cgrad_storage_free_all_from_record(storage_record);
+    cgrad_storage_free_record(storage_record);
 
     return err;
 }

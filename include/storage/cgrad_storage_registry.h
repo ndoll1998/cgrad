@@ -150,7 +150,6 @@ cgrad_storage_registry_record* cgrad_storage_registry_start_recording(cgrad_stor
 /**
  * @brief Stop recording and deactivate the record.
  *        The record remains valid and contains all recorded storage UUIDs.
- *        Caller is responsible for freeing the record using cgrad_storage_registry_record_free.
  * 
  * @param registry Pointer to the registry.
  * @param record Pointer to the record to stop.
