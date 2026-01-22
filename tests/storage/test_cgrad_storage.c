@@ -9,9 +9,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// Forward declare getter - it's internal to storage module
-extern cgrad_storage_registry* get_global_registry(void);
-
 // ============================================================================
 // Setup and Teardown
 // ============================================================================
@@ -114,63 +111,56 @@ static void test_cgrad_storage_reshape(void **state) {
     cgrad_storage_free(&src);
     cgrad_storage_free(&dst);
 
-    // Ensure registry is empty
-    cgrad_storage_registry* registry = cgrad_storage_get_global_registry();
-    if (registry) {
-        assert_int_equal(cgrad_storage_registry_count(registry), 0);
-    }
-}
-
-static int mock_storage_free_count = 0;
-static void mock_storage_free(void* handle) {
-    // Do not free here; freeing is handled after test to avoid double free
-    mock_storage_free_count++;
+    // try to free the global storage registry
+    // this returns an error if the registry is non-empty
+    cgrad_status err = cgrad_storage_free_global_registry();
+    assert_int_equal(err, CGRAD_SUCCESS);
 }
 
 static void test_cgrad_storage_registry_root_freed_only_after_all_children(void **state) {
     (void)state;
-    cgrad_storage_registry* registry = cgrad_storage_get_global_registry();
-    assert_non_null(registry);
     
-    // Setup mock backend
-    cgrad_backend mock_backend = {0};
-    mock_backend.storage_free = mock_storage_free;
-    mock_backend.storage_shallow_copy = NULL; // Not needed for this test
-    mock_backend.storage_init = NULL; // Not needed for this test
-
-    // Create root tensor
+    // Create a root storage using the high-level API
     cgrad_storage root = {0};
-
-    // Register root
-    cgrad_storage_registry_register(registry, &root, NULL);
-
-    // Create two children (simulate shallow copies)
-    cgrad_storage child1 = {0}, child2 = {0};
-    child1.backend = &mock_backend;
-    child1.data = malloc(1);
-    cgrad_storage_registry_register(registry, &child1, &root);
-
-    child2.backend = &mock_backend;
-    child2.data = malloc(1);
-    cgrad_storage_registry_register(registry, &child2, &root);
-
-    mock_storage_free_count = 0;
-
-    // Free one child
-    cgrad_storage_free(&child1);
-
-    // Free the other child
-    cgrad_storage_free(&child2);
-
-    // Free the root, now root handle should be freed
-    cgrad_storage_free(&root);
-    assert_int_equal(mock_storage_free_count, 1);
-
-    // Manually free all handles to avoid memory leaks
-    free(child1.data);
-    free(child2.data);
+    uint32_t shape[] = {2, 3};
+    assert_int_equal(cgrad_storage_init(&root, shape, 2, "cpu_f32"), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_fill(&root, 1.0f), CGRAD_SUCCESS);
     
-    cgrad_storage_free_global_registry();
+    // Create two children using shallow copy
+    cgrad_storage child1 = {0}, child2 = {0};
+    assert_int_equal(cgrad_storage_shallow_copy(&root, &child1), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_shallow_copy(&root, &child2), CGRAD_SUCCESS);
+    
+    // Verify all three have valid data handles
+    assert_non_null(root.data);
+    assert_non_null(child1.data);
+    assert_non_null(child2.data);
+    
+    // Free one child - root data should still be accessible
+    assert_int_equal(cgrad_storage_free(&child1), CGRAD_SUCCESS);
+    assert_null(child1.data); // child1 handle should be freed
+    
+    // Verify root data is still valid by reading a value
+    float value;
+    uint32_t idx[TENSOR_DIM] = {0,0,0,0,0,0,0,0};
+    assert_int_equal(cgrad_storage_get(&root, idx, TENSOR_DIM, &value), CGRAD_SUCCESS);
+    assert_float_equal(value, 1.0f, 1e-6);
+    
+    // Verify child2 data is still valid
+    assert_int_equal(cgrad_storage_get(&child2, idx, TENSOR_DIM, &value), CGRAD_SUCCESS);
+    assert_float_equal(value, 1.0f, 1e-6);
+    
+    // Free the other child - root data should still be accessible
+    assert_int_equal(cgrad_storage_free(&child2), CGRAD_SUCCESS);
+    assert_null(child2.data); // child2 handle should be freed
+    
+    // Verify root data is still valid
+    assert_int_equal(cgrad_storage_get(&root, idx, TENSOR_DIM, &value), CGRAD_SUCCESS);
+    assert_float_equal(value, 1.0f, 1e-6);
+    
+    // Free the root - now the actual data should be freed
+    assert_int_equal(cgrad_storage_free(&root), CGRAD_SUCCESS);
+    assert_null(root.data); // root handle should be freed
 }
 
 static void test_cgrad_storage_gemm_write_to_existing_tensor(void **state) {
