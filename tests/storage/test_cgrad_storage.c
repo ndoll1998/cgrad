@@ -170,7 +170,7 @@ static void test_cgrad_storage_registry_root_freed_only_after_all_children(void 
     free(child1.data);
     free(child2.data);
     
-    cgrad_storage_cleanup_global_registry();
+    cgrad_storage_free_global_registry();
 }
 
 static void test_cgrad_storage_gemm_write_to_existing_tensor(void **state) {

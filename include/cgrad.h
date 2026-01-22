@@ -51,8 +51,10 @@ cgrad_status cgrad_init(void) __attribute__((constructor));
  * re-initialized with cgrad_init() before use.
  * 
  * Multiple calls are safe - the function will only cleanup once.
+ * 
+ * @return CGRAD_SUCCESS on success, CGRAD_ERR_STORAGE_REGISTRY_NOT_EMPTY if tensors are still registered.
  */
-void cgrad_cleanup(void);
+cgrad_status cgrad_cleanup(void);
 
 /**
  * @brief Check if the cgrad library is initialized.

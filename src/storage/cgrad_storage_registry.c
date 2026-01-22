@@ -70,7 +70,7 @@ cgrad_status cgrad_storage_registry_init(cgrad_storage_registry* registry) {
  */
 void cgrad_storage_registry_free(cgrad_storage_registry* registry) {
     if (!registry) return;
-    
+        
     // Free all buckets
     cgrad_storage_registry_bucket *bucket, *tmp_bucket;
     HASH_ITER(hh, registry->bucket_map, bucket, tmp_bucket) {

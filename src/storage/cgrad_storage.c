@@ -40,20 +40,21 @@ cgrad_status cgrad_storage_init_global_registry(void) {
 
 /**
  * @brief Cleanup the global storage registry.
+ * Returns an error if there are still tensors registered in the registry.
  */
-void cgrad_storage_cleanup_global_registry(void) {
+cgrad_status cgrad_storage_free_global_registry(void) {
     if (g_global_registry != NULL) {
+        // Check if there are any tensors still registered
+        size_t count = cgrad_storage_registry_count(g_global_registry);
+        if (count > 0) {
+            return CGRAD_ERR_STORAGE_REGISTRY_NOT_EMPTY;
+        }
+        
         cgrad_storage_registry_free(g_global_registry);
         free(g_global_registry);
         g_global_registry = NULL;
     }
-}
-
-/**
- * @brief Get the global storage registry.
- */
-cgrad_storage_registry* cgrad_storage_get_global_registry(void) {
-    return g_global_registry;
+    return CGRAD_SUCCESS;
 }
 
 /**

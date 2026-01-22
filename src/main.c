@@ -116,8 +116,12 @@ int main() {
     // Cleanup
     // ========================================================================
     printf("--- Cleanup ---\n");
-    cgrad_cleanup();
-    printf("All resources freed.\n");
+    cgrad_status cleanup_status = cgrad_cleanup();
+    if (cleanup_status != CGRAD_SUCCESS) {
+        printf("Warning: Cleanup returned error code %d\n", cleanup_status);
+    } else {
+        printf("All resources freed.\n");
+    }
 
     printf("\n========================================\n");
     printf("Optimization Complete!\n");
