@@ -4,29 +4,33 @@
 #include "cgrad_status.h"
 #include <stdlib.h>
 
-// Forward declare getter - it's internal to storage module
-// Use the public getter function instead of extern
-#include "cgrad.h"
-
 // ============================================================================
 // Setup and Teardown
 // ============================================================================
 
 static int registry_setup_test(void **state) {
-    (void) state;
-    cgrad_init();
+    // Create a local registry for testing
+    cgrad_storage_registry* registry = (cgrad_storage_registry*)malloc(sizeof(cgrad_storage_registry));
+    assert_non_null(registry);
+    
+    int rc = cgrad_storage_registry_init(registry);
+    assert_int_equal(rc, CGRAD_SUCCESS);
+    
+    *state = registry;
     return 0;
 }
 
 static int registry_teardown_test(void **state) {
-    (void) state;
-    cgrad_cleanup();
+    cgrad_storage_registry* registry = (cgrad_storage_registry*)*state;
+    if (registry) {
+        cgrad_storage_registry_free(registry);
+        free(registry);
+    }
     return 0;
 }
 
 static void test_cgrad_storage_register_root_and_find(void **state) {
-    (void)state;
-    cgrad_storage_registry* registry = cgrad_storage_get_global_registry();
+    cgrad_storage_registry* registry = (cgrad_storage_registry*)*state;
     assert_non_null(registry);
     
     cgrad_storage* tensor = (cgrad_storage*)malloc(sizeof(cgrad_storage));
@@ -61,8 +65,7 @@ static void test_cgrad_storage_register_root_and_find(void **state) {
 }
 
 static void test_cgrad_storage_register_child_and_bucket_sharing(void **state) {
-    (void)state;
-    cgrad_storage_registry* registry = cgrad_storage_get_global_registry();
+    cgrad_storage_registry* registry = (cgrad_storage_registry*)*state;
     assert_non_null(registry);
     
     cgrad_storage* root = (cgrad_storage*)malloc(sizeof(cgrad_storage));
@@ -113,8 +116,7 @@ static void test_cgrad_storage_register_child_and_bucket_sharing(void **state) {
 }
 
 static void test_cgrad_storage_register_with_unregistered_parent(void **state) {
-    (void)state;
-    cgrad_storage_registry* registry = cgrad_storage_get_global_registry();
+    cgrad_storage_registry* registry = (cgrad_storage_registry*)*state;
     assert_non_null(registry);
     
     cgrad_storage* parent = (cgrad_storage*)malloc(sizeof(cgrad_storage));
@@ -133,8 +135,7 @@ static void test_cgrad_storage_register_with_unregistered_parent(void **state) {
 }
 
 static void test_cgrad_storage_register_count(void **state) {
-    (void)state;
-    cgrad_storage_registry* registry = cgrad_storage_get_global_registry();
+    cgrad_storage_registry* registry = (cgrad_storage_registry*)*state;
     assert_non_null(registry);
     
     // Should be empty at start
@@ -172,8 +173,7 @@ static void test_cgrad_storage_register_count(void **state) {
 }
 
 static void test_cgrad_storage_register_idempotency(void **state) {
-    (void)state;
-    cgrad_storage_registry* registry = cgrad_storage_get_global_registry();
+    cgrad_storage_registry* registry = (cgrad_storage_registry*)*state;
     assert_non_null(registry);
     
     cgrad_storage* tensor = (cgrad_storage*)malloc(sizeof(cgrad_storage));
@@ -201,8 +201,7 @@ static void test_cgrad_storage_register_idempotency(void **state) {
 }
 
 static void test_cgrad_storage_registry_tracker_basic(void **state) {
-    (void)state;
-    cgrad_storage_registry* registry = cgrad_storage_get_global_registry();
+    cgrad_storage_registry* registry = (cgrad_storage_registry*)*state;
     assert_non_null(registry);
     
     // Start tracking
@@ -252,8 +251,7 @@ static void test_cgrad_storage_registry_tracker_basic(void **state) {
 }
 
 static void test_cgrad_storage_registry_tracker_nested(void **state) {
-    (void)state;
-    cgrad_storage_registry* registry = cgrad_storage_get_global_registry();
+    cgrad_storage_registry* registry = (cgrad_storage_registry*)*state;
     assert_non_null(registry);
     
     // Start first tracker

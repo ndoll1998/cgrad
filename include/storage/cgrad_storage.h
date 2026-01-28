@@ -57,8 +57,18 @@ cgrad_status cgrad_storage_free(cgrad_storage* t);
  * @brief Cleanup the global storage registry.
  * 
  * This should be called at program shutdown to free all registry resources.
+ * Returns an error if there are still tensors registered in the registry.
+ * 
+ * @return CGRAD_SUCCESS on success, CGRAD_ERR_STORAGE_REGISTRY_NOT_EMPTY if tensors are still registered.
  */
-void cgrad_storage_cleanup_global_registry(void);
+cgrad_status cgrad_storage_free_global_registry(void);
+
+/**
+ * @brief Get the number of storages currently registered in the global registry.
+ * 
+ * @return Number of registered storages, or 0 if the registry is not initialized.
+ */
+size_t cgrad_storage_get_global_registry_count(void);
 
  // ============================================================================
  // Storage Recording API (Scoped Resource Management)
@@ -90,7 +100,7 @@ cgrad_status cgrad_storage_stop_recording(struct cgrad_storage_registry_record* 
  * @param record Pointer to the record from cgrad_storage_start_recording.
  * @return CGRAD_SUCCESS if all storages freed successfully, otherwise the first error code encountered.
  */
-cgrad_status cgrad_storage_free_all_from_record(struct cgrad_storage_registry_record* record);
+cgrad_status cgrad_storage_free_record(struct cgrad_storage_registry_record* record);
 
 /**
  * @brief Fill the tensor with a constant value.

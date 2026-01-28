@@ -150,7 +150,6 @@ cgrad_storage_registry_record* cgrad_storage_registry_start_recording(cgrad_stor
 /**
  * @brief Stop recording and deactivate the record.
  *        The record remains valid and contains all recorded storage UUIDs.
- *        Caller is responsible for freeing the record using cgrad_storage_registry_record_free.
  * 
  * @param registry Pointer to the registry.
  * @param record Pointer to the record to stop.
@@ -202,17 +201,10 @@ cgrad_status cgrad_storage_init_global_registry(void);
  * 
  * This function frees all resources associated with the global storage registry.
  * It should be called once during library cleanup.
- */
-void cgrad_storage_cleanup_global_registry(void);
-
-/**
- * @brief Get the global storage registry.
+ * Returns an error if there are still tensors registered in the registry.
  * 
- * Returns a pointer to the global storage registry. The registry must have been
- * initialized with cgrad_storage_init_global_registry() before calling this function.
- * 
- * @return Pointer to the global storage registry, or NULL if not initialized.
+ * @return CGRAD_SUCCESS on success, CGRAD_ERR_STORAGE_REGISTRY_NOT_EMPTY if tensors are still registered.
  */
-cgrad_storage_registry* cgrad_storage_get_global_registry(void);
+cgrad_status cgrad_storage_free_global_registry(void);
 
 #endif // CGRAD_STORAGE_REGISTRY_H

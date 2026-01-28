@@ -40,20 +40,29 @@ cgrad_status cgrad_storage_init_global_registry(void) {
 
 /**
  * @brief Cleanup the global storage registry.
+ * Returns an error if there are still tensors registered in the registry.
  */
-void cgrad_storage_cleanup_global_registry(void) {
+cgrad_status cgrad_storage_free_global_registry(void) {
     if (g_global_registry != NULL) {
+        // Check if there are any tensors still registered
+        size_t count = cgrad_storage_registry_count(g_global_registry);
+        if (count > 0) {
+            return CGRAD_ERR_STORAGE_REGISTRY_NOT_EMPTY;
+        }
+        
         cgrad_storage_registry_free(g_global_registry);
         free(g_global_registry);
         g_global_registry = NULL;
     }
+    return CGRAD_SUCCESS;
 }
 
 /**
- * @brief Get the global storage registry.
+ * @brief Get the number of storages currently registered in the global registry.
  */
-cgrad_storage_registry* cgrad_storage_get_global_registry(void) {
-    return g_global_registry;
+size_t cgrad_storage_get_global_registry_count(void) {
+    if (g_global_registry == NULL) return 0;
+    return cgrad_storage_registry_count(g_global_registry);
 }
 
 /**
@@ -93,17 +102,34 @@ cgrad_status cgrad_storage_stop_recording(cgrad_storage_registry_record* record)
 
 /**
  * @brief Free all storages recorded in a record.
+ * Iterates over all storages in the record and calls cgrad_storage_free on each.
+ * If errors occur during freeing, continues to free all storages but returns the first error.
  */
-cgrad_status cgrad_storage_free_all_from_record(cgrad_storage_registry_record* record) {
+cgrad_status cgrad_storage_free_record(cgrad_storage_registry_record* record) {
     if (!record) return CGRAD_ERR_NULL_POINTER;
 
-    int first_error = CGRAD_SUCCESS;
+    cgrad_status err;
+
+    // stop recording
+    err = cgrad_storage_stop_recording(record);
+    if ((err != CGRAD_SUCCESS) && (err != CGRAD_ERR_STORAGE_REGISTRY_RECORD_NOT_FOUND)) {
+        return err;
+    }
+    
+    cgrad_status first_error = CGRAD_SUCCESS;
     cgrad_storage_registry_node *entry, *tmp;
     HASH_ITER(hh, record->storage_map, entry, tmp) {
-        // Only free the record entry struct, not the underlying storage
-        HASH_DEL(record->storage_map, entry);
-        free(entry);
+        // Free the actual storage
+        if (entry->storage) {
+            err = cgrad_storage_free(entry->storage);
+            if (err != CGRAD_SUCCESS && first_error == CGRAD_SUCCESS) {
+                first_error = err;
+            }
+        }
     }
+
+    // free record
+    cgrad_storage_registry_record_free(record);
 
     return first_error;
 }
@@ -276,7 +302,7 @@ cgrad_status cgrad_storage_gemm(
     int err = cgrad_storage_shallow_copy(a, &a_bcast);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
+        cgrad_storage_free_record(storage_record);
         return err;
     }
     
@@ -284,7 +310,7 @@ cgrad_status cgrad_storage_gemm(
     err = cgrad_storage_shallow_copy(b, &b_bcast);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
+        cgrad_storage_free_record(storage_record);
         return err;
     }
 
@@ -297,7 +323,7 @@ cgrad_status cgrad_storage_gemm(
     );
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
+        cgrad_storage_free_record(storage_record);
         return err;
     }
 
@@ -312,7 +338,7 @@ cgrad_status cgrad_storage_gemm(
         err = cgrad_storage_init(r, r_shape, TENSOR_DIM, a->backend->name);
         if (err != CGRAD_SUCCESS) {
             cgrad_storage_stop_recording(storage_record);
-            cgrad_storage_free_all_from_record(storage_record);
+            cgrad_storage_free_record(storage_record);
             return err;
         }
     } else {
@@ -328,14 +354,14 @@ cgrad_status cgrad_storage_gemm(
         
         if (!shape_matches) {
             cgrad_storage_stop_recording(storage_record);
-            cgrad_storage_free_all_from_record(storage_record);
+            cgrad_storage_free_record(storage_record);
             return CGRAD_ERR_STORAGE_SHAPE_MISMATCH;
         }
         
         // Check if tensor is contiguous
         if (!cgrad_storage_layout_is_contiguous(r_layout)) {
             cgrad_storage_stop_recording(storage_record);
-            cgrad_storage_free_all_from_record(storage_record);
+            cgrad_storage_free_record(storage_record);
             return CGRAD_ERR_NOT_IMPLEMENTED;
         }
     }
@@ -343,14 +369,14 @@ cgrad_status cgrad_storage_gemm(
     err = a->backend->storage_gemm(alpha, a_bcast.data, b_bcast.data, beta, r->data);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
+        cgrad_storage_free_record(storage_record);
         return err;
     }
 
     // cleanup and do not free output storage
     cgrad_storage_registry_record_remove(storage_record, r);
     cgrad_storage_stop_recording(storage_record);
-    return cgrad_storage_free_all_from_record(storage_record);
+    return cgrad_storage_free_record(storage_record);
 }
 
 /**
@@ -381,14 +407,14 @@ cgrad_status cgrad_storage_axpy(
     int err = cgrad_storage_shallow_copy(x, &x_bcast);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
+        cgrad_storage_free_record(storage_record);
         return err;
     }
     cgrad_storage y_bcast;
     err = cgrad_storage_shallow_copy(y, &y_bcast);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
+        cgrad_storage_free_record(storage_record);
         return err;
     }
 
@@ -401,7 +427,7 @@ cgrad_status cgrad_storage_axpy(
     );
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
+        cgrad_storage_free_record(storage_record);
         return err;
     }
     
@@ -411,7 +437,7 @@ cgrad_status cgrad_storage_axpy(
         err = cgrad_storage_init(r, shape, TENSOR_DIM, x->backend->name);
         if (err != CGRAD_SUCCESS) {
             cgrad_storage_stop_recording(storage_record);
-            cgrad_storage_free_all_from_record(storage_record);
+            cgrad_storage_free_record(storage_record);
             return err;
         }
     } else {
@@ -427,7 +453,7 @@ cgrad_status cgrad_storage_axpy(
         
         if (!shape_matches) {
             cgrad_storage_stop_recording(storage_record);
-            cgrad_storage_free_all_from_record(storage_record);
+            cgrad_storage_free_record(storage_record);
             return CGRAD_ERR_STORAGE_SHAPE_MISMATCH;
         }
         
@@ -436,7 +462,7 @@ cgrad_status cgrad_storage_axpy(
         //       storage_copy as a less strict version of storage_contiguous
         if (!cgrad_storage_layout_is_contiguous(r_layout)) {
             cgrad_storage_stop_recording(storage_record);
-            cgrad_storage_free_all_from_record(storage_record);
+            cgrad_storage_free_record(storage_record);
             return CGRAD_ERR_NOT_IMPLEMENTED;
         }
     }
@@ -446,7 +472,7 @@ cgrad_status cgrad_storage_axpy(
         err = y_bcast.backend->storage_contiguous(y_bcast.data, r->data);
         if (err != CGRAD_SUCCESS) {
             cgrad_storage_stop_recording(storage_record);
-            cgrad_storage_free_all_from_record(storage_record);
+            cgrad_storage_free_record(storage_record);
             return err;
         }
     }
@@ -454,14 +480,14 @@ cgrad_status cgrad_storage_axpy(
     err = x->backend->storage_axpy(alpha, x_bcast.data, r->data);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
+        cgrad_storage_free_record(storage_record);
         return err;
     }
 
     // cleanup and do not free output storage
     cgrad_storage_registry_record_remove(storage_record, r);
     cgrad_storage_stop_recording(storage_record);
-    return cgrad_storage_free_all_from_record(storage_record);
+    return cgrad_storage_free_record(storage_record);
 }
 
 
@@ -517,14 +543,14 @@ cgrad_status cgrad_storage_contiguous(const cgrad_storage* src, cgrad_storage* d
     int err = cgrad_storage_init(dst, src_shape, TENSOR_DIM, src->backend->name);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
+        cgrad_storage_free_record(storage_record);
         return err;
     }
 
     err = src->backend->storage_contiguous(src->data, dst->data);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
+        cgrad_storage_free_record(storage_record);
         return err;
     }
 
@@ -559,7 +585,7 @@ cgrad_status cgrad_storage_reshape(const cgrad_storage* src, cgrad_storage* dst,
         int err = cgrad_storage_shallow_copy(src, dst);
         if (err != CGRAD_SUCCESS) {
             cgrad_storage_stop_recording(storage_record);
-            cgrad_storage_free_all_from_record(storage_record);
+            cgrad_storage_free_record(storage_record);
             return err;
         }
     } else {
@@ -567,7 +593,7 @@ cgrad_status cgrad_storage_reshape(const cgrad_storage* src, cgrad_storage* dst,
         int err = cgrad_storage_contiguous(src, dst);
         if (err != CGRAD_SUCCESS) {
             cgrad_storage_stop_recording(storage_record);
-            cgrad_storage_free_all_from_record(storage_record);
+            cgrad_storage_free_record(storage_record);
             return err;
         }
     }
@@ -599,7 +625,7 @@ cgrad_status cgrad_storage_transpose(const cgrad_storage* src, cgrad_storage* ds
     int err = cgrad_storage_shallow_copy(src, dst);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
+        cgrad_storage_free_record(storage_record);
         return err;
     }
     
@@ -607,7 +633,7 @@ cgrad_status cgrad_storage_transpose(const cgrad_storage* src, cgrad_storage* ds
     err = cgrad_storage_layout_transpose(dst->backend->storage_get_layout(dst->data), perm, ndim);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
+        cgrad_storage_free_record(storage_record);
         return err;
     }
 
@@ -690,7 +716,7 @@ cgrad_status cgrad_storage_reduce(
         err = cgrad_storage_transpose(&a_perm, &a_transposed, perm, TENSOR_DIM);
         if (err != CGRAD_SUCCESS) {
             cgrad_storage_stop_recording(storage_record);
-            cgrad_storage_free_all_from_record(storage_record);
+            cgrad_storage_free_record(storage_record);
             return err;
         }
         a_perm = a_transposed;
@@ -714,7 +740,7 @@ cgrad_status cgrad_storage_reduce(
     err = cgrad_storage_reshape(&a_perm, &a_reshaped, (const int32_t[]){kept_size, summed_size}, 2);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
+        cgrad_storage_free_record(storage_record);
         return err;
     }
     
@@ -723,19 +749,19 @@ cgrad_status cgrad_storage_reduce(
     err = cgrad_storage_init(&ones, (const uint32_t[]){summed_size, 1}, 2, a_perm.backend->name);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
+        cgrad_storage_free_record(storage_record);
         return err;
     }
     err = cgrad_storage_fill(&ones, 1.0f);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
+        cgrad_storage_free_record(storage_record);
         return err;
     }
     
     if (r->data) {
         cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
+        cgrad_storage_free_record(storage_record);
         return CGRAD_ERR_NOT_IMPLEMENTED;
     }
 
@@ -744,7 +770,7 @@ cgrad_status cgrad_storage_reduce(
     err = cgrad_storage_gemm(alpha, &a_reshaped, &ones, beta, &r_mat);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
+        cgrad_storage_free_record(storage_record);
         return err;
     }
 
@@ -752,12 +778,12 @@ cgrad_status cgrad_storage_reduce(
     err = cgrad_storage_reshape(&r_mat, r, target_shape, TENSOR_DIM);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_stop_recording(storage_record);
-        cgrad_storage_free_all_from_record(storage_record);
+        cgrad_storage_free_record(storage_record);
         return err;
     }
 
     // cleanup and do not free output storage
     cgrad_storage_registry_record_remove(storage_record, r);
     cgrad_storage_stop_recording(storage_record);
-    return cgrad_storage_free_all_from_record(storage_record);
+    return cgrad_storage_free_record(storage_record);
 }

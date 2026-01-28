@@ -26,6 +26,8 @@
 // Storage registry errors
 #define CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED    -1201
 #define CGRAD_ERR_STORAGE_REGISTRY_BUCKET_NOT_EMPTY         -1202
+#define CGRAD_ERR_STORAGE_REGISTRY_NOT_EMPTY                -1203
+#define CGRAD_ERR_STORAGE_REGISTRY_RECORD_NOT_FOUND         -1204
 
 // Layout/broadcasting errors
 #define CGRAD_ERR_STORAGE_LAYOUT_BROADCAST                  -1301
@@ -59,4 +61,3 @@
 typedef int cgrad_status;
 
 #endif // CGRAD_ERRORS_H
-

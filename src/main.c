@@ -53,10 +53,11 @@ int main() {
     printf("%-6s %-12s\n", "----", "----");
     
     const float learning_rate = 0.1f;
-    const int num_iterations = 50;
+    const int num_iterations = 10;
     
     for (int iter = 0; iter < num_iterations; iter++) {
 
+        // void* record = cgrad_storage_start_recording();
         // zero gradient of A
         cgrad_tensor_zero_grad(&A);
 
@@ -75,8 +76,7 @@ int main() {
         
         // Get loss value
         float loss_value = 0.0f;
-        uint32_t scalar_idx[] = {0, 0, 0, 0, 0, 0, 0, 0};
-        cgrad_storage_get(cgrad_tensor_get_storage(&loss), scalar_idx, 8, &loss_value);
+        cgrad_tensor_get(&loss, (uint32_t[]){0}, 1, &loss_value);
         
         // ====================================================================
         // Backward Pass: Compute gradients
@@ -87,12 +87,6 @@ int main() {
             cgrad_cleanup();
             return 1;
         }
-        
-        // ====================================================================
-        // Compute gradient norm for monitoring
-        // ====================================================================
-        cgrad_tensor grad_A;
-        ret = cgrad_tensor_get_gradient(&A, &grad_A);
         
         // Print iteration info
         printf("%-6d %-12.6f\n", iter + 1, loss_value);
@@ -106,6 +100,10 @@ int main() {
             cgrad_tensor_get_storage(&A),
             cgrad_tensor_get_storage(&A)
         );
+
+        // cgrad_storage_free_record(record);
+        cgrad_tensor_free(&C);
+        cgrad_tensor_free(&loss);
     }
     
     printf("\n");
@@ -116,8 +114,12 @@ int main() {
     // Cleanup
     // ========================================================================
     printf("--- Cleanup ---\n");
-    cgrad_cleanup();
-    printf("All resources freed.\n");
+    cgrad_status cleanup_status = cgrad_cleanup();
+    if (cleanup_status != CGRAD_SUCCESS) {
+        printf("Warning: Cleanup returned error code %d\n", cleanup_status);
+    } else {
+        printf("All resources freed.\n");
+    }
 
     printf("\n========================================\n");
     printf("Optimization Complete!\n");

@@ -70,7 +70,7 @@ cgrad_status cgrad_storage_registry_init(cgrad_storage_registry* registry) {
  */
 void cgrad_storage_registry_free(cgrad_storage_registry* registry) {
     if (!registry) return;
-    
+        
     // Free all buckets
     cgrad_storage_registry_bucket *bucket, *tmp_bucket;
     HASH_ITER(hh, registry->bucket_map, bucket, tmp_bucket) {
@@ -119,6 +119,10 @@ cgrad_status cgrad_storage_registry_register(cgrad_storage_registry* registry, c
     cgrad_storage_registry_entry* reg_entry = NULL;
     cgrad_storage_registry_bucket* bucket = NULL;
 
+    // Log registration with UUID
+    char uuid_str[37];
+    uuid_unparse(t->uuid, uuid_str);
+    
     // Check if tensor is already registered
     HASH_FIND(hh, registry->storage_map, t->uuid, sizeof(uuid_t), reg_entry);
     if (reg_entry) {
@@ -195,10 +199,16 @@ cgrad_status cgrad_storage_registry_register(cgrad_storage_registry* registry, c
 cgrad_status cgrad_storage_registry_deregister(cgrad_storage_registry* registry, cgrad_storage* t) {
     if (!registry || !t) return CGRAD_ERR_NULL_POINTER;
 
+    // Log deregistration with UUID
+    char uuid_str[37];
+    uuid_unparse(t->uuid, uuid_str);
+
     cgrad_storage_registry_entry* reg_entry = NULL;
     HASH_FIND(hh, registry->storage_map, t->uuid, sizeof(uuid_t), reg_entry);
-    if (!reg_entry) return CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED;
-
+    if (!reg_entry) {
+        return CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED;
+    }
+    
     cgrad_storage_registry_bucket* bucket = reg_entry->bucket;
 
     // Remove t from bucket's tensor_map
@@ -366,11 +376,9 @@ cgrad_status cgrad_storage_registry_stop_recording(cgrad_storage_registry* regis
     cgrad_storage_registry_record* found = NULL;
     HASH_FIND(hh, registry->active_records, record->record_id, sizeof(uuid_t), found);
     if (!found) {
-        return CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED; // Record not active
-    }
-    
+        return CGRAD_ERR_STORAGE_REGISTRY_RECORD_NOT_FOUND; // Record not active
+    }    
     HASH_DEL(registry->active_records, found);
-    cgrad_storage_registry_record_free(found);
     
     return CGRAD_SUCCESS;
 }
@@ -388,6 +396,7 @@ void cgrad_storage_registry_record_free(cgrad_storage_registry_record* record) {
         free(entry);
     }
     
+    // free record
     free(record);
 }
 

@@ -39,7 +39,7 @@ cgrad_status cgrad_init(void) {
     ret = cgrad_tensor_init_global_graph();
     if (ret != CGRAD_SUCCESS) {
         fprintf(stderr, "cgrad_init: Failed to initialize global compute graph\n");
-        cgrad_storage_cleanup_global_registry();
+        cgrad_storage_free_global_registry();
         cgrad_backend_cleanup_global_registry();
         return ret;
     }
@@ -49,7 +49,7 @@ cgrad_status cgrad_init(void) {
     if (ret != CGRAD_SUCCESS) {
         fprintf(stderr, "cgrad_init: Failed to enable gradient mode\n");
         cgrad_tensor_cleanup_global_graph();
-        cgrad_storage_cleanup_global_registry();
+        cgrad_storage_free_global_registry();
         cgrad_backend_cleanup_global_registry();
         return ret;
     }
@@ -60,20 +60,22 @@ cgrad_status cgrad_init(void) {
     return CGRAD_SUCCESS;
 }
 
-void cgrad_cleanup(void) {
+cgrad_status cgrad_cleanup(void) {
     // Prevent double cleanup
     if (!g_cgrad_initialized) {
-        return;
+        return CGRAD_SUCCESS;
     }
 
     // Step 1: Cleanup global compute graph
     cgrad_tensor_cleanup_global_graph();
 
     // Step 2: Cleanup global storage registry
-    cgrad_storage_cleanup_global_registry();
+    int ret = cgrad_storage_free_global_registry();
 
     // Mark as uninitialized
     g_cgrad_initialized = 0;
+    
+    return ret;
 }
 
 cgrad_status cgrad_is_initialized(void) {

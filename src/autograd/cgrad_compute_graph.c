@@ -101,6 +101,10 @@ cgrad_status cgrad_compute_graph_backward(
             target_node->grad_storage = NULL;
             return ret;
         }
+        
+        // Log target gradient storage allocation
+        char uuid_str[37];
+        uuid_unparse(target_node->grad_storage->uuid, uuid_str);
     }
     ret = cgrad_storage_fill(target_node->grad_storage, 1.0f);
     if (ret != CGRAD_SUCCESS) {
@@ -172,6 +176,10 @@ cgrad_status cgrad_compute_graph_backward(
                 if (ret != CGRAD_SUCCESS) {
                     return ret;
                 }
+                
+                // Log gradient storage allocation
+                char uuid_str[37];
+                uuid_unparse(input_nodes[j]->grad_storage->uuid, uuid_str);
             }
             grad_inputs[j] = input_nodes[j]->grad_storage;
         }
@@ -228,8 +236,13 @@ cgrad_status cgrad_compute_graph_zero_grad_node(cgrad_compute_graph* graph, cons
         return CGRAD_SUCCESS;
     }
 
-    // Zero out the gradient
-    return cgrad_storage_fill(node->grad_storage, 0.0f);
+    // Fill gradient storage with zeros instead of freeing it
+    ret = cgrad_storage_fill(node->grad_storage, 0.0f);
+    if (ret != CGRAD_SUCCESS) {
+        return ret;
+    }
+
+    return CGRAD_SUCCESS;
 }
 
 cgrad_status cgrad_compute_graph_set_requires_grad(
@@ -839,9 +852,6 @@ void cgrad_graph_node_print(const cgrad_graph_node* node) {
  * @brief Forward pass for a single operation node in the graph.
  */
 static int forward_node(cgrad_compute_graph* graph, cgrad_graph_node* node) {
-    if (node->storage != NULL) {
-        return CGRAD_SUCCESS;  // Already computed
-    }
 
     // Get input nodes
     uuid_t input_ids[MAX_NODE_INPUTS];
@@ -865,16 +875,21 @@ static int forward_node(cgrad_compute_graph* graph, cgrad_graph_node* node) {
         input_storages[i] = input_node->storage;
     }
 
-    // Allocate output storage
-    cgrad_storage* out_storage = (cgrad_storage*)calloc(1, sizeof(cgrad_storage));
-    if (out_storage == NULL) {
-        return CGRAD_ERR_ALLOC_FAILED;
+    // Reuse existing storage or allocate new storage
+    if (node->storage != NULL) {
+        // Free the old storage and reuse the object
+        cgrad_storage_free(node->storage);
+    } else {
+        // Allocate new storage
+        node->storage = (cgrad_storage*)calloc(1, sizeof(cgrad_storage));
+        if (node->storage == NULL) {
+            return CGRAD_ERR_ALLOC_FAILED;
+        }
     }
 
     // Get operation descriptor
     const cgrad_op_descriptor* op_desc = node->op_info.descriptor;
     if (op_desc == NULL || op_desc->forward == NULL) {
-        free(out_storage);
         return CGRAD_ERR_COMPUTE_GRAPH_INVALID_OPERATION;
     }
 
@@ -883,24 +898,19 @@ static int forward_node(cgrad_compute_graph* graph, cgrad_graph_node* node) {
         input_storages,
         num_inputs,
         &node->op_info.metadata,
-        out_storage,
+        node->storage,
         &node->ctx,
         node->requires_grad
     );
 
     if (ret != CGRAD_SUCCESS) {
-        cgrad_storage_free(out_storage);
-        free(out_storage);
+        cgrad_storage_free(node->storage);
+        free(node->storage);
+        node->storage = NULL;
         return ret;
     }
 
-    // Check the backend
-    if (strcmp(out_storage->backend->name, node->backend_name) != 0) {
-        return CGRAD_ERR_COMPUTE_GRAPH_BACKEND_MISMATCH;
-    }
-
     // Cache the result
-    node->storage = out_storage;
     return CGRAD_SUCCESS;
 }
 
@@ -944,11 +954,6 @@ cgrad_status cgrad_compute_graph_forward(
 
         // Skip leaf nodes (already have storage)
         if (node->op_info.descriptor == NULL) {
-            continue;
-        }
-
-        // Skip nodes that are already computed
-        if (node->storage != NULL) {
             continue;
         }
 
@@ -1025,6 +1030,7 @@ cgrad_status cgrad_compute_graph_free_node(cgrad_compute_graph* graph, cgrad_gra
     
     // Free gradient storage if it exists
     if (node->grad_storage != NULL) {
+        // cgrad_storage_free handles deregistration from the registry
         cgrad_storage_free(node->grad_storage);
         free(node->grad_storage);
         node->grad_storage = NULL;

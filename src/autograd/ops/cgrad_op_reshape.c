@@ -61,22 +61,15 @@ int cgrad_op_reshape_backward(
     // Get original shape from input storage
     cgrad_storage_layout* input_layout = inputs[0]->backend->storage_get_layout(inputs[0]->data);
     
-    int32_t orig_shape[TENSOR_DIM];
-    for (int k = 0; k < TENSOR_DIM; k++) {
-        orig_shape[k] = (int32_t)input_layout->shape[k];
-    }
-    
     // Reshape gradient back to original shape
     cgrad_storage grad_input = {0};
-    ret = cgrad_storage_reshape(grad_output, &grad_input, orig_shape, TENSOR_DIM);
+    ret = cgrad_storage_reshape(grad_output, &grad_input, (int32_t*)input_layout->shape, TENSOR_DIM);
     if (ret != CGRAD_SUCCESS) return ret;
     
     // Accumulate: grad_A = grad_A + grad_input
-    ret = grad_inputs[0]->backend->storage_axpy(
-        1.0f,
-        grad_input.data,
-        grad_inputs[0]->data
-    );
+    ret = cgrad_storage_axpy(1.0f, &grad_input, grad_inputs[0], grad_inputs[0]);
+    
+    // free intermediate results
     cgrad_storage_free(&grad_input);
     
     return ret;
