@@ -119,6 +119,10 @@ cgrad_status cgrad_storage_registry_register(cgrad_storage_registry* registry, c
     cgrad_storage_registry_entry* reg_entry = NULL;
     cgrad_storage_registry_bucket* bucket = NULL;
 
+    // Log registration with UUID
+    char uuid_str[37];
+    uuid_unparse(t->uuid, uuid_str);
+    
     // Check if tensor is already registered
     HASH_FIND(hh, registry->storage_map, t->uuid, sizeof(uuid_t), reg_entry);
     if (reg_entry) {
@@ -195,10 +199,16 @@ cgrad_status cgrad_storage_registry_register(cgrad_storage_registry* registry, c
 cgrad_status cgrad_storage_registry_deregister(cgrad_storage_registry* registry, cgrad_storage* t) {
     if (!registry || !t) return CGRAD_ERR_NULL_POINTER;
 
+    // Log deregistration with UUID
+    char uuid_str[37];
+    uuid_unparse(t->uuid, uuid_str);
+
     cgrad_storage_registry_entry* reg_entry = NULL;
     HASH_FIND(hh, registry->storage_map, t->uuid, sizeof(uuid_t), reg_entry);
-    if (!reg_entry) return CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED;
-
+    if (!reg_entry) {
+        return CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED;
+    }
+    
     cgrad_storage_registry_bucket* bucket = reg_entry->bucket;
 
     // Remove t from bucket's tensor_map

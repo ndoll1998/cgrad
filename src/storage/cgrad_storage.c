@@ -58,6 +58,14 @@ cgrad_status cgrad_storage_free_global_registry(void) {
 }
 
 /**
+ * @brief Get the number of storages currently registered in the global registry.
+ */
+size_t cgrad_storage_get_global_registry_count(void) {
+    if (g_global_registry == NULL) return 0;
+    return cgrad_storage_registry_count(g_global_registry);
+}
+
+/**
  * @brief Get or create the global storage registry (private helper).
  * This is for internal use only and maintains backward compatibility.
  */

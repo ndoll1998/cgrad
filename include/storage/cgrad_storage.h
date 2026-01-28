@@ -63,6 +63,13 @@ cgrad_status cgrad_storage_free(cgrad_storage* t);
  */
 cgrad_status cgrad_storage_free_global_registry(void);
 
+/**
+ * @brief Get the number of storages currently registered in the global registry.
+ * 
+ * @return Number of registered storages, or 0 if the registry is not initialized.
+ */
+size_t cgrad_storage_get_global_registry_count(void);
+
  // ============================================================================
  // Storage Recording API (Scoped Resource Management)
  // ============================================================================

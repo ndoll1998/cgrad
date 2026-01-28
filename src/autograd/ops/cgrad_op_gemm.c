@@ -100,7 +100,7 @@ static cgrad_status cgrad_op_gemm_compute_and_accumulate_gradient(
     // cleanup
     cgrad_storage_stop_recording(storage_record);
     cgrad_storage_free_record(storage_record);
-
+    
     return err;
 }
 
