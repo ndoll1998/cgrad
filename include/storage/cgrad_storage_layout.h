@@ -108,6 +108,18 @@ int cgrad_storage_layout_is_regular(const cgrad_storage_layout* l);
 int cgrad_storage_layout_is_contiguous(const cgrad_storage_layout* l);
 
 /**
+ * @brief Checks if layout2 is contained within layout1.
+ *        A layout is considered contained if the largest valid flat index
+ *        (offset) in layout2 is less than the size of layout1. This ensures
+ *        that when using layout2 as a view into storage with layout1, no
+ *        out-of-bounds access will occur.
+ * @param l1 Pointer to the containing layout.
+ * @param l2 Pointer to the layout to check for containment.
+ * @return 1 if layout2 is contained in layout1, 0 otherwise.
+ */
+int cgrad_storage_layout_is_contained_in(const cgrad_storage_layout* l1, const cgrad_storage_layout* l2);
+
+/**
  * @brief Reshape the layout to a new shape (with at most one -1 to infer dimension).
  *        The layout must be regular. Updates shape and strides in-place.
  *        The new strides are computed as for a regular layout, but scaled by the original step size (last stride).

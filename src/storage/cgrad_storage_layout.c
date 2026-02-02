@@ -228,6 +228,39 @@ int cgrad_storage_layout_is_contiguous(const cgrad_storage_layout* l) {
 }
 
 /**
+ * @brief Checks if layout2 is contained within layout1.
+ *        A layout is considered contained if the largest valid flat index
+ *        (offset) in layout2 is less than the size of layout1. This ensures
+ *        that when using layout2 as a view into storage with layout1, no
+ *        out-of-bounds access will occur.
+ * @param l1 Pointer to the containing layout.
+ * @param l2 Pointer to the layout to check for containment.
+ * @return 1 if layout2 is contained in layout1, 0 otherwise.
+ */
+int cgrad_storage_layout_is_contained_in(const cgrad_storage_layout* l1, const cgrad_storage_layout* l2) {
+  if (!l1 || !l2) return 0;
+  
+  // Build an index array with the maximum indices in each dimension
+  uint32_t max_indices[TENSOR_DIM];
+  for (int i = 0; i < TENSOR_DIM; i++) {
+    // The last valid index in dimension i is shape[i] - 1
+    // Handle case where shape[i] is 0 (though this shouldn't happen for valid layouts)
+    max_indices[i] = (l2->shape[i] > 0) ? (l2->shape[i] - 1) : 0;
+  }
+  
+  // Use the flat_index function to compute the maximum flat index in l2
+  size_t max_index_in_l2;
+  cgrad_status status = cgrad_storage_layout_flat_index(l2, max_indices, TENSOR_DIM, &max_index_in_l2);
+  
+  // If the maximum index is successfully computed and is within bounds of l1
+  if (status == CGRAD_SUCCESS && max_index_in_l2 < l1->size) {
+    return 1;
+  }
+  
+  return 0;
+}
+
+/**
  * @brief Reshape the layout to a new shape (with at most one -1 to infer dimension).
  *        The layout must be regular. Updates shape and strides in-place.
  *        The new strides are computed as for a regular layout, but scaled by the original step size (last stride).

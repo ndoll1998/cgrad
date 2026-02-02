@@ -349,6 +349,78 @@ static void test_cgrad_storage_layout_reduce(void **state) {
     assert_int_equal(cgrad_storage_layout_reduce(&l, mask1, TENSOR_DIM + 1), CGRAD_ERR_STORAGE_LAYOUT_SHAPE_MISMATCH);
 }
 
+static void test_cgrad_storage_layout_is_contained_in(void **state) {
+    (void)state;
+    cgrad_storage_layout l1, l2;
+    
+    // Test 1: Smaller contiguous layout contained in larger layout
+    // l1: shape (3,4), size=12, strides [4,1]
+    // l2: shape (2,3), size=6, strides [3,1]
+    // Max index in l2 = (2-1)*3 + (3-1)*1 = 3 + 2 = 5 < 12
+    uint32_t shape1[2] = {3, 4};
+    uint32_t shape2[2] = {2, 3};
+    assert_int_equal(cgrad_storage_layout_init(&l1, shape1, 2), 0);
+    assert_int_equal(cgrad_storage_layout_init(&l2, shape2, 2), 0);
+    assert_int_equal(cgrad_storage_layout_is_contained_in(&l1, &l2), 1);
+    
+    // Test 2: Same layout is contained in itself
+    // Max index = (3-1)*4 + (4-1)*1 = 8 + 3 = 11 < 12
+    assert_int_equal(cgrad_storage_layout_init(&l1, shape1, 2), 0);
+    assert_int_equal(cgrad_storage_layout_init(&l2, shape1, 2), 0);
+    assert_int_equal(cgrad_storage_layout_is_contained_in(&l1, &l2), 1);
+    
+    // Test 3: Larger layout not contained in smaller
+    // l1: shape (2,3), size=6, strides [3,1]
+    // l2: shape (3,4), size=12, strides [4,1]
+    // Max index in l2 = (3-1)*4 + (4-1)*1 = 8 + 3 = 11 >= 6
+    assert_int_equal(cgrad_storage_layout_init(&l1, shape2, 2), 0);
+    assert_int_equal(cgrad_storage_layout_init(&l2, shape1, 2), 0);
+    assert_int_equal(cgrad_storage_layout_is_contained_in(&l1, &l2), 0);
+    
+    // Test 4: Layout with custom strides that go out of bounds
+    // l1: shape (3,4), size=12
+    // l2: shape (2,2), but with large stride that goes out of bounds
+    // Manually create a layout with custom strides
+    assert_int_equal(cgrad_storage_layout_init(&l1, shape1, 2), 0);
+    assert_int_equal(cgrad_storage_layout_init(&l2, shape2, 2), 0);
+    // Modify l2 to have a stride that goes out of bounds
+    // l2 shape (2,3), modify stride[0] to be very large
+    l2.strides[TENSOR_DIM - 2] = 10;  // Large stride
+    // Max index = (2-1)*10 + (3-1)*1 = 10 + 2 = 12 >= 12 (not strictly less)
+    assert_int_equal(cgrad_storage_layout_is_contained_in(&l1, &l2), 0);
+    
+    // Test 5: Multiple dimensions
+    uint32_t shape3[TENSOR_DIM];
+    uint32_t shape4[TENSOR_DIM];
+    for (int i = 0; i < TENSOR_DIM; i++) {
+        shape3[i] = 10;  // All dimensions 10
+        shape4[i] = 5;   // All dimensions 5
+    }
+    assert_int_equal(cgrad_storage_layout_init(&l1, shape3, TENSOR_DIM), 0);
+    assert_int_equal(cgrad_storage_layout_init(&l2, shape4, TENSOR_DIM), 0);
+    assert_int_equal(cgrad_storage_layout_is_contained_in(&l1, &l2), 1);
+    
+    // Test 6: NULL pointers
+    assert_int_equal(cgrad_storage_layout_is_contained_in(NULL, &l2), 0);
+    assert_int_equal(cgrad_storage_layout_is_contained_in(&l1, NULL), 0);
+    assert_int_equal(cgrad_storage_layout_is_contained_in(NULL, NULL), 0);
+    
+    // Test 7: Partial shapes (with leading 1s)
+    uint32_t shape5[3] = {2, 3, 4};
+    uint32_t shape6[3] = {1, 2, 3};
+    assert_int_equal(cgrad_storage_layout_init(&l1, shape5, 3), 0);
+    assert_int_equal(cgrad_storage_layout_init(&l2, shape6, 3), 0);
+    assert_int_equal(cgrad_storage_layout_is_contained_in(&l1, &l2), 1);
+    
+    // Test 8: Layout that exactly matches bounds (should be contained)
+    uint32_t shape7[2] = {3, 4};
+    uint32_t shape8[2] = {3, 4};
+    assert_int_equal(cgrad_storage_layout_init(&l1, shape7, 2), 0);
+    assert_int_equal(cgrad_storage_layout_init(&l2, shape8, 2), 0);
+    // Max index = (3-1)*4 + (4-1)*1 = 8 + 3 = 11 < 12
+    assert_int_equal(cgrad_storage_layout_is_contained_in(&l1, &l2), 1);
+}
+
 static void test_cgrad_storage_layout_broadcast(void **state) {
     (void)state;
     cgrad_storage_layout l1, l2;
@@ -492,6 +564,7 @@ int run_cgrad_storage_layout_tests(void) {
         cmocka_unit_test_setup_teardown(test_cgrad_storage_layout_partial_transpose, layout_setup_test, layout_teardown_test),
         cmocka_unit_test_setup_teardown(test_cgrad_storage_layout_reshape, layout_setup_test, layout_teardown_test),
         cmocka_unit_test_setup_teardown(test_cgrad_storage_layout_reduce, layout_setup_test, layout_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_layout_is_contained_in, layout_setup_test, layout_teardown_test),
         cmocka_unit_test_setup_teardown(test_cgrad_storage_layout_broadcast, layout_setup_test, layout_teardown_test),
     };
     return cmocka_run_group_tests_name("cgrad_storage_layout", tests, NULL, NULL);
