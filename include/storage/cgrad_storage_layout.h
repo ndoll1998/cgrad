@@ -98,14 +98,14 @@ cgrad_status cgrad_storage_layout_transpose(cgrad_storage_layout* layout, const 
  * @param l Pointer to layout.
  * @return 1 if regular, 0 otherwise.
  */
-cgrad_status cgrad_storage_layout_is_regular(const cgrad_storage_layout* l);
+int cgrad_storage_layout_is_regular(const cgrad_storage_layout* l);
 
 /**
  * @brief Returns 1 if the layout is contiguous, 0 otherwise.
  * @param l Pointer to layout.
  * @return 1 if contiguous, 0 otherwise.
  */
-cgrad_status cgrad_storage_layout_is_contiguous(const cgrad_storage_layout* l);
+int cgrad_storage_layout_is_contiguous(const cgrad_storage_layout* l);
 
 /**
  * @brief Reshape the layout to a new shape (with at most one -1 to infer dimension).

@@ -203,7 +203,7 @@ cgrad_status cgrad_storage_layout_transpose(cgrad_storage_layout* layout, const 
  * @param l Pointer to layout.
  * @return 1 if regular, 0 otherwise.
  */
-cgrad_status cgrad_storage_layout_is_regular(const cgrad_storage_layout* l) {
+int cgrad_storage_layout_is_regular(const cgrad_storage_layout* l) {
   if (!l) return 0;
   if (TENSOR_DIM == 0) return 1;
   // Find the scaling factor k (stride of last dim)
@@ -223,7 +223,7 @@ cgrad_status cgrad_storage_layout_is_regular(const cgrad_storage_layout* l) {
  * @param l Pointer to layout.
  * @return 1 if contiguous, 0 otherwise.
  */
-cgrad_status cgrad_storage_layout_is_contiguous(const cgrad_storage_layout* l) {
+int cgrad_storage_layout_is_contiguous(const cgrad_storage_layout* l) {
   return cgrad_storage_layout_is_regular(l) && (l->strides[TENSOR_DIM - 1] == 1);
 }
 
