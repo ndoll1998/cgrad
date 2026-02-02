@@ -6,6 +6,9 @@
 #include <stddef.h>
 #include <uuid/uuid.h>
 
+/* Forward declarations */
+struct cgrad_storage_registry_record;
+
 /**
  * @brief High-level storage object supporting multiple backends.
  */
@@ -53,51 +56,16 @@ cgrad_status cgrad_storage_contiguous(const cgrad_storage* src, cgrad_storage* d
  */
 cgrad_status cgrad_storage_free(cgrad_storage* t);
 
-/**
- * @brief Cleanup the global storage registry.
- * 
- * This should be called at program shutdown to free all registry resources.
- * Returns an error if there are still tensors registered in the registry.
- * 
- * @return CGRAD_SUCCESS on success, CGRAD_ERR_STORAGE_REGISTRY_NOT_EMPTY if tensors are still registered.
- */
-cgrad_status cgrad_storage_free_global_registry(void);
-
-/**
- * @brief Get the number of storages currently registered in the global registry.
- * 
- * @return Number of registered storages, or 0 if the registry is not initialized.
- */
-size_t cgrad_storage_get_global_registry_count(void);
-
- // ============================================================================
- // Storage Recording API (Scoped Resource Management)
- // ============================================================================
-
-/**
- * @brief Start recording storage allocations.
- *        All storages created after this call will be recorded.
- *        Returns a record handle that can be used to free all recorded storages.
- * 
- * @return Pointer to record, or NULL on allocation failure.
- */
-struct cgrad_storage_registry_record* cgrad_storage_start_recording(void);
-
-/**
- * @brief Stop recording storage allocations.
- *        The record remains valid and contains all recorded storage UUIDs.
- * 
- * @param record Pointer to the record from cgrad_storage_start_recording.
- * @return CGRAD_SUCCESS on success, error code otherwise.
- */
-cgrad_status cgrad_storage_stop_recording(struct cgrad_storage_registry_record* record);
+// ============================================================================
+// Storage Recording API (Scoped Resource Management)
+// ============================================================================
 
 /**
  * @brief Free all storages recorded in a record.
- *        Frees all storages that were recorded since the record was started.
- *        If errors occur during freeing, continues to free all storages but returns the first error.
+ * This function stops recording and frees all storages in the record.
+ * If errors occur during freeing, continues to free all storages but returns the first error.
  * 
- * @param record Pointer to the record from cgrad_storage_start_recording.
+ * @param record Pointer to the record to free.
  * @return CGRAD_SUCCESS if all storages freed successfully, otherwise the first error code encountered.
  */
 cgrad_status cgrad_storage_free_record(struct cgrad_storage_registry_record* record);

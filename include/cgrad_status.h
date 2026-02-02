@@ -21,7 +21,6 @@
 #define CGRAD_ERR_STORAGE_BACKEND_MISMATCH                  -1101
 #define CGRAD_ERR_STORAGE_HANDLE_UNINITIALIZED              -1102
 #define CGRAD_ERR_STORAGE_SHAPE_MISMATCH                    -1103
-#define CGRAD_ERR_STORAGE_INVALID_BACKEND                   -1104
 
 // Storage registry errors
 #define CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED    -1201
@@ -29,7 +28,7 @@
 #define CGRAD_ERR_STORAGE_REGISTRY_NOT_EMPTY                -1203
 #define CGRAD_ERR_STORAGE_REGISTRY_RECORD_NOT_FOUND         -1204
 
-// Layout/broadcasting errors
+// Layout errors
 #define CGRAD_ERR_STORAGE_LAYOUT_BROADCAST                  -1301
 #define CGRAD_ERR_STORAGE_LAYOUT_NULL_POINTER               -1302
 #define CGRAD_ERR_STORAGE_LAYOUT_SHAPE_MISMATCH             -1303
@@ -38,6 +37,10 @@
 #define CGRAD_ERR_STORAGE_LAYOUT_RESHAPE_INVALID_SHAPE      -1306
 #define CGRAD_ERR_STORAGE_LAYOUT_NOT_REGULAR                -1307
 #define CGRAD_ERR_STORAGE_LAYOUT_NOT_CONTIGUOUS             -1308
+
+// Backend registry errors
+#define CGRAD_ERR_BACKEND_REGISTRY_DUPLICATE                -1401
+#define CGRAD_ERR_BACKEND_REGISTRY_BACKEND_NOT_FOUND        -1402
 
 // Compute graph errors
 #define CGRAD_ERR_COMPUTE_GRAPH_INVALID_OPERATION           -1501

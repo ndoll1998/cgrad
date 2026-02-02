@@ -7,7 +7,7 @@
 // Global registry - backends are stored directly with their embedded uthash handle
 static cgrad_backend* backend_registry = NULL;
 
-cgrad_status cgrad_backend_init_global_registry(void) {
+cgrad_status cgrad_backend_init_registry(void) {
     // Backend registry initialization - do NOT reset to NULL
     // Backends may have already registered themselves via constructor attributes
     // Just return success - the registry is ready
@@ -15,19 +15,19 @@ cgrad_status cgrad_backend_init_global_registry(void) {
 }
 
 cgrad_status cgrad_register_backend(cgrad_backend* backend) {
-    if (!backend || !backend->name) return -1;
+    if (!backend || !backend->name) return CGRAD_ERR_NULL_POINTER;
     
     // Check if already registered
     cgrad_backend* existing = NULL;
     HASH_FIND_STR(backend_registry, backend->name, existing);
     if (existing) {
-        return -1;  // Already registered
+        return CGRAD_ERR_BACKEND_REGISTRY_DUPLICATE;  // Already registered
     }
     
     // Add backend directly to hash table using its embedded uthash handle
     HASH_ADD_KEYPTR(hh, backend_registry, backend->name, strlen(backend->name), backend);
     
-    return 0;
+    return CGRAD_SUCCESS;
 }
 
 cgrad_backend* cgrad_get_backend(const char* name) {
@@ -39,7 +39,7 @@ cgrad_backend* cgrad_get_backend(const char* name) {
     return backend;
 }
 
-void cgrad_backend_cleanup_global_registry(void) {
+void cgrad_backend_cleanup_registry(void) {
     cgrad_backend* backend, *tmp;
     HASH_ITER(hh, backend_registry, backend, tmp) {
         HASH_DEL(backend_registry, backend);

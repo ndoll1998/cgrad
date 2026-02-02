@@ -69,7 +69,7 @@ static cgrad_status cgrad_op_gemm_compute_and_accumulate_gradient(
         }
     }
     
-    cgrad_storage_registry_record* storage_record = cgrad_storage_start_recording();
+    cgrad_storage_registry_record* storage_record = cgrad_storage_registry_start_recording();
     cgrad_status err;
     
     if (needs_reduction) {
@@ -77,7 +77,7 @@ static cgrad_status cgrad_op_gemm_compute_and_accumulate_gradient(
         cgrad_storage grad_contrib = {0};
         err = cgrad_storage_gemm(alpha, lhs, rhs, 0.0f, &grad_contrib);
         if (err != CGRAD_SUCCESS) {
-            cgrad_storage_stop_recording(storage_record);
+            cgrad_storage_registry_stop_recording(storage_record);
             cgrad_storage_free_record(storage_record);
             return err;
         }
@@ -85,7 +85,7 @@ static cgrad_status cgrad_op_gemm_compute_and_accumulate_gradient(
         cgrad_storage grad_reduced = {0};
         err = cgrad_storage_reduce(1.0, &grad_contrib, reduction_mask, TENSOR_DIM, 0.0f, &grad_reduced);
         if (err != CGRAD_SUCCESS) {
-            cgrad_storage_stop_recording(storage_record);
+            cgrad_storage_registry_stop_recording(storage_record);
             cgrad_storage_free_record(storage_record);
             return err;
         }
@@ -98,7 +98,7 @@ static cgrad_status cgrad_op_gemm_compute_and_accumulate_gradient(
     }
     
     // cleanup
-    cgrad_storage_stop_recording(storage_record);
+    cgrad_storage_registry_stop_recording(storage_record);
     cgrad_storage_free_record(storage_record);
     
     return err;
@@ -136,14 +136,14 @@ int cgrad_op_gemm_backward(
 
     // Gradient for input 0 (A): grad_A += grad_C @ B^T
     if (input_requires_grad[0] && grad_inputs[0] != NULL) {
-        cgrad_storage_registry_record* storage_record = cgrad_storage_start_recording();
+        cgrad_storage_registry_record* storage_record = cgrad_storage_registry_start_recording();
         
         // Simply transpose the last 2 dims of B, then do batched GEMM
         uint32_t perm[] = {1, 0};
         cgrad_storage b_transposed = {0};
         ret = cgrad_storage_transpose(inputs[1], &b_transposed, perm, 2);
         if (ret != CGRAD_SUCCESS) {
-            cgrad_storage_stop_recording(storage_record);
+            cgrad_storage_registry_stop_recording(storage_record);
             cgrad_storage_free_record(storage_record);
             return ret;
         }
@@ -151,7 +151,7 @@ int cgrad_op_gemm_backward(
         // Compute and accumulate gradient: grad_A += grad_C @ B^T
         ret = cgrad_op_gemm_compute_and_accumulate_gradient(1.0f, grad_output, &b_transposed, grad_inputs[0]);
         
-        cgrad_storage_stop_recording(storage_record);
+        cgrad_storage_registry_stop_recording(storage_record);
         cgrad_storage_free_record(storage_record);
         
         if (ret != CGRAD_SUCCESS) return ret;
@@ -159,14 +159,14 @@ int cgrad_op_gemm_backward(
     
     // Gradient for input 1 (B): grad_B += A^T @ grad_C
     if (input_requires_grad[1] && grad_inputs[1] != NULL) {
-        cgrad_storage_registry_record* storage_record = cgrad_storage_start_recording();
+        cgrad_storage_registry_record* storage_record = cgrad_storage_registry_start_recording();
         
         // Simply transpose the last 2 dims of A, then do batched GEMM
         uint32_t perm[] = {1, 0};
         cgrad_storage a_transposed = {0};
         ret = cgrad_storage_transpose(inputs[0], &a_transposed, perm, 2);
         if (ret != CGRAD_SUCCESS) {
-            cgrad_storage_stop_recording(storage_record);
+            cgrad_storage_registry_stop_recording(storage_record);
             cgrad_storage_free_record(storage_record);
             return ret;
         }
@@ -174,7 +174,7 @@ int cgrad_op_gemm_backward(
         // Compute and accumulate gradient: grad_B += A^T @ grad_C
         ret = cgrad_op_gemm_compute_and_accumulate_gradient(1.0f, &a_transposed, grad_output, grad_inputs[1]);
         
-        cgrad_storage_stop_recording(storage_record);
+        cgrad_storage_registry_stop_recording(storage_record);
         cgrad_storage_free_record(storage_record);
         
         if (ret != CGRAD_SUCCESS) return ret;

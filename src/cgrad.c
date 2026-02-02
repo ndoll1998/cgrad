@@ -21,17 +21,16 @@ cgrad_status cgrad_init(void) {
     int ret;
 
     // Step 1: Initialize backend registry
-    ret = cgrad_backend_init_global_registry();
+    ret = cgrad_backend_init_registry();
     if (ret != CGRAD_SUCCESS) {
         fprintf(stderr, "cgrad_init: Failed to initialize backend registry\n");
         return ret;
     }
 
     // Step 2: Initialize global storage registry
-    ret = cgrad_storage_init_global_registry();
+    ret = cgrad_storage_registry_init();
     if (ret != CGRAD_SUCCESS) {
         fprintf(stderr, "cgrad_init: Failed to initialize global storage registry\n");
-        cgrad_backend_cleanup_global_registry();
         return ret;
     }
 
@@ -39,8 +38,7 @@ cgrad_status cgrad_init(void) {
     ret = cgrad_tensor_init_global_graph();
     if (ret != CGRAD_SUCCESS) {
         fprintf(stderr, "cgrad_init: Failed to initialize global compute graph\n");
-        cgrad_storage_free_global_registry();
-        cgrad_backend_cleanup_global_registry();
+        cgrad_storage_registry_free();
         return ret;
     }
 
@@ -49,8 +47,7 @@ cgrad_status cgrad_init(void) {
     if (ret != CGRAD_SUCCESS) {
         fprintf(stderr, "cgrad_init: Failed to enable gradient mode\n");
         cgrad_tensor_cleanup_global_graph();
-        cgrad_storage_free_global_registry();
-        cgrad_backend_cleanup_global_registry();
+        cgrad_storage_registry_free();
         return ret;
     }
 
@@ -70,12 +67,13 @@ cgrad_status cgrad_cleanup(void) {
     cgrad_tensor_cleanup_global_graph();
 
     // Step 2: Cleanup global storage registry
-    int ret = cgrad_storage_free_global_registry();
+    // Note: The free function will do nothing if registry is not empty
+    cgrad_storage_registry_free();
 
     // Mark as uninitialized
     g_cgrad_initialized = 0;
     
-    return ret;
+    return CGRAD_SUCCESS;
 }
 
 cgrad_status cgrad_is_initialized(void) {

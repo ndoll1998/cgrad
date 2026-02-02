@@ -112,9 +112,8 @@ static void test_cgrad_storage_reshape(void **state) {
     cgrad_storage_free(&dst);
 
     // try to free the global storage registry
-    // this returns an error if the registry is non-empty
-    cgrad_status err = cgrad_storage_free_global_registry();
-    assert_int_equal(err, CGRAD_SUCCESS);
+    // this does nothing if the registry is non-empty
+    cgrad_storage_registry_free();
 }
 
 static void test_cgrad_storage_registry_root_freed_only_after_all_children(void **state) {

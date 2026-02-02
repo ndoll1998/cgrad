@@ -6,6 +6,22 @@
 #include <stdio.h>
 #include <uuid/uuid.h>
 
+/* ============================================================================
+ * Internal Registry Structure (not exposed in public API)
+ * ============================================================================ */
+
+typedef struct cgrad_storage_registry {
+    cgrad_storage_registry_entry* storage_map;    /**< Hashmap of storage to buckets. */
+    cgrad_storage_registry_bucket* bucket_map;    /**< Hashmap of all buckets, keyed by root uuid. */
+    cgrad_storage_registry_record* active_records; /**< Hashmap of currently active records. */
+} cgrad_storage_registry;
+
+/* ============================================================================
+ * Global Storage Registry Instance
+ * ============================================================================ */
+
+static cgrad_storage_registry g_global_registry = {0};
+
 /* --- Internal bucket management functions --- */
 
 /* Create a new bucket with the given root tensor (by value). Returns pointer or NULL on failure. */
@@ -55,76 +71,60 @@ static void delete_bucket(cgrad_storage_registry* registry, cgrad_storage_regist
 /* --- Public API --- */
 
 /**
- * @brief Initialize a storage registry.
+ * @brief Initialize the global storage registry.
  */
-cgrad_status cgrad_storage_registry_init(cgrad_storage_registry* registry) {
-    if (!registry) return CGRAD_ERR_NULL_POINTER;
-    registry->storage_map = NULL;
-    registry->bucket_map = NULL;
-    registry->active_records = NULL;
+cgrad_status cgrad_storage_registry_init(void) {
+    g_global_registry.storage_map = NULL;
+    g_global_registry.bucket_map = NULL;
+    g_global_registry.active_records = NULL;
     return CGRAD_SUCCESS;
 }
 
 /**
- * @brief Free a storage registry and all its resources.
+ * @brief Free the global storage registry and all its resources.
+ * Returns an error if the registry is not empty.
  */
-void cgrad_storage_registry_free(cgrad_storage_registry* registry) {
-    if (!registry) return;
-        
-    // Free all buckets
-    cgrad_storage_registry_bucket *bucket, *tmp_bucket;
-    HASH_ITER(hh, registry->bucket_map, bucket, tmp_bucket) {
-        HASH_DEL(registry->bucket_map, bucket);
-        
-        // Free all entries in the bucket
-        cgrad_storage_registry_node *entry, *tmp_entry;
-        HASH_ITER(hh, bucket->storage_map, entry, tmp_entry) {
-            HASH_DEL(bucket->storage_map, entry);
-            free(entry);
-        }
-        free(bucket);
-    }
-    
-    // Free all registry entries
-    cgrad_storage_registry_entry *reg_entry, *tmp_reg;
-    HASH_ITER(hh, registry->storage_map, reg_entry, tmp_reg) {
-        HASH_DEL(registry->storage_map, reg_entry);
-        free(reg_entry);
+void cgrad_storage_registry_free(void) {
+    // Check if the registry is empty
+    if (!cgrad_storage_registry_is_empty()) {
+        return; // Registry is not empty, do not free
     }
     
     // Free all active records
     cgrad_storage_registry_record *record, *tmp_record;
-    HASH_ITER(hh, registry->active_records, record, tmp_record) {
-        HASH_DEL(registry->active_records, record);
+    HASH_ITER(hh, g_global_registry.active_records, record, tmp_record) {
+        HASH_DEL(g_global_registry.active_records, record);
         free(record);
     }
     
-    registry->storage_map = NULL;
-    registry->bucket_map = NULL;
-    registry->active_records = NULL;
+    g_global_registry.storage_map = NULL;
+    g_global_registry.bucket_map = NULL;
+    g_global_registry.active_records = NULL;
 }
 
 /**
- * @brief Register a tensor in the tensor registry.
+ * @brief Check if the global registry is empty.
+ */
+int cgrad_storage_registry_is_empty(void) {
+    return (g_global_registry.storage_map == NULL);
+}
+
+/**
+ * @brief Register a tensor in the global registry.
  *        If parent is NULL, creates a new bucket with t as root.
  *        If parent is not NULL, adds t to the parent's bucket (if parent is registered).
- * @param registry Pointer to the registry.
  * @param t Pointer to tensor to register.
  * @param parent Pointer to parent tensor (or NULL).
  * @return CGRAD_SUCCESS on success, CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED if parent is not in registry.
  */
-cgrad_status cgrad_storage_registry_register(cgrad_storage_registry* registry, cgrad_storage* t, const cgrad_storage* parent) {
-    if (!registry || !t) return CGRAD_ERR_NULL_POINTER;
+cgrad_status cgrad_storage_registry_register(cgrad_storage* t, const cgrad_storage* parent) {
+    if (!t) return CGRAD_ERR_NULL_POINTER;
 
     cgrad_storage_registry_entry* reg_entry = NULL;
     cgrad_storage_registry_bucket* bucket = NULL;
-
-    // Log registration with UUID
-    char uuid_str[37];
-    uuid_unparse(t->uuid, uuid_str);
     
     // Check if tensor is already registered
-    HASH_FIND(hh, registry->storage_map, t->uuid, sizeof(uuid_t), reg_entry);
+    HASH_FIND(hh, g_global_registry.storage_map, t->uuid, sizeof(uuid_t), reg_entry);
     if (reg_entry) {
         // Already registered, do nothing
         return CGRAD_SUCCESS;
@@ -132,16 +132,16 @@ cgrad_status cgrad_storage_registry_register(cgrad_storage_registry* registry, c
 
     if (parent == NULL) {
         // Create new bucket and add t to it
-        bucket = create_new_bucket(registry, t);
+        bucket = create_new_bucket(&g_global_registry, t);
         if (!bucket) return CGRAD_ERR_ALLOC_FAILED;
         if (add_to_bucket(bucket, t) != 0) {
-            delete_bucket(registry, bucket);
+            delete_bucket(&g_global_registry, bucket);
             return CGRAD_ERR_ALLOC_FAILED;
         }
     } else {
         // Find parent's bucket
         cgrad_storage_registry_entry* parent_entry = NULL;
-        HASH_FIND(hh, registry->storage_map, parent->uuid, sizeof(uuid_t), parent_entry);
+        HASH_FIND(hh, g_global_registry.storage_map, parent->uuid, sizeof(uuid_t), parent_entry);
         if (!parent_entry) {
             return CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED;
         }
@@ -164,7 +164,7 @@ cgrad_status cgrad_storage_registry_register(cgrad_storage_registry* registry, c
             }
             // If this was a new bucket, delete it
             if (parent == NULL) {
-                delete_bucket(registry, bucket);
+                delete_bucket(&g_global_registry, bucket);
             }
         }
         return CGRAD_ERR_ALLOC_FAILED;
@@ -172,11 +172,11 @@ cgrad_status cgrad_storage_registry_register(cgrad_storage_registry* registry, c
     memcpy(reg_entry->uuid, t->uuid, sizeof(uuid_t));
     reg_entry->storage = t;
     reg_entry->bucket = bucket;
-    HASH_ADD_KEYPTR(hh, registry->storage_map, reg_entry->uuid, sizeof(uuid_t), reg_entry);
+    HASH_ADD_KEYPTR(hh, g_global_registry.storage_map, reg_entry->uuid, sizeof(uuid_t), reg_entry);
 
     // Notify all active records
     cgrad_storage_registry_record *record, *tmp_record;
-    HASH_ITER(hh, registry->active_records, record, tmp_record) {
+    HASH_ITER(hh, g_global_registry.active_records, record, tmp_record) {
         // Add storage to record's storage_map hashmap
         cgrad_storage_registry_node* entry = (cgrad_storage_registry_node*)malloc(sizeof(cgrad_storage_registry_node));
         if (entry) {
@@ -184,27 +184,21 @@ cgrad_status cgrad_storage_registry_register(cgrad_storage_registry* registry, c
             entry->storage = t;
             HASH_ADD_KEYPTR(hh, record->storage_map, entry->uuid, sizeof(uuid_t), entry);
         }
-        // Note: If malloc fails, we silently skip adding to this record
     }
 
     return CGRAD_SUCCESS;
 }
 
 /**
- * @brief Deregister a tensor from the tensor registry.
- * @param registry Pointer to the registry.
+ * @brief Deregister a tensor from the global registry.
  * @param t Pointer to tensor to deregister.
  * @return CGRAD_SUCCESS on success, CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED if tensor is not registered.
  */
-cgrad_status cgrad_storage_registry_deregister(cgrad_storage_registry* registry, cgrad_storage* t) {
-    if (!registry || !t) return CGRAD_ERR_NULL_POINTER;
-
-    // Log deregistration with UUID
-    char uuid_str[37];
-    uuid_unparse(t->uuid, uuid_str);
-
+cgrad_status cgrad_storage_registry_deregister(cgrad_storage* t) {
+    if (!t) return CGRAD_ERR_NULL_POINTER;
+    
     cgrad_storage_registry_entry* reg_entry = NULL;
-    HASH_FIND(hh, registry->storage_map, t->uuid, sizeof(uuid_t), reg_entry);
+    HASH_FIND(hh, g_global_registry.storage_map, t->uuid, sizeof(uuid_t), reg_entry);
     if (!reg_entry) {
         return CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED;
     }
@@ -216,40 +210,37 @@ cgrad_status cgrad_storage_registry_deregister(cgrad_storage_registry* registry,
 
     // Remove t from all active records
     cgrad_storage_registry_record *record, *tmp_record;
-    HASH_ITER(hh, registry->active_records, record, tmp_record) {
+    HASH_ITER(hh, g_global_registry.active_records, record, tmp_record) {
         cgrad_storage_registry_record_remove(record, t);
     }
 
     // Remove t from registry
-    HASH_DEL(registry->storage_map, reg_entry);
+    HASH_DEL(g_global_registry.storage_map, reg_entry);
     free(reg_entry);
 
     return CGRAD_SUCCESS;
 }
 
 /**
- * @brief Get the number of tensors currently registered in the tensor registry.
- * @param registry Pointer to the registry.
+ * @brief Get the number of tensors currently registered in the global registry.
  * @return Number of registered tensors.
  */
-size_t cgrad_storage_registry_count(cgrad_storage_registry* registry) {
-    if (!registry) return 0;
-    return (size_t)HASH_COUNT(registry->storage_map);
+size_t cgrad_storage_registry_count(void) {
+    return (size_t)HASH_COUNT(g_global_registry.storage_map);
 }
 
 /**
  * @brief Deregister all tensors in the bucket containing the given tensor and delete the bucket.
  *        Only succeeds if the bucket is empty.
- * @param registry Pointer to the registry.
  * @param t Pointer to any tensor in the bucket.
  * @return CGRAD_SUCCESS on success, CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED if tensor is not registered,
  *         CGRAD_ERR_STORAGE_REGISTRY_BUCKET_NOT_EMPTY if the bucket is not empty.
  */
-cgrad_status cgrad_storage_registry_deregister_and_delete_bucket(cgrad_storage_registry* registry, const cgrad_storage* t) {
-    if (!registry || !t) return CGRAD_ERR_NULL_POINTER;
+cgrad_status cgrad_storage_registry_deregister_and_delete_bucket(const cgrad_storage* t) {
+    if (!t) return CGRAD_ERR_NULL_POINTER;
 
     cgrad_storage_registry_entry* reg_entry = NULL;
-    HASH_FIND(hh, registry->storage_map, t->uuid, sizeof(uuid_t), reg_entry);
+    HASH_FIND(hh, g_global_registry.storage_map, t->uuid, sizeof(uuid_t), reg_entry);
     if (!reg_entry || !reg_entry->bucket) return CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED;
 
     cgrad_storage_registry_bucket* bucket = reg_entry->bucket;
@@ -258,7 +249,7 @@ cgrad_status cgrad_storage_registry_deregister_and_delete_bucket(cgrad_storage_r
     remove_from_bucket(bucket, t);
 
     // Remove t from registry
-    HASH_DEL(registry->storage_map, reg_entry);
+    HASH_DEL(g_global_registry.storage_map, reg_entry);
     free(reg_entry);
 
     // If the bucket is not empty, return error
@@ -268,14 +259,14 @@ cgrad_status cgrad_storage_registry_deregister_and_delete_bucket(cgrad_storage_r
 
     // Remove all registry entries that point to this bucket
     cgrad_storage_registry_entry *entry, *tmp;
-    HASH_ITER(hh, registry->storage_map, entry, tmp) {
+    HASH_ITER(hh, g_global_registry.storage_map, entry, tmp) {
         if (entry->bucket == bucket) {
             return CGRAD_ERR_STORAGE_REGISTRY_BUCKET_NOT_EMPTY;
         }
     }
 
     // Delete the bucket
-    delete_bucket(registry, bucket);
+    delete_bucket(&g_global_registry, bucket);
 
     return CGRAD_SUCCESS;
 }
@@ -283,15 +274,14 @@ cgrad_status cgrad_storage_registry_deregister_and_delete_bucket(cgrad_storage_r
 /**
  * @brief Get the root tensor of the bucket containing the given tensor.
  *        Writes the root tensor to *root_out.
- * @param registry Pointer to the registry.
  * @param t Pointer to any tensor in the bucket.
  * @param root_out Output pointer to receive the root tensor (by value).
  * @return CGRAD_SUCCESS on success, CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED if tensor is not registered.
  */
-cgrad_status cgrad_storage_registry_get_root(cgrad_storage_registry* registry, const cgrad_storage* t, cgrad_storage* root_out) {
-    if (!registry || !t || !root_out) return CGRAD_ERR_NULL_POINTER;
+cgrad_status cgrad_storage_registry_get_root(const cgrad_storage* t, cgrad_storage* root_out) {
+    if (!t || !root_out) return CGRAD_ERR_NULL_POINTER;
     cgrad_storage_registry_entry* reg_entry = NULL;
-    HASH_FIND(hh, registry->storage_map, t->uuid, sizeof(uuid_t), reg_entry);
+    HASH_FIND(hh, g_global_registry.storage_map, t->uuid, sizeof(uuid_t), reg_entry);
     if (!reg_entry || !reg_entry->bucket) return CGRAD_ERR_STORAGE_REGISTRY_PARENT_NOT_REGISTERED;
     *root_out = reg_entry->bucket->root;
     return CGRAD_SUCCESS;
@@ -300,27 +290,24 @@ cgrad_status cgrad_storage_registry_get_root(cgrad_storage_registry* registry, c
 /**
  * @brief Get the number of tensors in the bucket containing the given tensor.
  *        Returns 0 if the tensor is not registered.
- * @param registry Pointer to the registry.
  * @param t Pointer to any tensor in the bucket.
  */
-size_t cgrad_storage_registry_bucket_get_size(cgrad_storage_registry* registry, const cgrad_storage* t) {
-    if (!registry || !t) return 0;
+size_t cgrad_storage_registry_bucket_get_size(const cgrad_storage* t) {
+    if (!t) return 0;
     cgrad_storage_registry_entry* reg_entry = NULL;
-    HASH_FIND(hh, registry->storage_map, t->uuid, sizeof(uuid_t), reg_entry);
+    HASH_FIND(hh, g_global_registry.storage_map, t->uuid, sizeof(uuid_t), reg_entry);
     if (!reg_entry || !reg_entry->bucket) return 0;
     return (size_t)HASH_COUNT(reg_entry->bucket->storage_map);
 }
 
 /**
- * @brief Print the contents of the tensor registry to stdout.
+ * @brief Print the contents of the global registry to stdout.
  *        Each bucket is printed with its root tensor's uuid and shape, and all members indented below.
- * @param registry Pointer to the registry.
  */
-void cgrad_storage_registry_print(cgrad_storage_registry* registry) {
-    if (!registry) return;
+void cgrad_storage_registry_print(void) {
     cgrad_storage_registry_bucket *bucket, *tmp;
     char uuid_str[37];
-    HASH_ITER(hh, registry->bucket_map, bucket, tmp) {
+    HASH_ITER(hh, g_global_registry.bucket_map, bucket, tmp) {
         uuid_unparse(bucket->root.uuid, uuid_str);
         printf("Bucket root: %s  ", uuid_str);
         printf("Shape: ");
@@ -350,9 +337,7 @@ void cgrad_storage_registry_print(cgrad_storage_registry* registry) {
 /**
  * @brief Start tracking storage registrations.
  */
-cgrad_storage_registry_record* cgrad_storage_registry_start_recording(cgrad_storage_registry* registry) {
-    if (!registry) return NULL;
-    
+cgrad_storage_registry_record* cgrad_storage_registry_start_recording(void) {
     // Allocate record
     cgrad_storage_registry_record* record = (cgrad_storage_registry_record*)malloc(sizeof(cgrad_storage_registry_record));
     if (!record) return NULL;
@@ -362,23 +347,23 @@ cgrad_storage_registry_record* cgrad_storage_registry_start_recording(cgrad_stor
     record->storage_map = NULL;  // Empty hashmap
     
     // Add to active records
-    HASH_ADD_KEYPTR(hh, registry->active_records, record->record_id, sizeof(uuid_t), record);
+    HASH_ADD_KEYPTR(hh, g_global_registry.active_records, record->record_id, sizeof(uuid_t), record);
     return record;
 }
 
 /**
  * @brief Stop tracking and deactivate the tracker.
  */
-cgrad_status cgrad_storage_registry_stop_recording(cgrad_storage_registry* registry, cgrad_storage_registry_record* record) {
-    if (!registry || !record) return CGRAD_ERR_NULL_POINTER;
+cgrad_status cgrad_storage_registry_stop_recording(cgrad_storage_registry_record* record) {
+    if (!record) return CGRAD_ERR_NULL_POINTER;
     
     // Find and remove from active records
     cgrad_storage_registry_record* found = NULL;
-    HASH_FIND(hh, registry->active_records, record->record_id, sizeof(uuid_t), found);
+    HASH_FIND(hh, g_global_registry.active_records, record->record_id, sizeof(uuid_t), found);
     if (!found) {
         return CGRAD_ERR_STORAGE_REGISTRY_RECORD_NOT_FOUND; // Record not active
     }    
-    HASH_DEL(registry->active_records, found);
+    HASH_DEL(g_global_registry.active_records, found);
     
     return CGRAD_SUCCESS;
 }

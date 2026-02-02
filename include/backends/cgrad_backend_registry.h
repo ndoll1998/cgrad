@@ -14,7 +14,7 @@
 /**
  * @brief Register a backend in the global registry.
  * @param backend Pointer to backend to register.
- * @return 0 on success, -1 on error.
+ * @return CGRAD_SUCCESS on success, CGRAD_ERR_BACKEND_REGISTRY_DUPLICATE if backend with same name already registered, other error code on other errors.
  */
 cgrad_status cgrad_register_backend(cgrad_backend* backend);
 
@@ -38,7 +38,7 @@ cgrad_backend* cgrad_get_backend(const char* name);
  * 
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-cgrad_status cgrad_backend_init_global_registry(void);
+cgrad_status cgrad_backend_init_registry(void);
 
 /**
  * @brief Cleanup the backend registry.
@@ -46,6 +46,6 @@ cgrad_status cgrad_backend_init_global_registry(void);
  * This function frees all resources associated with the backend registry.
  * It should be called once during library cleanup.
  */
-void cgrad_backend_cleanup_global_registry(void);
+void cgrad_backend_cleanup_registry(void);
 
 #endif // CGRAD_BACKEND_REGISTRY_H

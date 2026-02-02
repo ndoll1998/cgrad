@@ -33,13 +33,13 @@ static cgrad_status cgrad_op_axpy_update_gradient(
     }
     
     cgrad_storage tmp = {0};
-    cgrad_storage_registry_record* storage_record = cgrad_storage_start_recording();
+    cgrad_storage_registry_record* storage_record = cgrad_storage_registry_start_recording();
     
     if (needs_reduction) {
         // Broadcasting occurred: need to reduce grad_output
         cgrad_status err = cgrad_storage_reduce(1.0, grad_output, reduction_mask, TENSOR_DIM, 0.0f, &tmp);
         if (err != CGRAD_SUCCESS) {
-            cgrad_storage_stop_recording(storage_record);
+            cgrad_storage_registry_stop_recording(storage_record);
             cgrad_storage_free_record(storage_record);
             return err;
         }
@@ -51,7 +51,7 @@ static cgrad_status cgrad_op_axpy_update_gradient(
     cgrad_status err = cgrad_storage_axpy(alpha, grad_output, grad_input, grad_input);
     
     // cleanup
-    cgrad_storage_stop_recording(storage_record);
+    cgrad_storage_registry_stop_recording(storage_record);
     cgrad_storage_free_record(storage_record);
 
     return err;
