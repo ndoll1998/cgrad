@@ -125,10 +125,10 @@ static void test_cgrad_storage_registry_root_freed_only_after_all_children(void 
     assert_int_equal(cgrad_storage_init(&root, shape, 2, "cpu_f32"), CGRAD_SUCCESS);
     assert_int_equal(cgrad_storage_fill(&root, 1.0f), CGRAD_SUCCESS);
     
-    // Create two children using shallow copy
+    // Create two children using view with NULL layout (equivalent to shallow copy)
     cgrad_storage child1 = {0}, child2 = {0};
-    assert_int_equal(cgrad_storage_shallow_copy(&root, &child1), CGRAD_SUCCESS);
-    assert_int_equal(cgrad_storage_shallow_copy(&root, &child2), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_view(&root, &child1, NULL), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_view(&root, &child2, NULL), CGRAD_SUCCESS);
     
     // Verify all three have valid data handles
     assert_non_null(root.data);
@@ -257,6 +257,187 @@ static void test_cgrad_storage_reduce(void **state) {
     cgrad_storage_free(&t);
 }
 
+static void test_cgrad_storage_view_with_null_layout(void **state) {
+    (void)state;
+    // View with NULL layout should behave like shallow_copy
+    cgrad_storage src, view = {0};
+    uint32_t shape[] = {2, 3};
+    assert_int_equal(cgrad_storage_init(&src, shape, 2, "cpu_f32"), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_fill(&src, 5.0f), CGRAD_SUCCESS);
+    
+    // Create view with NULL layout
+    assert_int_equal(cgrad_storage_view(&src, &view, NULL), CGRAD_SUCCESS);
+    
+    // Check that view has same shape as source
+    cgrad_storage_layout* src_layout = src.backend->storage_get_layout(src.data);
+    cgrad_storage_layout* view_layout = view.backend->storage_get_layout(view.data);
+    assert_int_equal(src_layout->size, view_layout->size);
+    for (int i = 0; i < TENSOR_DIM; i++) {
+        assert_int_equal(src_layout->shape[i], view_layout->shape[i]);
+    }
+    
+    // Check that data is shared
+    uint32_t idx[TENSOR_DIM] = {0,0,0,0,0,0,0,0};
+    float src_val, view_val;
+    assert_int_equal(cgrad_storage_get(&src, idx, TENSOR_DIM, &src_val), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_get(&view, idx, TENSOR_DIM, &view_val), CGRAD_SUCCESS);
+    assert_float_equal(src_val, view_val, 1e-6);
+    
+    cgrad_storage_free(&src);
+    cgrad_storage_free(&view);
+}
+
+static void test_cgrad_storage_view_with_contained_layout(void **state) {
+    (void)state;
+    // Create source storage with shape 4x4
+    cgrad_storage src, view = {0};
+    uint32_t src_shape[] = {4, 4};
+    assert_int_equal(cgrad_storage_init(&src, src_shape, 2, "cpu_f32"), CGRAD_SUCCESS);
+    
+    // Fill with sequential values
+    float count = 0.0f;
+    for (uint32_t i = 0; i < 4; ++i) {
+        for (uint32_t j = 0; j < 4; ++j) {
+            uint32_t idx[TENSOR_DIM] = {0,0,0,0,0,0,i,j};
+            assert_int_equal(src.backend->storage_set(src.data, idx, TENSOR_DIM, count++), CGRAD_SUCCESS);
+        }
+    }
+    
+    // Create a view with shape 2x2 (contained within 4x4)
+    cgrad_storage_layout view_layout;
+    uint32_t view_shape[] = {2, 2};
+    assert_int_equal(cgrad_storage_layout_init(&view_layout, view_shape, 2), CGRAD_SUCCESS);
+    
+    // The view should access the first 2x2 block of the source
+    assert_int_equal(cgrad_storage_view(&src, &view, &view_layout), CGRAD_SUCCESS);
+    
+    // Verify view shape
+    cgrad_storage_layout* actual_view_layout = view.backend->storage_get_layout(view.data);
+    assert_int_equal(actual_view_layout->shape[TENSOR_DIM-2], 2);
+    assert_int_equal(actual_view_layout->shape[TENSOR_DIM-1], 2);
+    assert_int_equal(actual_view_layout->size, 4);
+    
+    // Verify data is shared (first 4 values: 0,1,2,3)
+    float val;
+    uint32_t idx[TENSOR_DIM] = {0,0,0,0,0,0,0,0};
+    assert_int_equal(cgrad_storage_get(&view, idx, TENSOR_DIM, &val), CGRAD_SUCCESS);
+    assert_float_equal(val, 0.0f, 1e-6);
+    
+    idx[TENSOR_DIM-1] = 1;
+    assert_int_equal(cgrad_storage_get(&view, idx, TENSOR_DIM, &val), CGRAD_SUCCESS);
+    assert_float_equal(val, 1.0f, 1e-6);
+    
+    idx[TENSOR_DIM-2] = 1;
+    idx[TENSOR_DIM-1] = 0;
+    assert_int_equal(cgrad_storage_get(&view, idx, TENSOR_DIM, &val), CGRAD_SUCCESS);
+    assert_float_equal(val, 2.0f, 1e-6);
+    
+    cgrad_storage_free(&src);
+    cgrad_storage_free(&view);
+}
+
+static void test_cgrad_storage_view_data_sharing(void **state) {
+    (void)state;
+    // Verify that modifying the view affects the source (data is shared)
+    cgrad_storage src, view = {0};
+    uint32_t shape[] = {2, 2};
+    assert_int_equal(cgrad_storage_init(&src, shape, 2, "cpu_f32"), CGRAD_SUCCESS);
+    assert_int_equal(cgrad_storage_fill(&src, 0.0f), CGRAD_SUCCESS);
+    
+    // Create view
+    assert_int_equal(cgrad_storage_view(&src, &view, NULL), CGRAD_SUCCESS);
+    
+    // Modify view
+    uint32_t idx[TENSOR_DIM] = {0,0,0,0,0,0,0,0};
+    assert_int_equal(view.backend->storage_set(view.data, idx, TENSOR_DIM, 42.0f), CGRAD_SUCCESS);
+    
+    // Check that source is also modified
+    float src_val;
+    assert_int_equal(cgrad_storage_get(&src, idx, TENSOR_DIM, &src_val), CGRAD_SUCCESS);
+    assert_float_equal(src_val, 42.0f, 1e-6);
+    
+    cgrad_storage_free(&src);
+    cgrad_storage_free(&view);
+}
+
+static void test_cgrad_storage_view_out_of_bounds_layout(void **state) {
+    (void)state;
+    // Test that view rejects layouts that are out of bounds
+    cgrad_storage src, view = {0};
+    uint32_t src_shape[] = {2, 3};
+    assert_int_equal(cgrad_storage_init(&src, src_shape, 2, "cpu_f32"), CGRAD_SUCCESS);
+    
+    // Get source layout to understand its structure
+    cgrad_storage_layout* src_layout = src.backend->storage_get_layout(src.data);
+    
+    // Create a layout with all dimensions specified to avoid leading 1s
+    cgrad_storage_layout view_layout;
+    uint32_t full_view_shape[TENSOR_DIM] = {1,1,1,1,1,1,2,2};
+    assert_int_equal(cgrad_storage_layout_init(&view_layout, full_view_shape, TENSOR_DIM), CGRAD_SUCCESS);
+    
+    // Modify strides to make the layout out of bounds
+    // Source size is 6, last index accessed will be (0,0,0,0,0,0,1,1) 
+    // With strides {0,0,0,0,0,0,100,1}, this gives: 0*... + 1*100 + 1*1 = 101
+    memset(view_layout.strides, 0, sizeof(view_layout.strides));
+    view_layout.strides[TENSOR_DIM-2] = 100;
+    view_layout.strides[TENSOR_DIM-1] = 1;
+    
+    // Should return index out of bounds error
+    int err = cgrad_storage_view(&src, &view, &view_layout);
+    assert_int_equal(err, CGRAD_ERR_STORAGE_LAYOUT_INDEX_OUT_OF_BOUNDS);
+    
+    cgrad_storage_free(&src);
+}
+
+static void test_cgrad_storage_view_non_contained_layout(void **state) {
+    (void)state;
+    // Test that view rejects layouts with shapes larger than source
+    cgrad_storage src, view = {0};
+    uint32_t src_shape[] = {2, 3};
+    assert_int_equal(cgrad_storage_init(&src, src_shape, 2, "cpu_f32"), CGRAD_SUCCESS);
+    
+    // Create a layout with larger shape
+    cgrad_storage_layout view_layout;
+    uint32_t view_shape[] = {3, 4};
+    assert_int_equal(cgrad_storage_layout_init(&view_layout, view_shape, 2), CGRAD_SUCCESS);
+    
+    // Should return index out of bounds error
+    int err = cgrad_storage_view(&src, &view, &view_layout);
+    assert_int_equal(err, CGRAD_ERR_STORAGE_LAYOUT_INDEX_OUT_OF_BOUNDS);
+    
+    cgrad_storage_free(&src);
+}
+
+static void test_cgrad_storage_view_registration(void **state) {
+    (void)state;
+    // Test that view is properly registered with source as parent
+    cgrad_storage src, view = {0};
+    uint32_t shape[] = {2, 2};
+    assert_int_equal(cgrad_storage_init(&src, shape, 2, "cpu_f32"), CGRAD_SUCCESS);
+    
+    // Create view
+    assert_int_equal(cgrad_storage_view(&src, &view, NULL), CGRAD_SUCCESS);
+    
+    // Get the root of view (should be src)
+    cgrad_storage root;
+    int err = cgrad_storage_registry_get_root(&view, &root);
+    assert_int_equal(err, CGRAD_SUCCESS);
+    
+    // Check that root is src
+    assert_int_equal(uuid_compare(root.uuid, src.uuid), 0);
+    
+    // Free view - src data should still be valid
+    assert_int_equal(cgrad_storage_free(&view), CGRAD_SUCCESS);
+    assert_null(view.data);
+    
+    // Verify src data is still accessible
+    uint32_t idx[TENSOR_DIM] = {0,0,0,0,0,0,0,0};
+    float val;
+    assert_int_equal(cgrad_storage_get(&src, idx, TENSOR_DIM, &val), CGRAD_SUCCESS);
+    
+    cgrad_storage_free(&src);
+}
+
 int run_cgrad_storage_tests(void) {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test_setup_teardown(test_cgrad_storage_init_and_free, storage_setup_test, storage_teardown_test),
@@ -267,6 +448,12 @@ int run_cgrad_storage_tests(void) {
         cmocka_unit_test_setup_teardown(test_cgrad_storage_registry_root_freed_only_after_all_children, storage_setup_test, storage_teardown_test),
         cmocka_unit_test_setup_teardown(test_cgrad_storage_gemm_write_to_existing_tensor, storage_setup_test, storage_teardown_test),
         cmocka_unit_test_setup_teardown(test_cgrad_storage_reduce, storage_setup_test, storage_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_view_with_null_layout, storage_setup_test, storage_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_view_with_contained_layout, storage_setup_test, storage_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_view_data_sharing, storage_setup_test, storage_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_view_out_of_bounds_layout, storage_setup_test, storage_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_view_non_contained_layout, storage_setup_test, storage_teardown_test),
+        cmocka_unit_test_setup_teardown(test_cgrad_storage_view_registration, storage_setup_test, storage_teardown_test),
     };
     return cmocka_run_group_tests_name("cgrad_storage", tests, NULL, NULL);
 }

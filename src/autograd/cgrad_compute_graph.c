@@ -604,7 +604,7 @@ cgrad_status cgrad_compute_graph_add_leaf(
         return CGRAD_ERR_ALLOC_FAILED;
     }
 
-    // Allocate memory for storage and create a shallow copy
+    // Allocate memory for storage and create a view
     // This ensures the graph owns the storage memory
     cgrad_storage* node_storage = (cgrad_storage*)malloc(sizeof(cgrad_storage));
     if (node_storage == NULL) {
@@ -612,7 +612,7 @@ cgrad_status cgrad_compute_graph_add_leaf(
         return CGRAD_ERR_ALLOC_FAILED;
     }
 
-    int ret = cgrad_storage_shallow_copy(storage, node_storage);
+    int ret = cgrad_storage_view(storage, node_storage, NULL);
     if (ret != CGRAD_SUCCESS) {
         free(node_storage);
         free(node);

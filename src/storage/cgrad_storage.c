@@ -78,35 +78,51 @@ cgrad_status cgrad_storage_init(cgrad_storage* t, const uint32_t* shape, int ndi
 }
 
 /**
- * @brief Perform a shallow copy of a tensor (copies handle, not data).
- * @param dst Destination tensor.
- * @param src Source tensor.
+ * @brief Create a view of src storage with a target layout.
+ *        If target_layout is NULL, uses src's layout (same as shallow_copy).
+ *        The target layout must be contained within src's layout bounds.
+ * @param src Source storage.
+ * @param dst Destination storage.
+ * @param target_layout Layout for the view (can be NULL).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-cgrad_status cgrad_storage_shallow_copy(const cgrad_storage* src, cgrad_storage* dst) {
+cgrad_status cgrad_storage_view(const cgrad_storage* src, cgrad_storage* dst, const cgrad_storage_layout* target_layout) {
     if (!dst || !src || !src->backend || !src->data) {
         return CGRAD_ERR_NULL_POINTER;
     }
-    if (!src->backend->storage_shallow_copy)
+    if (!src->backend->storage_view) {
         return CGRAD_ERR_NOT_IMPLEMENTED;
+    }
+    
+    // Determine the layout to use
+    const cgrad_storage_layout* layout_to_use;
+    if (target_layout) {
+        // Use provided target_layout
+        layout_to_use = target_layout;
+    } else {
+        // Use src's layout when target_layout is NULL (backward compatible with shallow_copy)
+        layout_to_use = src->backend->storage_get_layout(src->data);
+    }
     
     // Allocate tensor handle using the backend's handle size
     void* data = calloc(1, src->backend->storage_handle_size);
-    if (!data)
+    if (!data) {
         return CGRAD_ERR_STORAGE_HANDLE_UNINITIALIZED;
+    }
     
-    int err = src->backend->storage_shallow_copy(src->data, data);
+    // Call backend view function
+    cgrad_status err = src->backend->storage_view(src->data, data, layout_to_use);
     if (err != CGRAD_SUCCESS) {
         free(data);
         return err;
     }
-
-    // populate tensor attributes
+    
+    // Populate storage attributes
     uuid_generate(dst->uuid);
     dst->data = data;
     dst->backend = src->backend;
-
-    // Register the shallow copy in the registry with src as parent
+    
+    // Register dst with src as parent (same as shallow_copy)
     return cgrad_storage_registry_register(dst, src);
 }
 
@@ -195,9 +211,9 @@ cgrad_status cgrad_storage_gemm(
     // record all storages created here
     cgrad_storage_registry_record* storage_record = cgrad_storage_registry_start_recording();
 
-    // create shallow copies of a and b
+    // create views of a and b
     cgrad_storage a_bcast;
-    int err = cgrad_storage_shallow_copy(a, &a_bcast);
+    int err = cgrad_storage_view(a, &a_bcast, NULL);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_registry_stop_recording(storage_record);
         cgrad_storage_free_record(storage_record);
@@ -205,7 +221,7 @@ cgrad_status cgrad_storage_gemm(
     }
     
     cgrad_storage b_bcast;
-    err = cgrad_storage_shallow_copy(b, &b_bcast);
+    err = cgrad_storage_view(b, &b_bcast, NULL);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_registry_stop_recording(storage_record);
         cgrad_storage_free_record(storage_record);
@@ -299,16 +315,16 @@ cgrad_status cgrad_storage_axpy(
     // record all storages created here
     cgrad_storage_registry_record* storage_record = cgrad_storage_registry_start_recording();
 
-    // create shallow copies of x and y
+    // create views of x and y
     cgrad_storage x_bcast;
-    int err = cgrad_storage_shallow_copy(x, &x_bcast);
+    int err = cgrad_storage_view(x, &x_bcast, NULL);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_registry_stop_recording(storage_record);
         cgrad_storage_free_record(storage_record);
         return err;
     }
     cgrad_storage y_bcast;
-    err = cgrad_storage_shallow_copy(y, &y_bcast);
+    err = cgrad_storage_view(y, &y_bcast, NULL);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_registry_stop_recording(storage_record);
         cgrad_storage_free_record(storage_record);
@@ -429,8 +445,8 @@ cgrad_status cgrad_storage_contiguous(const cgrad_storage* src, cgrad_storage* d
     if (cgrad_storage_layout_is_contiguous(
         src->backend->storage_get_layout(src->data)
     )) {
-        // already contiguous, do a shallow copy
-        return cgrad_storage_shallow_copy(src, dst);
+        // already contiguous, do a view
+        return cgrad_storage_view(src, dst, NULL);
     }
     
     // record all storages created here
@@ -475,11 +491,8 @@ cgrad_status cgrad_storage_reshape(const cgrad_storage* src, cgrad_storage* dst,
     cgrad_storage_registry_record* storage_record = cgrad_storage_registry_start_recording();
 
     if (cgrad_storage_layout_is_regular(src->backend->storage_get_layout(src->data))) {
-        // If src is regular, we can do a shallow copy
-        if (!src->backend->storage_shallow_copy)
-            return CGRAD_ERR_NOT_IMPLEMENTED;
-
-        int err = cgrad_storage_shallow_copy(src, dst);
+        // If src is regular, we can do a view
+        int err = cgrad_storage_view(src, dst, NULL);
         if (err != CGRAD_SUCCESS) {
             cgrad_storage_registry_stop_recording(storage_record);
             cgrad_storage_free_record(storage_record);
@@ -504,9 +517,9 @@ cgrad_status cgrad_storage_reshape(const cgrad_storage* src, cgrad_storage* dst,
 
 /**
  * @brief Transpose the tensor according to the given permutation, applied to the last ndim dims.
- * Creates a shallow copy of the source tensor and applies the transpose to the layout.
+ * Creates a view of the source tensor with the transposed layout.
  * @param src Source tensor.
- * @param dst Destination tensor (will be initialized with shallow copy + transpose).
+ * @param dst Destination tensor (will be initialized with view + transpose).
  * @param perm Permutation array (length ndim).
  * @param ndim Number of trailing dimensions to permute (≤ TENSOR_DIM).
  * @return CGRAD_SUCCESS on success, error code otherwise.
@@ -515,19 +528,22 @@ cgrad_status cgrad_storage_transpose(const cgrad_storage* src, cgrad_storage* ds
     if (!src || !dst) return CGRAD_ERR_NULL_POINTER;
     if (!src->backend || !src->data) return CGRAD_ERR_NULL_POINTER;
     
+    // Copy source layout
+    const cgrad_storage_layout* src_layout = src->backend->storage_get_layout(src->data);
+    cgrad_storage_layout transposed_layout;
+    cgrad_storage_layout_copy(&transposed_layout, src_layout);
+    
+    // Apply transpose to the layout
+    int err = cgrad_storage_layout_transpose(&transposed_layout, perm, ndim);
+    if (err != CGRAD_SUCCESS) {
+        return err;
+    }
+
     // track all storages created here
     cgrad_storage_registry_record* storage_record = cgrad_storage_registry_start_recording();
 
-    // Create shallow copy of source
-    int err = cgrad_storage_shallow_copy(src, dst);
-    if (err != CGRAD_SUCCESS) {
-        cgrad_storage_registry_stop_recording(storage_record);
-        cgrad_storage_free_record(storage_record);
-        return err;
-    }
-    
-    // Apply transpose to the layout
-    err = cgrad_storage_layout_transpose(dst->backend->storage_get_layout(dst->data), perm, ndim);
+    // Create view with the pre-transposed layout
+    err = cgrad_storage_view(src, dst, &transposed_layout);
     if (err != CGRAD_SUCCESS) {
         cgrad_storage_registry_stop_recording(storage_record);
         cgrad_storage_free_record(storage_record);

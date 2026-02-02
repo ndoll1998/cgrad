@@ -20,13 +20,6 @@ cgrad_status cgrad_init(void) {
 
     int ret;
 
-    // Step 1: Initialize backend registry
-    ret = cgrad_backend_init_registry();
-    if (ret != CGRAD_SUCCESS) {
-        fprintf(stderr, "cgrad_init: Failed to initialize backend registry\n");
-        return ret;
-    }
-
     // Step 2: Initialize global storage registry
     ret = cgrad_storage_registry_init();
     if (ret != CGRAD_SUCCESS) {

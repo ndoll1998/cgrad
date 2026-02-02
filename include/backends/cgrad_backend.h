@@ -53,9 +53,14 @@ typedef struct cgrad_backend {
 
     // --- Memory/Copy ---
     /**
-     * @brief Create a shallow copy of a storage handle (deep copy layout, shallow copy data).
+     * @brief Create a view of src storage with a target layout.
+     * The target layout must be non-NULL and contained within src's layout.
+     * @param src Source storage handle (read-only).
+     * @param dst Destination storage handle (will share src data with new layout).
+     * @param target_layout Layout for the view (must be non-NULL).
+     * @return CGRAD_SUCCESS on success, error code otherwise.
      */
-    int  (*storage_shallow_copy)(const void* src, void* dst);
+    int  (*storage_view)(const void* src, void* dst, const cgrad_storage_layout* target_layout);
 
     /**
      * @brief Make a contiguous copy of a storage.

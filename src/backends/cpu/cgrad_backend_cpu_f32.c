@@ -21,7 +21,7 @@ static cgrad_status cgrad_backend_cpu_f32_get(const void* t, const uint32_t* ind
 static cgrad_status cgrad_backend_cpu_f32_set(void* t, const uint32_t* indices, int ndim, float value);
 static cgrad_status cgrad_backend_cpu_f32_fill(void* t, float value);
 static cgrad_status cgrad_backend_cpu_f32_fill_rand(void* t);
-static cgrad_status cgrad_backend_cpu_f32_shallow_copy(const void* src, void* dst);
+static cgrad_status cgrad_backend_cpu_f32_view(const void* src, void* dst, const cgrad_storage_layout* target_layout);
 static cgrad_status cgrad_backend_cpu_f32_contiguous(const void* src, void* dst);
 static void cgrad_backend_cpu_f32_free(void* t);
 static cgrad_status cgrad_backend_cpu_f32_axpy(float alpha, void* x, void* y);
@@ -36,7 +36,7 @@ static cgrad_backend backend_f32_cpu = {
     .storage_init = cgrad_backend_cpu_f32_init,
     .storage_fill = cgrad_backend_cpu_f32_fill,
     .storage_fill_rand = cgrad_backend_cpu_f32_fill_rand,
-    .storage_shallow_copy = cgrad_backend_cpu_f32_shallow_copy,
+    .storage_view = cgrad_backend_cpu_f32_view,
     .storage_contiguous = cgrad_backend_cpu_f32_contiguous,
     .storage_free = cgrad_backend_cpu_f32_free,
     .storage_axpy = cgrad_backend_cpu_f32_axpy,
@@ -161,13 +161,24 @@ static cgrad_status cgrad_backend_cpu_f32_fill_rand(void* t) {
     return CGRAD_SUCCESS;
 }
 
-static cgrad_status cgrad_backend_cpu_f32_shallow_copy(const void* src, void* dst) {
+static cgrad_status cgrad_backend_cpu_f32_view(const void* src, void* dst, const cgrad_storage_layout* target_layout) {
     const cgrad_backend_cpu_f32* src_tensor = (const cgrad_backend_cpu_f32*)src;
     cgrad_backend_cpu_f32* dst_tensor = (cgrad_backend_cpu_f32*)dst;
     
-    if (!src_tensor || !dst_tensor) return CGRAD_ERR_NULL_POINTER;
+    // Validate inputs
+    if (!src_tensor || !dst_tensor || !target_layout) {
+        return CGRAD_ERR_NULL_POINTER;
+    }
     
-    cgrad_storage_layout_copy(&dst_tensor->layout, &src_tensor->layout);
+    // Check if target_layout is contained in src's layout
+    if (!cgrad_storage_layout_is_contained_in(&src_tensor->layout, target_layout)) {
+        return CGRAD_ERR_STORAGE_LAYOUT_INDEX_OUT_OF_BOUNDS;
+    }
+    
+    // Copy target_layout to dst
+    cgrad_storage_layout_copy(&dst_tensor->layout, target_layout);
+    
+    // Share data pointer
     dst_tensor->data = src_tensor->data;
     
     return CGRAD_SUCCESS;

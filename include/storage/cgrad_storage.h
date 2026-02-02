@@ -33,12 +33,15 @@ typedef struct cgrad_storage {
 cgrad_status cgrad_storage_init(cgrad_storage* t, const uint32_t* shape, int ndim, const char* backend_name);
 
 /**
- * @brief Perform a shallow copy of a tensor (copies data pointer, not underlying data).
- * @param src Source tensor.
- * @param dst Destination tensor.
+ * @brief Create a view of src storage with a target layout.
+ *        If target_layout is NULL, uses src's layout (backward compatible with shallow_copy).
+ *        The target layout must be contained within src's layout bounds.
+ * @param src Source storage.
+ * @param dst Destination storage.
+ * @param target_layout Layout for the view (can be NULL).
  * @return CGRAD_SUCCESS on success, error code otherwise.
  */
-cgrad_status cgrad_storage_shallow_copy(const cgrad_storage* src, cgrad_storage* dst);
+cgrad_status cgrad_storage_view(const cgrad_storage* src, cgrad_storage* dst, const cgrad_storage_layout* target_layout);
 
 /**
  * @brief Make a contiguous copy of a tensor into dst.
